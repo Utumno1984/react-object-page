@@ -23,3 +23,5 @@ Free/Pro, architettura, roadmap) è in [`docs/planning/design-system-spec.md`](d
 
 Vedi `CLAUDE.md` per la pipeline di sviluppo (pianificatore → sviluppatore → tester →
 critico-avversariale) e le regole di dominio.
+
+Smoke test post-merge docs-only (ticket #2), da revertare.
