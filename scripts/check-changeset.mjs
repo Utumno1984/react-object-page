@@ -12,6 +12,7 @@ export const GUIDANCE = [
   'This PR touches files under packages/* but adds no changeset (.changeset/*.md).',
   'Run `npx changeset` and commit the generated file,',
   'or `npx changeset --empty` for a change that must not trigger a release.',
+  'Only newly added changesets with a valid `---` frontmatter count (modifying an existing one does not).',
   'The rule is deliberately simple: any change under packages/* (including renames, deletions,',
   'and test-only changes) needs a changeset.',
 ].join('\n');
@@ -19,13 +20,22 @@ export const GUIDANCE = [
 /**
  * @param {Array<string | { path: string, status?: string }>} changedFiles files touched by the
  *   PR (merge-base..HEAD). Strings count as added/modified; a status of "D" marks a deletion.
+ * @param {(path: string) => string | null} [readContent] returns the content of an added changeset;
+ *   when given, the changeset must have a valid `---...---` frontmatter (empty is fine for --empty).
  * @returns {{ ok: boolean, message: string, packageFiles: string[], changesets: string[] }}
  */
-export function evaluateChangesetGate(changedFiles) {
-  const entries = changedFiles.map((f) => (typeof f === 'string' ? { path: f, status: 'M' } : { status: 'M', ...f }));
+export function hasValidFrontmatter(content) {
+  return typeof content === 'string' && /^---\r?\n(?:[\s\S]*?\r?\n)?---[ \t]*(?:\r?\n|$)/.test(content);
+}
+
+export function evaluateChangesetGate(changedFiles, readContent) {
+  const entries = changedFiles.map((f) => (typeof f === 'string' ? { path: f, status: 'A' } : { status: 'A', ...f }));
   const packageFiles = entries.filter((e) => PACKAGE_RE.test(e.path)).map((e) => e.path);
-  // A deleted changeset does not satisfy the gate.
-  const changesets = entries.filter((e) => CHANGESET_RE.test(e.path) && e.status !== 'D').map((e) => e.path);
+  // Only ADDED changesets count: a modified one already existed on the base branch.
+  const changesets = entries
+    .filter((e) => CHANGESET_RE.test(e.path) && e.status === 'A')
+    .filter((e) => !readContent || hasValidFrontmatter(readContent(e.path)))
+    .map((e) => e.path);
 
   if (packageFiles.length === 0) {
     return { ok: true, message: 'No file under packages/* touched: no changeset required.', packageFiles, changesets };
@@ -58,6 +68,14 @@ export function collectChangedFiles(baseRef, headRef = 'HEAD') {
   return parseNameStatus(git(['diff', '--name-status', '--no-renames', '-z', base, headRef]));
 }
 
+export function readAtRef(path, ref = 'HEAD') {
+  try {
+    return git(['show', `${ref}:${path}`]);
+  } catch {
+    return null;
+  }
+}
+
 function main() {
   const baseRef = process.env.BASE_REF || 'origin/main';
   let files;
@@ -68,7 +86,7 @@ function main() {
     console.error(String(error.message ?? error));
     process.exit(2);
   }
-  const result = evaluateChangesetGate(files);
+  const result = evaluateChangesetGate(files, (p) => readAtRef(p));
   if (result.ok) {
     console.log(result.message);
   } else {

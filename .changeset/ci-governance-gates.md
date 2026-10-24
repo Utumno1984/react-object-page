@@ -1,5 +1,4 @@
 ---
-'@react-object-page/core': patch
 ---
 
-Add the per-import bundle budget baseline (`bundle-budget.json`) for the core package.
+Add CI workflow, changeset gate and per-import bundle budget baseline (`bundle-budget.json`); no release needed.

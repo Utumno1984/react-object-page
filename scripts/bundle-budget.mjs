@@ -19,6 +19,25 @@ export function limitFor(size) {
   return Math.max(Math.ceil(size * HEADROOM_RATIO), size + HEADROOM_MIN_BYTES);
 }
 
+const isInt = (n) => Number.isInteger(n) && n >= 0;
+
+/** Validates the baseline file shape; returns a list of problems (empty when valid). */
+export function validateBudget(budget) {
+  if (!budget || typeof budget !== 'object' || Array.isArray(budget)) return ['baseline is not an object'];
+  const problems = [];
+  if (budget.version !== 1) problems.push(`unsupported baseline version ${JSON.stringify(budget.version)} (expected 1)`);
+  const exp = budget.exports;
+  if (!exp || typeof exp !== 'object' || Array.isArray(exp)) return [...problems, '`exports` is missing or not an object'];
+  for (const name of Object.keys(exp)) {
+    const e = exp[name];
+    if (!e || typeof e !== 'object') problems.push(`${name}: entry is not an object`);
+    else if (!isInt(e.baseline)) problems.push(`${name}: baseline must be a non-negative integer`);
+    else if (!isInt(e.limit)) problems.push(`${name}: limit must be a non-negative integer`);
+    else if (e.limit < e.baseline) problems.push(`${name}: limit (${e.limit}) is below baseline (${e.baseline})`);
+  }
+  return problems;
+}
+
 /**
  * Pure comparison.
  * @param {Record<string, number>} measured gzip bytes per public export
@@ -26,11 +45,15 @@ export function limitFor(size) {
  * @returns {{ ok: boolean, errors: string[], lines: string[] }}
  */
 export function compareBudget(measured, budget) {
+  const problems = validateBudget(budget);
+  if (problems.length > 0) {
+    return { ok: false, errors: problems.map((p) => `invalid baseline: ${p}`), lines: [] };
+  }
   const errors = [];
   const lines = [];
-  const entries = budget?.exports ?? {};
+  const entries = budget.exports;
   for (const name of Object.keys(measured).sort()) {
-    const entry = entries[name];
+    const entry = Object.hasOwn(entries, name) ? entries[name] : undefined;
     if (!entry) {
       errors.push(
         `${name}: public export without a budget. Add it explicitly with \`npm run bundle:update-baseline\` and commit packages/core/bundle-budget.json.`,
@@ -45,7 +68,7 @@ export function compareBudget(measured, budget) {
     else lines.push(`${report}${delta < 0 ? ' (lighter than baseline, baseline not rewritten)' : ''}`);
   }
   for (const name of Object.keys(entries).sort()) {
-    if (!(name in measured)) {
+    if (!Object.hasOwn(measured, name)) {
       errors.push(
         `${name}: orphan budget entry, the export no longer exists in dist. Remove it with \`npm run bundle:update-baseline\`.`,
       );
@@ -90,7 +113,7 @@ export async function measureAll(distEntry) {
   if (!existsSync(distEntry)) {
     throw new Error(`${distEntry} not found. Run \`npm run build\` first.`);
   }
-  const measured = {};
+  const measured = Object.create(null);
   for (const name of await listPublicExports(distEntry)) measured[name] = await measureExport(distEntry, name);
   return measured;
 }
