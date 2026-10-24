@@ -14,14 +14,20 @@ function assignRef<T>(ref: PossibleRef<T>, value: T | null): void | (() => void)
 /**
  * Merges several refs (callback refs, object refs, or `undefined`) into one callback ref.
  *
- * Every non-nullish ref receives the same node on mount and `null` on unmount. Works on
- * React 18 (the returned callback is invoked with `null` on unmount) and React 19 (the
- * returned cleanup runs on unmount; callback refs that return their own cleanup get it
- * called instead of being invoked with `null`).
+ * Every non-nullish ref receives the same node on mount and `null` on unmount.
+ *
+ * A cleanup function is returned only when at least one callback ref returned its own
+ * cleanup (React 19 semantics). Otherwise the callback returns `undefined`, so React 18
+ * does not warn ("A callback ref should not return a function") and both React 18 and 19
+ * simply call it again with `null` on unmount.
  */
-export function composeRefs<T>(...refs: PossibleRef<T>[]): (node: T | null) => () => void {
+export function composeRefs<T>(...refs: PossibleRef<T>[]): (node: T | null) => void | (() => void) {
   return (node: T | null) => {
     const cleanups = refs.map((ref) => assignRef(ref, node));
+    // On unmount/detach React calls us with `null`: nothing to clean up in that case.
+    if (node === null) return undefined;
+    const hasCleanup = cleanups.some((cleanup) => typeof cleanup === 'function');
+    if (!hasCleanup) return undefined;
     return () => {
       refs.forEach((ref, index) => {
         const cleanup = cleanups[index];

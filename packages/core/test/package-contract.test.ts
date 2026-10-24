@@ -54,6 +54,8 @@ describe('package.json contract (requires a prior `npm run build`)', () => {
     expect(pkg.sideEffects).toBe(false);
   });
 
+  // NOTE: today `src` only imports React *types*, so this passes trivially. It becomes a real
+  // guard as soon as a module imports React at runtime (tsup `external` must keep it out).
   it('does not bundle React sources into dist', () => {
     const bundled = readdirSync(distDir)
       .filter((f) => /\.(js|cjs)$/.test(f))

@@ -5,7 +5,8 @@
   "description": "Monorepo root for react-object-page (open-core React design system).",
   "license": "MIT",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "tests/*"
   ],
   "engines": {
     "node": ">=24.0.0"

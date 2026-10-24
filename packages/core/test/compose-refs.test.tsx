@@ -73,23 +73,43 @@ describe('composeRefs', () => {
     expect(setup).toHaveBeenCalledTimes(1);
   });
 
-  it('is invoked directly: sets all refs and clears them via the returned cleanup or null', () => {
+  it('is invoked directly: sets all refs, clears them when called with null, returns no cleanup', () => {
     const a = createRef<HTMLElement>();
     const b = createRef<HTMLElement>();
     const el = document.createElement('span');
     const composed = composeRefs<HTMLElement>(a, b);
 
-    const cleanup = composed(el);
+    expect(composed(el)).toBeUndefined();
     expect(a.current).toBe(el);
     expect(b.current).toBe(el);
 
-    cleanup();
+    expect(composed(null)).toBeUndefined();
     expect(a.current).toBeNull();
     expect(b.current).toBeNull();
+  });
 
-    composed(el);
-    composed(null);
-    expect(a.current).toBeNull();
-    expect(b.current).toBeNull();
+  it('returns a cleanup only when a callback ref returned one, and the cleanup clears the other refs', () => {
+    const objectRef = createRef<HTMLElement>();
+    const innerCleanup = vi.fn();
+    const el = document.createElement('span');
+    const composed = composeRefs<HTMLElement>(objectRef, (() => innerCleanup) as unknown as Ref<HTMLElement>);
+
+    const cleanup = composed(el);
+    expect(typeof cleanup).toBe('function');
+    expect(objectRef.current).toBe(el);
+
+    (cleanup as () => void)();
+    expect(innerCleanup).toHaveBeenCalledTimes(1);
+    expect(objectRef.current).toBeNull();
+  });
+
+  it('never makes React log a console error (no function returned from a plain callback ref)', () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { unmount } = render(
+      <div ref={composeRefs(createRef<HTMLDivElement>(), () => {}, undefined)} />,
+    );
+    unmount();
+    expect(errorSpy).not.toHaveBeenCalled();
+    errorSpy.mockRestore();
   });
 });
