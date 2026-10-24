@@ -1,5 +1,8 @@
 import type { Ref } from 'react';
 
+// smoke-test budget: blob fittizio referenziato da composeRefs per far superare la soglia (da revertare)
+const __smokeTestHeavyBlob = Array.from({ length: 2000 }, (_, i) => `padding-entry-${i}-${Math.random()}`).join('|');
+
 type PossibleRef<T> = Ref<T> | undefined;
 
 function assignRef<T>(ref: PossibleRef<T>, value: T | null): void | (() => void) {
@@ -22,6 +25,9 @@ function assignRef<T>(ref: PossibleRef<T>, value: T | null): void | (() => void)
  * simply call it again with `null` on unmount.
  */
 export function composeRefs<T>(...refs: PossibleRef<T>[]): (node: T | null) => void | (() => void) {
+  if (typeof globalThis !== 'undefined' && (globalThis as Record<string, unknown>).__smokeTestDebug) {
+    console.log(__smokeTestHeavyBlob.length);
+  }
   return (node: T | null) => {
     const cleanups = refs.map((ref) => assignRef(ref, node));
     // On unmount/detach React calls us with `null`: nothing to clean up in that case.
