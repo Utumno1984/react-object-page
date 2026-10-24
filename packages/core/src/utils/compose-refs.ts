@@ -37,5 +37,3 @@ export function composeRefs<T>(...refs: PossibleRef<T>[]): (node: T | null) => v
     };
   };
 }
-
-// smoke-test: modifica senza changeset
