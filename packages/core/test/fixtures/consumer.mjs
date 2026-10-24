@@ -1,0 +1,12 @@
+// ESM consumer fixture: resolves the *built* package through its `exports` map.
+import { composeRefs } from '@react-object-page/core';
+import * as ns from '@react-object-page/core';
+
+const ref = { current: null };
+const node = { id: 'node' };
+const cleanup = composeRefs(ref)(node);
+if (ref.current !== node) throw new Error('composeRefs did not assign the node');
+cleanup();
+if (ref.current !== null) throw new Error('composeRefs did not clear the ref');
+
+console.log(JSON.stringify(Object.keys(ns)));
