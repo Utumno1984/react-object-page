@@ -4,7 +4,7 @@
   "exports": {
     "composeRefs": {
       "baseline": 201,
-      "limit": 222
+      "limit": 10
     }
   }
 }
