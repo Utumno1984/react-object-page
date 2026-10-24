@@ -37,3 +37,5 @@ export function composeRefs<T>(...refs: PossibleRef<T>[]): (node: T | null) => v
     };
   };
 }
+
+// smoke-test gate changeset: nessun changeset presente
