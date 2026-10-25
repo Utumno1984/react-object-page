@@ -21,7 +21,7 @@
     "check": "npm run lint && npm run typecheck && npm run build && npm run test:unit",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "test:e2e": "playwright test --project=chromium --project=chromium-touch",
+    "test:e2e": "E2E_EXCLUDE_VISUAL=1 playwright test",
     "test:visual": "node scripts/visual-docker.mjs",
     "test:visual:update": "node scripts/visual-docker.mjs --update",
     "test:visual:ci": "playwright test --project=\"visual-*\"",

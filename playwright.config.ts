@@ -34,6 +34,8 @@ export default defineConfig({
   // written only by `npm run test:visual:update`, which passes --update-snapshots explicitly.
   updateSnapshots: 'none',
   expect: { toHaveScreenshot: { maxDiffPixels: 10, threshold: 0.1 } },
+  // `E2E_EXCLUDE_VISUAL=1` (set by `npm run test:e2e`) drops every `visual-*` project by name
+  // pattern, so a project added later is part of test:e2e without touching the script.
   projects: [
     {
       name: 'chromium',
@@ -59,6 +61,9 @@ export default defineConfig({
     ).map(([name, width, height]) => ({
       name: `visual-${name}`,
       testDir: './e2e/visual',
+      // No retries: a screenshot that fails once and passes on retry would be reported "flaky"
+      // with a green job, so "two consecutive runs both pass" would never be verified in CI.
+      retries: 0,
       snapshotPathTemplate: '{testDir}/__screenshots__/{projectName}/{arg}{ext}',
       use: {
         ...devices['Desktop Chrome'],
@@ -66,5 +71,5 @@ export default defineConfig({
         deviceScaleFactor: 1,
       },
     })),
-  ],
+  ].filter((p) => !(process.env.E2E_EXCLUDE_VISUAL && p.name.startsWith('visual-'))),
 });

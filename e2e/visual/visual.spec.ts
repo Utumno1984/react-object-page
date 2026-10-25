@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
 import { gotoStory } from '../helpers/story';
 
@@ -5,9 +7,10 @@ import { gotoStory } from '../helpers/story';
 // nothing is listed by hand and an untagged story is never photographed.
 //
 // Per-story options (as additional tags):
-//   visual-full-page  capture the full scrollable page instead of the viewport.
-// By default the screenshot is of the PAGE VIEWPORT (not just #storybook-root), so portals
-// (Dialog, Popover, Select...) rendered on document.body are part of the picture.
+//   visual-viewport-only  capture only the viewport instead of the full scrollable page.
+// By default the screenshot is of the FULL PAGE (so tall components, e.g. an Object Page, are
+// photographed below the fold too), not just #storybook-root, so portals (Dialog, Popover,
+// Select...) rendered on document.body are part of the picture.
 
 interface IndexEntry {
   id: string;
@@ -15,23 +18,22 @@ interface IndexEntry {
   tags?: string[];
 }
 
-async function loadIndex(baseURL: string): Promise<Record<string, IndexEntry>> {
-  let lastError: unknown;
-  for (let attempt = 0; attempt < 30; attempt++) {
-    try {
-      const res = await fetch(`${baseURL}/index.json`);
-      if (res.ok) return ((await res.json()) as { entries?: Record<string, IndexEntry> }).entries ?? {};
-      lastError = new Error(`HTTP ${res.status}`);
-    } catch (e) {
-      lastError = e;
-    }
-    await new Promise((r) => setTimeout(r, 1_000));
+// The index is read from the built Storybook on disk (no server, no port, no network wait at
+// load time): `playwright test --list`, UI mode and IDE integrations stay instantaneous. The
+// webServer in playwright.config.ts builds `storybook-static/` before the tests are loaded.
+const INDEX_PATH = fileURLToPath(new URL('../../storybook-static/index.json', import.meta.url));
+
+function loadIndex(): Record<string, IndexEntry> {
+  try {
+    return (JSON.parse(readFileSync(INDEX_PATH, 'utf8')) as { entries?: Record<string, IndexEntry> }).entries ?? {};
+  } catch (e) {
+    throw new Error(
+      `visual: cannot read ${INDEX_PATH} (${String(e)}). Run "npm run build-storybook" first.`,
+    );
   }
-  throw new Error(`visual: cannot read ${baseURL}/index.json: ${String(lastError)}`);
 }
 
-const entries = await loadIndex('http://localhost:6007');
-const visualStories = Object.values(entries).filter(
+const visualStories = Object.values(loadIndex()).filter(
   (e) => e.type !== 'docs' && e.tags?.includes('visual'),
 );
 
@@ -40,7 +42,15 @@ if (visualStories.length === 0) {
 }
 
 for (const story of visualStories) {
-  test(`visual: ${story.id}`, async ({ page }) => {
+  test(`visual: ${story.id}`, async ({ page }, testInfo) => {
+    // Baselines are only valid if produced inside the pinned Docker image (scripts/visual-docker.mjs
+    // sets VISUAL_DOCKER=1). Refuse to write any from the host browser, however it was invoked.
+    if (testInfo.config.updateSnapshots !== 'none' && !process.env.VISUAL_DOCKER) {
+      throw new Error(
+        'visual: refusing to update baselines outside the pinned Docker image (VISUAL_DOCKER is not set). ' +
+          'Run "npm run test:visual:update" instead; nothing was written.',
+      );
+    }
     // gotoStory throws on render errors, so we never photograph Storybook's error page.
     await gotoStory(page, story.id);
     await page.addStyleTag({
@@ -48,7 +58,7 @@ for (const story of visualStories) {
     });
     await page.evaluate(() => document.fonts.ready);
     await expect(page).toHaveScreenshot(`${story.id}.png`, {
-      fullPage: story.tags?.includes('visual-full-page') ?? false,
+      fullPage: !story.tags?.includes('visual-viewport-only'),
       animations: 'disabled',
       caret: 'hide',
       scale: 'css',

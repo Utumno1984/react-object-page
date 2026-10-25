@@ -105,3 +105,178 @@ export const FocusRingMissing: Story = {
     </div>
   ),
 };
+
+/** Page scroll + inner scroller: a tall page AND a panel with its own overflow:auto (2 scrollers). */
+export const PageAndPanelScroll: Story = {
+  render: () => (
+    <div data-testid="root" style={{ minHeight: 2000 }}>
+      <div style={{ ...box, overflowY: 'auto' }}>
+        <div style={tall}>panel</div>
+      </div>
+    </div>
+  ),
+};
+
+/** Only the page scrolls (tall content, no inner scroller): healthy. */
+export const PageScrollOnlyHealthy: Story = {
+  render: () => (
+    <div data-testid="root" style={{ minHeight: 2000 }}>
+      tall page
+    </div>
+  ),
+};
+
+/** Intentional horizontal scroll wrapper (scrollable table): must NOT count as overflow. */
+export const ScrollableTableWrapperHealthy: Story = {
+  render: () => (
+    <div data-testid="root" style={{ ...box, width: 300, overflow: 'visible' }}>
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: 800 }}>
+          <tbody>
+            <tr>
+              <td>wide</td>
+              <td>table</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  ),
+};
+
+/** Ellipsis-truncated cell whose inner span is wider than the cell: must NOT count. */
+export const TruncatedCellHealthy: Story = {
+  render: () => (
+    <div data-testid="root" style={{ ...box, overflow: 'visible' }}>
+      <div style={{ maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <span style={{ display: 'inline-block' }}>a very long value that does not fit in the cell</span>
+      </div>
+    </div>
+  ),
+};
+
+/** Visually hidden text parked off-screen with left:-9999px: must NOT count. */
+export const OffscreenTextHealthy: Story = {
+  render: () => (
+    <div data-testid="root" style={{ ...box, position: 'relative', overflow: 'visible' }}>
+      <span style={{ position: 'absolute', left: -9999 }}>skip to content</span>
+      visible text
+    </div>
+  ),
+};
+
+/** Wide content in a wrapper that does NOT clip (overflow: visible): a real overflow. */
+export const UnclippedWideWrapper: Story = {
+  render: () => (
+    <div data-testid="root" style={{ ...box, overflow: 'visible' }}>
+      <div style={{ overflowX: 'visible' }}>
+        <div style={{ width: 600 }}>too wide, nobody clips it</div>
+      </div>
+    </div>
+  ),
+};
+
+const transitionCss = `
+  .geo-trans { outline: none; transition: box-shadow 5s linear 2s; }
+  .geo-trans:focus-visible { box-shadow: 0 0 0 4px #1a56db; }
+`;
+
+/** Real focus ring (box-shadow) that fades in via a long CSS transition: must pass. */
+export const FocusRingWithTransition: Story = {
+  render: () => (
+    <>
+      <style>{transitionCss}</style>
+      <div data-testid="root" style={{ overflow: 'hidden', padding: 12, width: 160 }}>
+        <button type="button" className="geo-trans" data-testid="target">
+          Focus me
+        </button>
+      </div>
+    </>
+  ),
+};
+
+/**
+ * Real ring that fades in via a transition AND is clipped (no padding, overflow:hidden). Read
+ * mid-transition its spread is ~0, so a helper that does not freeze transitions misses the clip.
+ */
+export const FocusRingClippedWithTransition: Story = {
+  render: () => (
+    <>
+      <style>{transitionCss}</style>
+      <div data-testid="root" style={{ overflow: 'hidden', padding: 0, width: 160 }}>
+        <button type="button" className="geo-trans" data-testid="target">
+          Focus me
+        </button>
+      </div>
+    </>
+  ),
+};
+
+/** A faint box-shadow that is ALWAYS there (no focus style at all): not an indicator. */
+export const FocusRingPermanentShadow: Story = {
+  render: () => (
+    <div data-testid="root" style={{ overflow: 'hidden', padding: 12, width: 160 }}>
+      <button
+        type="button"
+        data-testid="target"
+        style={{ outline: 'none', boxShadow: '0 0 2px 1px rgba(0,0,0,0.2)' }}
+      >
+        Focus me
+      </button>
+    </div>
+  ),
+};
+
+const transparentOutlineCss = `
+  .geo-tw:focus-visible { outline: 2px solid transparent; outline-offset: 2px; }
+`;
+
+/** Tailwind v3 `outline-none`: a present but fully transparent outline. Invisible. */
+export const FocusRingTransparentOutline: Story = {
+  render: () => (
+    <>
+      <style>{transparentOutlineCss}</style>
+      <div data-testid="root" style={{ overflow: 'hidden', padding: 12, width: 160 }}>
+        <button type="button" className="geo-tw" data-testid="target">
+          Focus me
+        </button>
+      </div>
+    </>
+  ),
+};
+
+const insetClippedCss = `
+  .geo-in:focus-visible { outline: 4px solid #1a56db; outline-offset: -1px; }
+`;
+
+/** Real inner ring (negative offset) that still pokes 3px out and is cut by overflow:hidden. */
+export const FocusRingInsetOffsetClipped: Story = {
+  render: () => (
+    <>
+      <style>{insetClippedCss}</style>
+      <div data-testid="root" style={{ overflow: 'hidden', padding: 0, width: 160 }}>
+        <button type="button" className="geo-in" data-testid="target">
+          Focus me
+        </button>
+      </div>
+    </>
+  ),
+};
+
+const fullyInsideCss = `
+  .geo-ins:focus-visible { outline: 2px solid #1a56db; outline-offset: -2px; }
+`;
+
+/** Real inner ring fully inside the border box (offset <= -width): visible and not clippable. */
+export const FocusRingFullyInsideHealthy: Story = {
+  render: () => (
+    <>
+      <style>{fullyInsideCss}</style>
+      <div data-testid="root" style={{ overflow: 'hidden', padding: 0, width: 160 }}>
+        <button type="button" className="geo-ins" data-testid="target">
+          Focus me
+        </button>
+      </div>
+    </>
+  ),
+};

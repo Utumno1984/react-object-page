@@ -6,8 +6,9 @@
 //   node scripts/visual-docker.mjs          compare against the committed baselines
 //   node scripts/visual-docker.mjs --update (re)generate baselines (explicit, never implicit)
 //
-// The image tag is derived from the installed @playwright/test version; package.json pins that
-// dependency exactly and ci.yml names the same image (a unit test keeps all three aligned).
+// The image is derived from the installed @playwright/test version plus a pinned digest;
+// package.json pins that dependency exactly and ci.yml names the same image (a unit test keeps
+// all three aligned).
 import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -15,11 +16,24 @@ import path from 'node:path';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
+// The image is pinned by DIGEST, not only by tag: a tag on MCR is mutable, and a silent rebuild
+// of `v<version>-noble` could change rendering with no change in this repo. The tag is kept
+// in the reference for readability (Docker verifies the digest and ignores the tag).
+//
+// To update (e.g. bumping @playwright/test): 1) set the new exact version in package.json and
+// `npm install`; 2) `docker pull mcr.microsoft.com/playwright:v<new>-noble` and read the digest
+// with `docker inspect --format '{{index .RepoDigests 0}}' <image>`; 3) put it in
+// PLAYWRIGHT_IMAGE_DIGEST below AND in the `image:` of the `visual` job in ci.yml (a unit test
+// checks they agree); 4) `npm run test:visual:update` and commit the regenerated baselines
+// together with all of the above.
+export const PLAYWRIGHT_IMAGE_DIGEST =
+  'sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea';
+
 export function playwrightImage(version) {
   if (!/^\d+\.\d+\.\d+$/.test(version)) {
     throw new Error(`Unexpected @playwright/test version "${version}" (expected an exact x.y.z)`);
   }
-  return `mcr.microsoft.com/playwright:v${version}-noble`;
+  return `mcr.microsoft.com/playwright:v${version}-noble@${PLAYWRIGHT_IMAGE_DIGEST}`;
 }
 
 export function installedPlaywrightVersion() {
@@ -51,6 +65,9 @@ export function buildDockerArgs({ image, cwd, update, uid, gid }) {
     // Storybook is built on the host beforehand (platform independent); the container only serves it.
     '-e',
     'VISUAL_PREBUILT=1',
+    // Marker checked by visual.spec.ts: baselines may only be (re)written inside this container.
+    '-e',
+    'VISUAL_DOCKER=1',
     '-v',
     `${cwd}:/work`,
     '-w',

@@ -53,3 +53,63 @@ test.describe('expectFocusRingVisible', () => {
     await expect(expectFocusRingVisible(page.getByTestId('target'))).rejects.toThrow(/no focus indicator/);
   });
 });
+
+test.describe('expectSingleScroller (page scroll)', () => {
+  test('fails when the page scrolls AND an inner panel scrolls', async ({ page }) => {
+    await gotoStory(page, 'internal-geometryfixtures--page-and-panel-scroll');
+    await expect(expectSingleScroller(root(page))).rejects.toThrow(/2 elements scroll on the y axis \(.*page/);
+  });
+
+  test('passes when only the page scrolls', async ({ page }) => {
+    await gotoStory(page, 'internal-geometryfixtures--page-scroll-only-healthy');
+    await expectSingleScroller(root(page));
+  });
+});
+
+test.describe('expectNoHorizontalOverflow (legitimate patterns)', () => {
+  for (const name of ['scrollable-table-wrapper-healthy', 'truncated-cell-healthy', 'offscreen-text-healthy']) {
+    test(`passes: ${name}`, async ({ page }) => {
+      await gotoStory(page, `internal-geometryfixtures--${name}`);
+      await expectNoHorizontalOverflow(root(page));
+    });
+  }
+
+  test('still fails on wide content that no ancestor clips', async ({ page }) => {
+    await gotoStory(page, 'internal-geometryfixtures--unclipped-wide-wrapper');
+    await expect(expectNoHorizontalOverflow(root(page))).rejects.toThrow(/spans/);
+  });
+});
+
+test.describe('expectFocusRingVisible (focus vs. no focus)', () => {
+  const target = (page: import('@playwright/test').Page) => page.getByTestId('target');
+
+  test('passes for a real ring that fades in with a CSS transition', async ({ page }) => {
+    await gotoStory(page, 'internal-geometryfixtures--focus-ring-with-transition');
+    await expectFocusRingVisible(target(page));
+  });
+
+  test('fails (clipped) for a ring mid-transition: transitions are frozen before measuring', async ({ page }) => {
+    await gotoStory(page, 'internal-geometryfixtures--focus-ring-clipped-with-transition');
+    await expect(expectFocusRingVisible(target(page))).rejects.toThrow(/clipped by ancestor/);
+  });
+
+  test('passes for a real inner ring fully inside the border box', async ({ page }) => {
+    await gotoStory(page, 'internal-geometryfixtures--focus-ring-fully-inside-healthy');
+    await expectFocusRingVisible(target(page));
+  });
+
+  test('fails for a permanent faint shadow with no focus style', async ({ page }) => {
+    await gotoStory(page, 'internal-geometryfixtures--focus-ring-permanent-shadow');
+    await expect(expectFocusRingVisible(target(page))).rejects.toThrow(/same with and without focus/);
+  });
+
+  test('fails for a transparent outline (outline-none in Tailwind v3)', async ({ page }) => {
+    await gotoStory(page, 'internal-geometryfixtures--focus-ring-transparent-outline');
+    await expect(expectFocusRingVisible(target(page))).rejects.toThrow(/no focus indicator/);
+  });
+
+  test('fails for a real inner ring with negative offset cut by overflow:hidden', async ({ page }) => {
+    await gotoStory(page, 'internal-geometryfixtures--focus-ring-inset-offset-clipped');
+    await expect(expectFocusRingVisible(target(page))).rejects.toThrow(/clipped by ancestor/);
+  });
+});
