@@ -57,7 +57,7 @@ describe('design tokens (src/styles/tokens.css, built into dist/theme.css and di
   it('every custom property lives in ONE namespace and none redefines a default Tailwind token', () => {
     const namespaces = new Set<string>();
     for (const name of customProperties(themeCss).keys()) {
-      const match = /^--(color|text|font|radius|z-index)-([a-z]+)-/.exec(name);
+      const match = /^--(color|text|font|radius|z-index|icon)-([a-z]+)-/.exec(name);
       expect(match, `${name} is outside a <group>-<namespace>- prefix`).not.toBeNull();
       namespaces.add(match?.[2] as string);
     }
@@ -81,7 +81,9 @@ describe('styles.css (compiled)', () => {
 
   it('declares no custom property outside the rop namespace (no global --spacing, ...)', () => {
     const outside = [...customProperties(stylesCss).keys()].filter(
-      (name) => !/^--(color|text|font|radius|z-index)-rop-/.test(name),
+      // `--tw-*` are Tailwind's own inert internals (same policy as findGlobalLeaks): any font-weight
+      // utility declares `--tw-font-weight`. Any other non-rop property is still a failure.
+      (name) => !/^--(color|text|font|radius|z-index|icon)-rop-/.test(name) && !name.startsWith('--tw-'),
     );
     expect(outside).toEqual([]);
     // Tailwind's default spacing is inlined into the utilities, not referenced as a variable.
@@ -126,7 +128,8 @@ describe('styles.css (compiled)', () => {
     expect(stylesCss).not.toContain('skew-x-12');
     // A token that exists as a variable but has no utility in use.
     expect(stylesCss).not.toContain('.z-rop-tooltip');
-    expect(stylesCss).not.toContain('.text-rop-title-lg');
+    // (was `.text-rop-title-lg` until Title started using it, #6)
+    expect(stylesCss).not.toContain('.rounded-rop-lg');
   });
 
   it('is deterministic: two builds produce the same bytes as dist/styles.css', () => {
