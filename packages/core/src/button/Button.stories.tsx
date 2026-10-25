@@ -16,11 +16,11 @@ const meta = {
     variant: { control: 'radio', options: VARIANTS },
     size: { control: 'select', options: [...TEXT_SIZES, ...ICON_SIZES] },
     disabled: { control: 'boolean' },
-    asChild: { control: 'boolean' },
+    // Needs a single element child: not a Control (a text child would throw). See the AsLink story.
+    asChild: { control: false },
     leadingIcon: { control: false },
     trailingIcon: { control: false },
     children: { control: 'text' },
-    onClick: { action: 'clicked' },
   },
   args: { variant: 'secondary', size: 'md', disabled: false, children: 'Salva', onClick: fn() },
 } satisfies Meta<typeof Button>;
@@ -162,7 +162,10 @@ export const Overview: Story = {
       <section aria-label="Consumer override" style={row}>
         {/* styles.css only contains the utilities the library uses. In a real app the host's own
             Tailwind build generates `h-12`; here that is simulated, in the same layer. */}
-        <style>{'@layer rop.utilities { .h-12 { height: 3rem; } }'}</style>
+        <style>{'@layer rop.utilities { .h-12 { height: 3rem; } .h-8 { height: 2rem; } }'}</style>
+        <Button className="h-8" data-testid="override-lower">
+          Altezza h-8
+        </Button>
         <Button className="h-12" data-testid="override-height">
           Altezza h-12
         </Button>

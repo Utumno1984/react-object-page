@@ -32,6 +32,7 @@ test.describe('Primitives/Button', () => {
     await gotoStory(page, OVERVIEW);
     const height = (id: string) => page.getByTestId(id).evaluate((el) => getComputedStyle(el).height);
     expect(await height('override-height')).toBe('48px');
+    expect(await height('override-lower')).toBe('32px'); // lower than the md default: still wins
     expect(await height('no-override')).toBe('36px');
   });
 

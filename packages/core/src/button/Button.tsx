@@ -32,20 +32,22 @@ const BASE =
   'disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:opacity-50';
 
 const VARIANT_CLASS: Record<ButtonVariant, string> = {
-  primary: 'bg-rop-primary text-rop-primary-contrast hover:bg-rop-primary/90',
-  secondary: 'border-rop-border bg-rop-surface text-rop-text hover:bg-rop-surface-subtle',
-  ghost: 'bg-transparent text-rop-primary hover:bg-rop-surface-subtle',
-  danger: 'bg-rop-error text-rop-primary-contrast hover:bg-rop-error/90',
+  // Hover only on an enabled control; the primary/danger hover darkens (keeps the white text AA).
+  primary: 'bg-rop-primary text-rop-primary-contrast not-disabled:not-aria-disabled:hover:bg-rop-primary-hover',
+  secondary: 'border-rop-border bg-rop-surface text-rop-text not-disabled:not-aria-disabled:hover:bg-rop-surface-subtle',
+  ghost: 'bg-transparent text-rop-primary not-disabled:not-aria-disabled:hover:bg-rop-surface-subtle',
+  danger: 'bg-rop-error text-rop-primary-contrast not-disabled:not-aria-disabled:hover:bg-rop-error-hover',
 };
 
-// Text sizes grow in height when the label wraps (`min-h`); the icon-only ones are fixed squares.
+// Text sizes get their height from line height + vertical padding (+ 2px border), so they grow when
+// the label wraps and a consumer `h-*` is a plain override; the icon-only ones are fixed squares.
 // `inline` takes font and line height from the surrounding text and is exactly one line tall
 // (`1lh`), so a button inside a paragraph never widens the line.
 const SIZE_CLASS: Record<ButtonSize, string> = {
-  sm: 'min-h-8 px-2.5 py-1 text-rop-label',
-  md: 'min-h-9 px-3.5 py-1.5 text-rop-label',
-  lg: 'min-h-11 px-4 py-2 text-rop-label',
-  inline: 'h-[1lh] px-1 align-baseline text-[length:inherit] leading-[inherit]',
+  sm: 'px-2.5 py-[5px] text-rop-label', // 32px
+  md: 'px-3.5 py-[7px] text-rop-label', // 36px
+  lg: 'px-4 py-[11px] text-rop-label', // 44px
+  inline: 'h-[1lh] whitespace-nowrap px-1 align-baseline text-[length:inherit] leading-[inherit]',
   'icon-xs': 'size-6 p-0',
   'icon-sm': 'size-8 p-0',
   'icon-md': 'size-9 p-0',
@@ -68,8 +70,10 @@ interface ButtonBaseProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 
   variant?: ButtonVariant;
   /**
    * Renders the single child element (e.g. an `<a href>`) instead of a `<button>`, merging classes,
-   * props, `onClick` and `ref` into it. `type` is not defaulted in this mode; `disabled` becomes
+   * props, `onClick` and `ref` into it (the child's own `className` wins over the Button's). `type`
+   * is not defaulted in this mode (an explicit one is passed on); `disabled` becomes
    * `aria-disabled="true"` + `tabIndex=-1` + a blocked click, since only `<button>` has a native one.
+   * The `href` of a disabled link stays, so middle-click / "open in new tab" still navigate.
    */
   asChild?: boolean;
   /** An `<svg>` shown before the label, sized by `size`. Decorative: never part of the name. */
@@ -91,7 +95,14 @@ type AccessibleName =
 export type ButtonProps = ButtonBaseProps & ({ size?: ButtonTextSize } | ({ size: ButtonIconSize } & AccessibleName));
 
 // Bundlers replace `process.env.NODE_ENV` in consumer builds; without `process` assume development.
-const isDev = (): boolean => typeof process === 'undefined' || process.env.NODE_ENV !== 'production';
+// (`typeof process` is NOT replaced by bundlers, so it would keep the dev code in production.)
+const isDev = (): boolean => {
+  try {
+    return process.env.NODE_ENV !== 'production';
+  } catch {
+    return true;
+  }
+};
 const isBlank = (value: unknown): boolean => typeof value !== 'string' || value.trim() === '';
 
 const blockClick = (event: MouseEvent) => event.preventDefault();
@@ -145,17 +156,17 @@ export const Button = /* @__PURE__ */ forwardRef<HTMLElement, ButtonProps>(funct
         '[react-object-page] <Button asChild>: the child is a function component, which cannot receive the ref on React 18. Wrap it in forwardRef.',
       );
     }
-    // A disabled `<a>` has no native `disabled`. Slot would still call the child's own onClick, so
-    // that one is replaced by a blocker, and the Button's `onClick` is not passed on.
-    const child = disabled ? cloneElement(children as ReactElement<{ onClick?: unknown }>, { onClick: blockClick }) : children;
+    // Applied to the child itself, not through Slot: Slot only concatenates `className` (no merge
+    // of conflicting utilities) and lets the child's props override ours. Here the child's own
+    // classes go last through `cn`, and a disabled `<a>` (no native `disabled`) gets
+    // `aria-disabled`, `tabIndex=-1` and a blocked click whatever the child declared. The `href`
+    // is kept (link semantics), so middle-click / "open in new tab" are not prevented.
+    const child = cloneElement(children as ReactElement<{ className?: string }>, {
+      className: cn(classes, (children.props as { className?: string }).className),
+      ...(disabled ? { onClick: blockClick, 'aria-disabled': true, tabIndex: -1 } : {}),
+    } as object);
     return (
-      <Slot
-        {...rest}
-        ref={ref}
-        className={classes}
-        onClick={disabled ? undefined : onClick}
-        {...(disabled ? { 'aria-disabled': true, tabIndex: -1 } : {})}
-      >
+      <Slot {...rest} {...(type ? ({ type } as object) : {})} ref={ref} onClick={disabled ? undefined : onClick}>
         {leading}
         <Slottable>{child}</Slottable>
         {trailing}

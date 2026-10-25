@@ -17,11 +17,13 @@
   --color-rop-surface-subtle: #f5f6f7;
   --color-rop-border: #c4cdd6;
   --color-rop-primary: #0a6ed1;
+  --color-rop-primary-hover: #0858a8;
   --color-rop-primary-contrast: #ffffff;
   --color-rop-info: #0070f2;
   --color-rop-success: #107e3e;
   --color-rop-warning: #b25f00;
   --color-rop-error: #d20a0a;
+  --color-rop-error-hover: #a80808;
 
   /* Typographic scale (size + line height) */
   --text-rop-caption: 0.75rem;

@@ -89,6 +89,15 @@ describe('Button', () => {
       expect(error).toHaveBeenCalledWith(expect.stringContaining('accessible name'));
     });
 
+    it('stays silent in production (NODE_ENV replaced by the bundler)', () => {
+      vi.stubEnv('NODE_ENV', 'production');
+      const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+      // @ts-expect-error icon-only sizes require aria-label or aria-labelledby
+      render(<Button size="icon-sm">{svg}</Button>);
+      expect(error).not.toHaveBeenCalled();
+      vi.unstubAllEnvs();
+    });
+
     it('treats a blank aria-label as missing', () => {
       const error = vi.spyOn(console, 'error').mockImplementation(() => {});
       render(
@@ -196,6 +205,15 @@ describe('Button', () => {
       expect(button).not.toHaveClass('px-1');
     });
 
+    it('text sizes carry no min-height: a smaller consumer h-* is a plain override', () => {
+      render(
+        <Button size="md" className="h-8">
+          x
+        </Button>,
+      );
+      expect(screen.getByRole('button').className).not.toMatch(/(^|\s)min-h-/);
+    });
+
     it('forwards the ref to the DOM node', () => {
       const ref = createRef<HTMLButtonElement>();
       render(<Button ref={ref}>x</Button>);
@@ -256,6 +274,34 @@ describe('Button', () => {
       await userEvent.click(link);
       expect(own).toHaveBeenCalledOnce();
       expect(outer).toHaveBeenCalledOnce();
+    });
+
+    it("the child's conflicting classes are merged, not concatenated (child wins)", () => {
+      render(
+        <Button asChild className="mine">
+          <a href="/x" className="px-8 bg-red-600">
+            Vai
+          </a>
+        </Button>,
+      );
+      const link = screen.getByRole('link');
+      expect(link).toHaveClass('px-8', 'bg-red-600', 'mine');
+      expect(link).not.toHaveClass('px-3.5');
+      expect(link).not.toHaveClass('bg-rop-surface');
+    });
+
+    it('disabled wins over tabIndex/aria-disabled declared by the child; explicit type is passed on', () => {
+      render(
+        <Button asChild disabled type="submit">
+          <a href="/x" tabIndex={0} aria-disabled={false}>
+            Vai
+          </a>
+        </Button>,
+      );
+      const link = screen.getByRole('link');
+      expect(link).toHaveAttribute('aria-disabled', 'true');
+      expect(link).toHaveAttribute('tabindex', '-1');
+      expect(link).toHaveAttribute('type', 'submit');
     });
 
     it('puts the icons inside the child', () => {
