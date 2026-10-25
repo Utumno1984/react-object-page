@@ -16,10 +16,10 @@ function run(file: string): string[] {
 
 describe('built package consumers (requires a prior `npm run build`)', () => {
   it('a CommonJS consumer can require the public export from dist', () => {
-    expect(run('consumer.cjs')).toEqual(['composeRefs']);
+    expect(run('consumer.cjs')).toEqual(['cn', 'composeRefs']);
   });
 
   it('an ESM consumer can import the public export from dist', () => {
-    expect(run('consumer.mjs')).toEqual(['composeRefs']);
+    expect(run('consumer.mjs')).toEqual(['cn', 'composeRefs']);
   });
 });

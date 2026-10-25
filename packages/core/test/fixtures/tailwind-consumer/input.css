@@ -1,0 +1,4 @@
+@import 'tailwindcss';
+@import '@react-object-page/core/theme.css';
+@source '../../../dist';
+@source './src';

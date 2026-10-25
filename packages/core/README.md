@@ -1,0 +1,61 @@
+# @react-object-page/core
+
+Headless React implementation of the public List Report and Object Page interaction patterns
+(Free tier, MIT). Not affiliated with or endorsed by SAP.
+
+## Styles
+
+The package ships design tokens (CSS variables in the `rop` namespace) and the utilities its
+components use. There are **two alternative ways** to get them. Pick one.
+
+### (a) Compiled stylesheet: any app
+
+```ts
+// once, at the root of your app
+import '@react-object-page/core/styles.css';
+```
+
+`styles.css` contains no reset (no preflight, no rule on `html`, `body`, `*`, `button`...) and
+every utility lives in a CSS `@layer`, so your own un-layered CSS always wins. It only contains
+the utilities the library itself uses.
+
+### (b) Tailwind v4 project: tokens + sources
+
+```css
+@import 'tailwindcss';
+@import '@react-object-page/core/theme.css';
+/* path of the package's dist, relative to this CSS file */
+@source '../node_modules/@react-object-page/core/dist';
+```
+
+Do **not** also import `styles.css`: loading both duplicates the utilities and is unsupported
+(it does not crash, but the output is redundant and the cascade order is not guaranteed).
+
+`theme.css` only declares variables in the `rop` namespace (`--color-rop-*`, `--text-rop-*`,
+`--font-rop-*`, `--radius-rop-*`, `--z-index-rop-*`); it never redefines Tailwind defaults. You
+can use `text-rop-body`, `font-rop-mono`, `z-rop-modal`, `bg-rop-primary`... in your own markup.
+
+### Tokens
+
+| Group | Names |
+|---|---|
+| Colors | `text`, `text-muted`, `surface`, `surface-subtle`, `border`, `primary`, `primary-contrast`, `info`, `success`, `warning`, `error` |
+| Type scale (size + line height) | `caption`, `body`, `label`, `title-sm`, `title-md`, `title-lg` |
+| Families | `font-rop-sans`, `font-rop-mono` (system stacks, no web font; the mono stack ends with `monospace`) |
+| z-index | `sticky` < `overlay` (backdrop) < `modal` < `popover` < `tooltip` |
+
+Tokens are plain CSS variables: override them in your own CSS for theming.
+
+## `cn()`
+
+```ts
+import { cn } from '@react-object-page/core';
+
+cn('px-2', 'px-4'); // 'px-4'
+cn('z-rop-modal', 'z-rop-popover'); // 'z-rop-popover'
+cn('text-rop-body', 'text-rop-error'); // both kept: a size and a color
+cn('hover:px-2', cond && 'hover:px-4', { 'font-rop-mono': isCode }); // clsx syntax
+```
+
+`cn()` merges conflicting Tailwind classes (last one wins) and knows the library tokens: the
+list is read from the same `tokens.css` that produces `theme.css`, so it cannot drift.
