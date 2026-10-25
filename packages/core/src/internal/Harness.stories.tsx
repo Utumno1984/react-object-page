@@ -11,6 +11,36 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+/**
+ * Visual-regression fixture (tag `visual`): a few elements with explicit paddings, so that a
+ * padding change (e.g. 8px -> 12px on the card) visibly changes the screenshot at every viewport.
+ */
+export const Visual: Story = {
+  tags: ['visual'],
+  parameters: { layout: 'padded' },
+  render: () => (
+    <div style={{ fontFamily: 'sans-serif', width: '100%', maxWidth: 480 }}>
+      <div
+        data-testid="visual-card"
+        style={{
+          padding: 8,
+          border: '2px solid #1a56db',
+          borderRadius: 6,
+          background: '#eef2ff',
+        }}
+      >
+        <h2 style={{ margin: 0, fontSize: 18 }}>Visual regression fixture</h2>
+        <p style={{ margin: '8px 0 0', fontSize: 14 }}>
+          Changing the padding of this card must fail the visual check.
+        </p>
+      </div>
+      <button type="button" style={{ marginTop: 16, padding: '8px 16px', fontSize: 14 }}>
+        Save
+      </button>
+    </div>
+  ),
+};
+
 /** Accessible bare component (no landmark/heading): axe must report no violations. */
 export const Valid: Story = {
   render: () => <button type="button">Save</button>,

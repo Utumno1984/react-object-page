@@ -122,3 +122,29 @@ jobs:
             playwright-report/
             test-results/
           retention-days: 7
+
+  # Distinct check from the functional e2e. Runs in the official Playwright image, the SAME one
+  # `npm run test:visual` uses locally (tag = exact @playwright/test version; a unit test in
+  # scripts/visual-docker.test.mjs fails if they drift apart). Baselines are never created here.
+  visual:
+    name: visual
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run test:visual:ci
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: visual-diff
+          # test-results/ holds the expected / actual / diff PNG of every failing screenshot.
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
