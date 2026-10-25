@@ -155,6 +155,18 @@ va bene procedere ticket per ticket senza fretta.
   test, Playwright per gli e2e (incluso touch via CDP dove rilevante). Changesets per
   versionamento/release.
 - Codice, nomi e commenti in inglese; demo/Storybook può avere testi in italiano o inglese.
+- **Storybook: Controls/Actions/Interactions usati sul serio, non per scrupolo (decisione di
+  Daniele del 2026-10-25)**. Per ogni componente con una story non puramente interna/fixture:
+  `argTypes` che rispecchiano davvero l'API pubblica (controllo giusto per tipo — `radio`/
+  `select` per un'unione di varianti, non testo libero; valori di default sensati, non vuoti);
+  callback (`onClick`, `onChange`, ...) collegate con `fn()` cosi' compaiono nel pannello Actions
+  quando l'utente interagisce, non lasciate scollegate; una `play` function con l'addon
+  Interactions che scripta un'interazione realistica (click, digitazione, apertura di un overlay)
+  e verifica lo stato risultante — non un gesto simbolico ("clicca una volta") ma un caso che
+  documenta e allo stesso tempo prova un comportamento reale del componente. Il pianificatore
+  include questo nei criteri di accettazione di ogni ticket-componente (dal ticket #6 in avanti);
+  il critico verifica che non sia stato aggiunto "tanto per" (controlli che non controllano nulla,
+  `play` vuota o banale).
 - Test: `npm run check` = lint + tipi + build + unit test. Prima di ogni commit: `npm run check`.
   Prima di una PR pronta: anche la suite e2e completa.
 - Segreti: nessuno previsto nel core (nessuna API esterna, nessun database). Se compare un
