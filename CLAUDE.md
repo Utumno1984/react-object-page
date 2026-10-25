@@ -113,6 +113,14 @@ va bene procedere ticket per ticket senza fretta.
   solo visivamente spenti; spiegazione collegata via `aria-describedby` reale; l'API deve
   offrire un canale render-prop/hook per iniettare quelle proprietà in un controllo figlio
   arbitrario (un semplice `children: ReactNode` non basta).
+- **Responsive tablet/mobile (non un gate di blocco, decisione di Daniele del 2026-10-25)**:
+  supporto reale, non un messaggio "usa desktop" sotto una soglia (vedi
+  `docs/planning/design-system-spec.md` §1.10). In particolare: la **tastiera virtuale** va
+  considerata esplicitamente quando un campo va in focus (`visualViewport`/`dvh`, non solo
+  media query sulla larghezza) — il campo attivo non deve restare nascosto sotto la tastiera.
+  È un criterio di accettazione dei ticket Field/Dialog/Sheet fin da quando nascono, non un
+  ticket di rifinitura a fine progetto; la regressione visiva (ticket #4) copre viewport
+  mobile/tablet oltre a desktop fin dall'inizio.
 - **Overlay (Dialog/Select/Popover/Tooltip/Sheet)**: scala di z-index disciplinata e coerente in
   tutto il sistema (popover sempre sopra modal); merge reale delle classi in conflitto
   (tailwind-merge, non concatenazione); overlay "controllati da stato esterno" devono attivare
