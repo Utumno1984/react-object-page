@@ -123,6 +123,13 @@ describe('styles.css (compiled)', () => {
       ':root declares something other than custom properties',
     );
     expect(findGlobalLeaks('@layer utilities { .px-2 { padding-inline: 1px; } }')).toEqual([]);
+    // Tailwind's nested `@supports` fallback for a derived token is fine while it only declares variables.
+    expect(
+      findGlobalLeaks('@layer theme { :root { --a: 1; @supports (color: red) { --b: var(--a); } } }'),
+    ).toEqual([]);
+    expect(
+      findGlobalLeaks('@layer theme { :root { --a: 1; @supports (color: red) { color: red; } } }'),
+    ).toContain(':root declares something other than custom properties');
   });
 
   it('contains the utilities used by the sources (fixture) and the rop tokens as variables', () => {

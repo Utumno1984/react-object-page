@@ -111,6 +111,11 @@ const blockClick = (event: MouseEvent) => event.preventDefault();
  * Button primitive. Renders `<button type="button">` (never an implicit `submit`), or, with
  * `asChild`, the child element carrying the same classes. The consumer `className` is merged last
  * and wins over the defaults. `ref` points to the rendered node (the child's node with `asChild`).
+ *
+ * `size="inline"` never wraps its label (`whitespace-nowrap`, so it stays one line tall inside a
+ * paragraph). Accepted trade-off: in a container narrower than the label the button stays capped
+ * at the container width and the text overflows it horizontally instead of wrapping; keep inline
+ * labels short or clip/scroll the container.
  */
 export const Button = /* @__PURE__ */ forwardRef<HTMLElement, ButtonProps>(function Button(props, ref) {
   const {

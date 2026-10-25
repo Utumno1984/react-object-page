@@ -84,6 +84,58 @@ test.describe('Primitives/Button', () => {
     expect(new URL(page.url()).hash).toBe('');
   });
 
+  test('hover darkens an enabled button but never a disabled one (button and aria-disabled link)', async ({
+    page,
+  }) => {
+    await gotoStory(page, OVERVIEW);
+    const bg = (locator: ReturnType<typeof page.locator>) =>
+      locator.evaluate((el) => getComputedStyle(el).backgroundColor);
+    for (const target of [
+      page.getByRole('button', { name: 'primary disabled' }),
+      page.getByRole('link', { name: 'Link disabled' }),
+    ]) {
+      const before = await bg(target);
+      await target.hover({ force: true });
+      expect(await bg(target)).toBe(before);
+    }
+    const enabled = page.getByTestId('matrix-primary-md');
+    const rest = await bg(enabled);
+    await enabled.hover();
+    expect(await bg(enabled)).not.toBe(rest);
+  });
+
+  test('the hover color follows an override of --color-rop-primary / --color-rop-error', async ({ page }) => {
+    await gotoStory(page, OVERVIEW);
+    await page.addStyleTag({ content: ':root { --color-rop-primary: #ff0000; --color-rop-error: #0000ff; }' });
+    const hovered = async (testId: string) => {
+      const target = page.getByTestId(testId);
+      await target.hover();
+      return target.evaluate((el) => {
+        // Resolve whatever serialization the browser uses (rgb() or color(srgb ...)) to 8-bit channels.
+        const ctx = document.createElement('canvas').getContext('2d')!;
+        ctx.fillStyle = getComputedStyle(el).backgroundColor;
+        ctx.fillRect(0, 0, 1, 1);
+        return Array.from(ctx.getImageData(0, 0, 1, 1).data.slice(0, 3));
+      });
+    };
+    expect(await hovered('matrix-primary-md')).toEqual([204, 0, 0]); // 80% of #ff0000 + 20% black
+    expect(await hovered('matrix-danger-md')).toEqual([0, 0, 204]);
+  });
+
+  test('size="inline" in a container narrower than its label: one line tall, overflows instead of wrapping', async ({
+    page,
+  }) => {
+    await gotoStory(page, 'primitives-button--inline-narrow');
+    const m = await page.getByTestId('narrow-inline').evaluate((el) => {
+      const container = document.querySelector('[data-testid="narrow"]')!.getBoundingClientRect();
+      const box = el.getBoundingClientRect();
+      return { height: box.height, width: box.width, containerWidth: container.width, content: el.scrollWidth };
+    });
+    expect(m.height).toBeLessThanOrEqual(20); // no wrapping: still one line
+    expect(m.width).toBeLessThanOrEqual(m.containerWidth); // the button itself is capped (max-w-full)...
+    expect(m.content).toBeGreaterThan(m.width); // ...so the label spills out of it: documented trade-off
+  });
+
   test('disabled: the play function (Interactions) passes', async ({ page }) => {
     await expectPlayToPass(page, 'primitives-button--disabled');
   });

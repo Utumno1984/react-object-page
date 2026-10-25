@@ -192,3 +192,20 @@ export const Overview: Story = {
     </div>
   ),
 };
+
+/**
+ * `inline` in a container narrower than its label: the label never wraps (it stays one line tall)
+ * and spills out of the button horizontally instead. Documented trade-off, covered by an e2e; not photographed.
+ */
+export const InlineNarrow: Story = {
+  render: () => (
+    <div data-testid="narrow" style={{ width: 120, border: '1px dashed var(--color-rop-border)' }}>
+      <Text>
+        Vedi{' '}
+        <Button size="inline" variant="ghost" data-testid="narrow-inline">
+          {"un'etichetta inline molto lunga"}
+        </Button>
+      </Text>
+    </div>
+  ),
+};

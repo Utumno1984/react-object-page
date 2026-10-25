@@ -56,12 +56,17 @@ can use `text-rop-body`, `font-rop-mono`, `z-rop-modal`, `bg-rop-primary`... in 
 
 | Group | Names |
 |---|---|
-| Colors | `text`, `text-muted`, `surface`, `surface-subtle`, `border`, `primary`, `primary-contrast`, `info`, `success`, `warning`, `error` |
+| Colors | `text`, `text-muted`, `surface`, `surface-subtle`, `border`, `primary`, `primary-hover`, `primary-contrast`, `info`, `success`, `warning`, `error`, `error-hover` |
 | Type scale (size + line height) | `caption`, `body`, `label`, `title-sm`, `title-md`, `title-lg` |
 | Families | `font-rop-sans`, `font-rop-mono` (system stacks, no web font; the mono stack ends with `monospace`) |
 | z-index | `sticky` < `overlay` (backdrop) < `modal` < `popover` < `tooltip` |
 
 Tokens are plain CSS variables: override them in your own CSS for theming.
+
+`primary-hover` and `error-hover` (the hover background of the `primary` and `danger` Buttons) are
+not fixed colors: they are `color-mix(in srgb, <base> 80%, black)` of `--color-rop-primary` /
+`--color-rop-error`. Override the base color **on `:root`** (where the tokens are declared) and the
+hover follows; override the hover token too only if you want a different shade.
 
 ## `cn()`
 
