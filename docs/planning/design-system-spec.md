@@ -224,13 +224,24 @@ filtrabile degli archiviati e azione di ripristino. Implica rivedere ogni contro
 che il record resta e i riferimenti restano validi) e gestire lo stato "in volo" del ripristino
 (es. opacità ridotta + `aria-disabled` finché l'operazione non è confermata dal server).
 
-### 1.10 Gate di risoluzione (invece di patch responsive per-componente) — **difficoltà: bassa, decisione di prodotto alta**
+### 1.10 Responsive reale su tablet/mobile, non un gate di blocco — **difficoltà: media, decisione di prodotto alta**
 
-Per un prodotto enterprise-admin desktop-first con utenza realmente minoritaria su mobile, la
-scelta architetturalmente più sana è spesso **non supportare** sotto una soglia di larghezza con un
-messaggio esplicito, piuttosto che disseminare correzioni responsive puntuali che non coprono mai
-l'intero spettro di viewport e che "costano 5 minuti qui, 5 minuti là" fino a diventare un debito
-enorme e mai finito. Decisione di prodotto da prendere consapevolmente, non un default silenzioso.
+**Decisione di Daniele del 2026-10-25, sostituisce la versione precedente di questa sezione**
+(che proponeva un gate "non supportato sotto una soglia di larghezza" per un prodotto
+desktop-first con utenza minoritaria su mobile): tablet e mobile vanno supportati davvero, non
+bloccati con un messaggio. Il punto concreto citato esplicitamente: **lo spazio della tastiera
+virtuale** quando un campo va in focus — un Field, un Dialog o uno Sheet non devono lasciare il
+campo attivo nascosto sotto la tastiera (serve gestione basata su `visualViewport`/unità `dvh`,
+non solo media query sulla larghezza statica).
+
+Approccio scelto: il comportamento keyboard-safe **non è rimandato a un ticket finale** per i
+primitivi strutturali (Field, Dialog, Sheet) — un recupero a posteriori su quei componenti
+costerebbe un rifacimento, non una patch. È invece parte dei criteri di accettazione dei ticket
+che li introducono, fin da quando nascono. La regressione visiva (§1.11, ticket #4) copre più
+viewport (mobile/tablet/desktop) fin dalla sua introduzione, non solo desktop. Un gate di
+risoluzione resta un'opzione legittima in futuro per pattern molto specifici dove il responsive
+non avrebbe senso (es. una List Report con tabella a molte colonne su schermo stretto), ma non è
+più il default per il progetto nel suo complesso.
 
 ### 1.11 Governance tecnica del pacchetto (CI/qualità) — **difficoltà: media, ma a forte leva**
 
