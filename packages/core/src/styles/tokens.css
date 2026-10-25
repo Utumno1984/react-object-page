@@ -1,0 +1,55 @@
+/*
+ * Single source of truth for the design tokens.
+ *
+ * - Every variable lives in the `rop` namespace: nothing here redefines a default Tailwind token
+ *   (`--color-red-500`, `--spacing`, ...). The namespace is defined ONLY in this file; `cn()`
+ *   and the tests derive it from here.
+ * - `@theme static` emits every variable even when no utility uses it, so the tokens are always
+ *   available as plain CSS custom properties (overridable by the consumer for theming).
+ * - This file is published as `theme.css` for Tailwind v4 projects, and imported by
+ *   `index.css` to build `styles.css`.
+ */
+@theme static {
+  /* Semantic colors */
+  --color-rop-text: #1d2d3e;
+  --color-rop-text-muted: #556b82;
+  --color-rop-surface: #ffffff;
+  --color-rop-surface-subtle: #f5f6f7;
+  --color-rop-border: #c4cdd6;
+  --color-rop-primary: #0a6ed1;
+  --color-rop-primary-contrast: #ffffff;
+  --color-rop-info: #0070f2;
+  --color-rop-success: #107e3e;
+  --color-rop-warning: #b25f00;
+  --color-rop-error: #d20a0a;
+
+  /* Typographic scale (size + line height) */
+  --text-rop-caption: 0.75rem;
+  --text-rop-caption--line-height: 1rem;
+  --text-rop-body: 0.875rem;
+  --text-rop-body--line-height: 1.25rem;
+  --text-rop-label: 0.875rem;
+  --text-rop-label--line-height: 1.25rem;
+  --text-rop-title-sm: 1rem;
+  --text-rop-title-sm--line-height: 1.5rem;
+  --text-rop-title-md: 1.25rem;
+  --text-rop-title-md--line-height: 1.75rem;
+  --text-rop-title-lg: 1.5rem;
+  --text-rop-title-lg--line-height: 2rem;
+
+  /* Font families: system stacks only, no web font is shipped. `mono` is for codes/identifiers. */
+  --font-rop-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-rop-mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+
+  /* Radii */
+  --radius-rop-sm: 0.25rem;
+  --radius-rop-md: 0.5rem;
+  --radius-rop-lg: 0.75rem;
+
+  /* z-index scale: sticky < overlay (backdrop) < modal < popover < tooltip */
+  --z-index-rop-sticky: 10;
+  --z-index-rop-overlay: 20;
+  --z-index-rop-modal: 30;
+  --z-index-rop-popover: 40;
+  --z-index-rop-tooltip: 50;
+}

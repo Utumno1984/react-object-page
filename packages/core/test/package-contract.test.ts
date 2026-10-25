@@ -1,5 +1,6 @@
 // @vitest-environment node
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { collectDeclaredPaths, findMissingPaths } from './helpers/package-paths';
@@ -15,6 +16,17 @@ describe('package.json contract (requires a prior `npm run build`)', () => {
     const declared = collectDeclaredPaths(pkg);
     expect(declared.length).toBeGreaterThan(0);
     expect(findMissingPaths(pkg, packageDir)).toEqual([]);
+  });
+
+  it('the CSS entries resolve through the exports map, like a consumer would', () => {
+    const require = createRequire(import.meta.url);
+    for (const entry of ['styles.css', 'theme.css']) {
+      const resolved = require.resolve(`@react-object-page/core/${entry}`);
+      expect(existsSync(resolved)).toBe(true);
+      expect(resolved).toBe(join(distDir, entry));
+    }
+    // Subpaths that are not exported stay private.
+    expect(() => require.resolve('@react-object-page/core/src/styles/tokens.css')).toThrow();
   });
 
   it('dist has an ESM entry, a CJS entry and type declarations', () => {
@@ -50,8 +62,17 @@ describe('package.json contract (requires a prior `npm run build`)', () => {
     expect(deps).not.toHaveProperty('react-dom');
   });
 
-  it('declares sideEffects', () => {
-    expect(pkg.sideEffects).toBe(false);
+  it('declares sideEffects limited to CSS files (an imported stylesheet is never tree-shaken)', () => {
+    expect(pkg.sideEffects).toEqual(['**/*.css']);
+  });
+
+  it('exposes styles.css and theme.css in exports and builds them into dist', () => {
+    const exportsMap = pkg.exports as Record<string, unknown>;
+    expect(exportsMap['./styles.css']).toBe('./dist/styles.css');
+    expect(exportsMap['./theme.css']).toBe('./dist/theme.css');
+    const files = readdirSync(distDir);
+    expect(files).toContain('styles.css');
+    expect(files).toContain('theme.css');
   });
 
   // NOTE: today `src` only imports React *types*, so this passes trivially. It becomes a real

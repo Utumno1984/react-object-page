@@ -1,0 +1,18 @@
+/*
+ * Entry of the compiled `styles.css` (also loaded by Storybook, so the docs render the same CSS
+ * the package ships). Theme + utilities of Tailwind v4, deliberately WITHOUT preflight: the
+ * library must not reset the host page. Utilities are emitted inside `@layer`, so un-layered CSS
+ * of the consumer always wins.
+ */
+@layer rop.theme, rop.utilities;
+
+@import 'tailwindcss/theme.css' layer(rop.theme) theme(inline);
+@import 'tailwindcss/utilities.css' layer(rop.utilities) source(none);
+@import './tokens.css';
+
+/* Only the utilities the library sources really use (no safelist). Stories, tests and CSS are not
+   part of the published package, so they must not contribute utilities. */
+@source '../';
+@source not '../**/*.stories.*';
+@source not '../**/*.test.*';
+@source not '../**/*.css';

@@ -1,0 +1,42 @@
+// @vitest-environment node
+import { execFileSync } from 'node:child_process';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const packageDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const fixtureDir = join(packageDir, 'test/fixtures/tailwind-consumer');
+const local = join(packageDir, 'node_modules/.bin/tailwindcss');
+const bin = existsSync(local) ? local : resolve(packageDir, '../../node_modules/.bin/tailwindcss');
+
+function compile(input: string): string {
+  const out = mkdtempSync(join(tmpdir(), 'rop-consumer-'));
+  try {
+    execFileSync(bin, ['-i', join(fixtureDir, input), '-o', join(out, 'out.css')], {
+      cwd: fixtureDir,
+      stdio: 'pipe',
+    });
+    return readFileSync(join(out, 'out.css'), 'utf8');
+  } finally {
+    rmSync(out, { recursive: true, force: true });
+  }
+}
+
+const squash = (css: string): string => css.replace(/\s+/g, ' ');
+
+describe('a Tailwind v4 consumer (theme.css + @source), requires a prior build', () => {
+  it('generates the token utilities with the token values', () => {
+    const css = squash(compile('input.css'));
+    expect(css).toMatch(/\.z-rop-popover \{ z-index: var\(--z-index-rop-popover\); \}/);
+    expect(css).toMatch(/--z-index-rop-popover: 40;/);
+    expect(css).toMatch(/\.font-rop-mono \{ font-family: var\(--font-rop-mono\); \}/);
+    expect(css).toMatch(/--font-rop-mono: [^;]*monospace;/);
+    expect(css).toMatch(/\.text-rop-error \{ color: var\(--color-rop-error\); \}/);
+  });
+
+  it('importing styles.css on top of theme.css is unsupported (duplication) but does not crash', () => {
+    const css = compile('both.css');
+    expect(css).toContain('.z-rop-popover');
+  });
+});
