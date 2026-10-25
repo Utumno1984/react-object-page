@@ -6,13 +6,14 @@ export type TokenGroup = 'color' | 'text' | 'font' | 'radius' | 'z-index';
 
 export type TokenScale = Record<TokenGroup, string[]>;
 
-// `--<group>-<namespace>-<name>:`; the namespace is one short word. Companion variables
-// such as `--text-rop-body--line-height` are not tokens of their own and are skipped.
-const TOKEN_RE = /--(color|text|font|radius|z-index)-([a-z]+)-([a-z0-9-]+)\s*:/g;
+// `--<group>-rop-<name>:`, anchored to the `rop` namespace so that e.g. a future
+// `--font-weight-rop-semibold` is not read as a font family. Companion variables such as
+// `--text-rop-body--line-height` are not tokens of their own and are skipped.
+const TOKEN_RE = /--(color|text|font|radius|z-index)-(rop)-([a-z0-9-]+)\s*:/g;
 
 /**
  * Returns, per theme group, the names as they appear in utilities after the prefix
- * (e.g. `rop-modal` for `z-rop-modal`).
+ * (e.g. the modal z-index token is listed as `rop-modal`).
  */
 export function parseTokenScale(css: string): TokenScale {
   const scale: TokenScale = { color: [], text: [], font: [], radius: [], 'z-index': [] };

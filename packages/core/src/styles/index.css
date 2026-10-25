@@ -4,10 +4,10 @@
  * library must not reset the host page. Utilities are emitted inside `@layer`, so un-layered CSS
  * of the consumer always wins.
  */
-@layer theme, base, components, utilities;
+@layer rop.theme, rop.utilities;
 
-@import 'tailwindcss/theme.css' layer(theme);
-@import 'tailwindcss/utilities.css' layer(utilities) source(none);
+@import 'tailwindcss/theme.css' layer(rop.theme) theme(inline);
+@import 'tailwindcss/utilities.css' layer(rop.utilities) source(none);
 @import './tokens.css';
 
 /* Only the utilities the library sources really use (no safelist). Stories, tests and CSS are not

@@ -74,7 +74,31 @@ describe('design tokens (src/styles/tokens.css, built into dist/theme.css and di
 describe('styles.css (compiled)', () => {
   it('has no preflight, no global element selector, and every rule inside @layer', () => {
     expect(findGlobalLeaks(stylesCss)).toEqual([]);
-    expect(stylesCss).toMatch(/@layer utilities\s*\{/);
+    expect(stylesCss).toMatch(/@layer rop\.utilities\s*\{/);
+    // Generic layer names would merge with (and reorder) the host app's own layers.
+    expect(stylesCss).not.toMatch(/@layer\s+(theme|base|components|utilities|reset)\b/);
+  });
+
+  it('declares no custom property outside the rop namespace (no global --spacing, ...)', () => {
+    const outside = [...customProperties(stylesCss).keys()].filter(
+      (name) => !/^--(color|text|font|radius|z-index)-rop-/.test(name),
+    );
+    expect(outside).toEqual([]);
+    // Tailwind's default spacing is inlined into the utilities, not referenced as a variable.
+    expect(stylesCss).not.toContain('var(--spacing)');
+  });
+
+  it('the leak checker allows only inert --tw-* internals, a real global reset still fails', () => {
+    const internals =
+      '@layer properties { @supports (x: y) { *, ::before, ::after, ::backdrop { --tw-shadow: 0 0 #0000; --tw-ring-inset: ; } } }';
+    expect(findGlobalLeaks(`${internals} @property --tw-shadow { syntax: "*"; inherits: false; }`)).toEqual([]);
+    expect(findGlobalLeaks('@layer base { * { margin: 0; } }')).toContain('global selector: *');
+    expect(findGlobalLeaks('@layer base { *, ::before, ::after { margin: 0; } }').length).toBeGreaterThan(0);
+    expect(
+      findGlobalLeaks('@layer base { *, ::before { --tw-shadow: 0; margin: 0; } }').length,
+    ).toBeGreaterThan(0);
+    expect(findGlobalLeaks('@layer base { html { --tw-shadow: 0; } }')).toContain('global selector: html');
+    expect(findGlobalLeaks('@property --other { syntax: "*"; inherits: false; }').length).toBeGreaterThan(0);
   });
 
   it('the leak checker does fail on a reset, a global selector or an un-layered rule', () => {

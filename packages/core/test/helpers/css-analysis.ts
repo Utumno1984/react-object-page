@@ -59,6 +59,14 @@ function selectorsIn(blocks: CssBlock[]): { selector: string; body: string }[] {
   return out;
 }
 
+function declaresOnlyTailwindInternals(body: string): boolean {
+  const decls = body
+    .split(';')
+    .map((d) => d.trim())
+    .filter(Boolean);
+  return decls.length > 0 && decls.every((d) => d.startsWith('--tw-'));
+}
+
 /**
  * Returns the reasons why a compiled stylesheet is not "safe to import in somebody else's app":
  * preflight/reset leftovers, global element selectors, rules outside `@layer`.
@@ -77,12 +85,19 @@ export function findGlobalLeaks(css: string): string[] {
     }
     const prelude = block.prelude;
     if (prelude.startsWith('@layer')) continue;
-    if (prelude.startsWith('@property')) continue;
+    // `@property --tw-*` registrations are inert Tailwind internals (see below), not a reset.
+    if (/^@property\s+--tw-/.test(prelude)) continue;
     problems.push(`rule outside @layer: ${prelude}`);
   }
 
   for (const { selector, body } of selectorsIn(topLevel(css))) {
     const parts = selector.split(',').map((s) => s.trim());
+    // Tailwind v4 emits `*, ::before, ::after, ::backdrop { --tw-...: ...; }` (inside
+    // `@layer properties`) as soon as shadow-/ring-/translate-/leading- utilities are used. Those
+    // are inert internal custom properties, not a reset: allowed ONLY when the block declares
+    // nothing but `--tw-*` custom properties and every selector is one of the four below.
+    const tailwindInternals = ['*', '::before', '::after', '::backdrop'];
+    if (parts.every((p) => tailwindInternals.includes(p)) && declaresOnlyTailwindInternals(body)) continue;
     for (const part of parts) {
       if (part === ':root' || part === ':host') {
         const decls = body

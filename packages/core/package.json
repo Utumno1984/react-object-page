@@ -23,7 +23,7 @@
     },
     "./styles.css": "./dist/styles.css",
     "./theme.css": "./dist/theme.css",
-    "./package.json":"./package.json"
+    "./package.json": "./package.json"
   },
   "files": [
     "dist"
