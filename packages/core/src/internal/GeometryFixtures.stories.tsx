@@ -2,6 +2,7 @@
 // has a "healthy" fixture that must pass and a "broken" one that must fail. Not exported from
 // the package, and deliberately NOT tagged `visual` (several are broken on purpose).
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { useLayoutEffect, type ReactNode } from 'react';
 
 const meta = {
   title: 'Internal/GeometryFixtures',
@@ -266,6 +267,87 @@ export const FocusRingInsetOffsetClipped: Story = {
 const fullyInsideCss = `
   .geo-ins:focus-visible { outline: 2px solid #1a56db; outline-offset: -2px; }
 `;
+
+/**
+ * Vertical-only panel (overflow-y:auto => computed overflow-x:auto) holding a row that is too
+ * wide: a real, unwanted horizontal overflow. Must FAIL (a scroll wrapper is not a free pass).
+ */
+export const VerticalPanelWithWideRow: Story = {
+  render: () => (
+    <div data-testid="root" style={{ ...box, overflow: 'visible' }}>
+      <div style={{ height: 80, overflowY: 'auto' }}>
+        <div style={{ width: 600 }}>row that is far too wide</div>
+        <div style={tall}>and tall content, so the panel scrolls vertically</div>
+      </div>
+    </div>
+  ),
+};
+
+/** Negative `left` that still lands on screen (not far enough to leave the page): a real overflow. */
+export const NegativeLeftStillVisible: Story = {
+  render: () => (
+    <div style={{ paddingLeft: 400 }}>
+      <div data-testid="root" style={{ ...box, position: 'relative', overflow: 'visible' }}>
+        <span style={{ position: 'absolute', left: -300, width: 100 }}>still on screen</span>
+        visible text
+      </div>
+    </div>
+  ),
+};
+
+/**
+ * Absolute box whose containing block (the positioned `C`) sits INSIDE a clipping ancestor `W`:
+ * W clips it, so nothing sticks out of the root. Must pass.
+ */
+export const AbsoluteClippedByAncestorOfContainingBlockHealthy: Story = {
+  render: () => (
+    <div data-testid="root" style={{ ...box, overflow: 'visible' }}>
+      <div style={{ width: 100, overflow: 'hidden' }}>
+        <div style={{ position: 'relative', height: 20 }}>
+          <div style={{ position: 'absolute', left: 0, width: 300 }}>dropdown clipped by W</div>
+        </div>
+      </div>
+    </div>
+  ),
+};
+
+/**
+ * Absolute box whose containing block is the root (positioned); the static overflow:hidden
+ * wrapper `W` between them does NOT clip it (CSS), so it really sticks out. Must FAIL.
+ */
+export const AbsoluteEscapesStaticClipper: Story = {
+  render: () => (
+    <div data-testid="root" style={{ ...box, position: 'relative', overflow: 'visible' }}>
+      <div style={{ width: 100, overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', left: 0, width: 300 }}>dropdown not clipped by W</div>
+      </div>
+    </div>
+  ),
+};
+
+function BodyScrollLock({ children }: { children: ReactNode }) {
+  useLayoutEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+  return <>{children}</>;
+}
+
+/** Dialog-like scroll lock (body overflow:hidden) with ONE inner scroll panel: single scroller. */
+export const BodyScrollLockedSinglePanelHealthy: Story = {
+  render: () => (
+    <BodyScrollLock>
+      <div data-testid="root" style={{ minHeight: 2000 }}>
+        <div style={{ ...box, overflowY: 'auto' }}>
+          <div style={tall}>panel</div>
+        </div>
+      </div>
+    </BodyScrollLock>
+  ),
+};
 
 /** Real inner ring fully inside the border box (offset <= -width): visible and not clippable. */
 export const FocusRingFullyInsideHealthy: Story = {

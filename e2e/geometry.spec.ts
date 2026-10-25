@@ -80,6 +80,35 @@ test.describe('expectNoHorizontalOverflow (legitimate patterns)', () => {
   });
 });
 
+test.describe('expectNoHorizontalOverflow (round 3)', () => {
+  test('fails: a vertical-only scroll panel does not exempt a too-wide row', async ({ page }) => {
+    await gotoStory(page, 'internal-geometryfixtures--vertical-panel-with-wide-row');
+    await expect(expectNoHorizontalOverflow(root(page))).rejects.toThrow(/spans/);
+  });
+
+  test('fails: negative left that is still visible on screen', async ({ page }) => {
+    await gotoStory(page, 'internal-geometryfixtures--negative-left-still-visible');
+    await expect(expectNoHorizontalOverflow(root(page))).rejects.toThrow(/spans/);
+  });
+
+  test('passes: absolute box clipped by an ancestor of its containing block', async ({ page }) => {
+    await gotoStory(page, 'internal-geometryfixtures--absolute-clipped-by-ancestor-of-containing-block-healthy');
+    await expectNoHorizontalOverflow(root(page));
+  });
+
+  test('fails: absolute box escapes a static overflow:hidden wrapper', async ({ page }) => {
+    await gotoStory(page, 'internal-geometryfixtures--absolute-escapes-static-clipper');
+    await expect(expectNoHorizontalOverflow(root(page))).rejects.toThrow(/spans/);
+  });
+});
+
+test.describe('expectSingleScroller (scroll-locked body)', () => {
+  test('passes: body overflow:hidden (dialog open) + one inner panel', async ({ page }) => {
+    await gotoStory(page, 'internal-geometryfixtures--body-scroll-locked-single-panel-healthy');
+    await expectSingleScroller(root(page));
+  });
+});
+
 test.describe('expectFocusRingVisible (focus vs. no focus)', () => {
   const target = (page: import('@playwright/test').Page) => page.getByTestId('target');
 

@@ -23,9 +23,17 @@ export async function expectSingleScroller(
         const cs = getComputedStyle(el);
         const overflow = axis === 'y' ? cs.overflowY : cs.overflowX;
         // The page scrolls with overflow `visible` too; only hidden/clip stop the user scrolling it.
+        // The viewport takes its overflow from <html>, or from <body> when <html> is `visible`, so
+        // a scroll-locked body (Dialog open: Radix / react-remove-scroll) does not count as a scroller.
+        const viewportOverflow =
+          overflow === 'visible'
+            ? axis === 'y'
+              ? getComputedStyle(document.body).overflowY
+              : getComputedStyle(document.body).overflowX
+            : overflow;
         const scrolls =
           el === page
-            ? overflow !== 'hidden' && overflow !== 'clip'
+            ? viewportOverflow !== 'hidden' && viewportOverflow !== 'clip'
             : overflow === 'auto' || overflow === 'scroll';
         if (!scrolls) continue;
         const scrollable =
@@ -53,10 +61,17 @@ export async function expectSingleScroller(
  * Fails if the container has horizontally scrollable content (scrollWidth > clientWidth) or if
  * any descendant sticks out of the container's own rect (left or right), with these deliberate
  * exceptions (patterns a real List Report uses on purpose):
- * - the part of a descendant clipped by an intermediate ancestor with `overflow-x` other than
- *   `visible` does not count (intentional scroll wrapper, ellipsis-truncated cell);
- * - a descendant lying entirely to the left of the container (e.g. `left: -9999px` hidden
- *   text) does not count: it is off-screen on purpose and cannot cause a scrollbar (LTR).
+ * - the part of a descendant clipped by an intermediate ancestor does not count when that
+ *   ancestor really clips: `overflow-x` hidden/clip (ellipsis-truncated cell), or auto/scroll on
+ *   an ancestor that does NOT also scroll vertically (an intentional horizontal scroll wrapper).
+ *   A panel with overflow-y:auto has a computed overflow-x of `auto` too, but if it scrolls
+ *   vertically a too-wide row inside it is a real, unwanted horizontal overflow. (Computed style
+ *   cannot tell a vertical panel with no vertical overflow from a horizontal wrapper.)
+ *   Clipping follows CSS containing blocks: an `absolute` box is clipped by its containing block
+ *   (first positioned ancestor) and the ancestors above it, NOT by the static ones in between;
+ * - a descendant lying entirely off the left edge of the PAGE (e.g. `left: -9999px` hidden text)
+ *   does not count: it is off-screen on purpose and cannot cause a scrollbar (LTR). A box that is
+ *   merely left of its container but still on screen does count.
  */
 export async function expectNoHorizontalOverflow(container: Locator): Promise<void> {
   const problems = await container.evaluate((root, eps) => {
@@ -73,20 +88,36 @@ export async function expectNoHorizontalOverflow(container: Locator): Promise<vo
       let right = b.right;
       const position = getComputedStyle(el).position;
       if (position !== 'fixed') {
-        const containingBlock = position === 'absolute' ? (el as HTMLElement).offsetParent : null;
+        // An absolutely positioned box is not clipped by the ancestors between it and its
+        // containing block (first positioned ancestor); the containing block and everything above
+        // it clip. If the containing block is the root or above, nothing below the root clips it.
+        let reachedContainingBlock = position !== 'absolute';
         for (let p = el.parentElement; p && p !== root; p = p.parentElement) {
           const pcs = getComputedStyle(p);
-          if (pcs.overflowX !== 'visible') {
+          if (!reachedContainingBlock) {
+            const establishes =
+              pcs.position !== 'static' ||
+              pcs.transform !== 'none' ||
+              pcs.perspective !== 'none' ||
+              pcs.filter !== 'none' ||
+              /paint|layout|strict|content/.test(pcs.contain);
+            if (!establishes) continue;
+            reachedContainingBlock = true;
+          }
+          const clips =
+            pcs.overflowX === 'hidden' ||
+            pcs.overflowX === 'clip' ||
+            ((pcs.overflowX === 'auto' || pcs.overflowX === 'scroll') &&
+              p.scrollHeight - p.clientHeight <= eps);
+          if (clips) {
             const pr = p.getBoundingClientRect();
             left = Math.max(left, pr.left + parseFloat(pcs.borderLeftWidth));
             right = Math.min(right, pr.right - parseFloat(pcs.borderRightWidth));
           }
-          // An absolutely positioned box is clipped only by ancestors up to its containing block.
-          if (containingBlock && p === containingBlock) break;
         }
       }
       if (right <= left) continue; // fully clipped away
-      if (right <= r.left + eps) continue; // entirely off-screen to the left, on purpose
+      if (right <= 0) continue; // entirely off the left edge of the page, on purpose
       if (right > r.right + eps || left < r.left - eps) {
         const testId = el.getAttribute('data-testid');
         out.push(
