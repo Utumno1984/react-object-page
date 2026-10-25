@@ -130,6 +130,11 @@ describe('styles.css (compiled)', () => {
     expect(
       findGlobalLeaks('@layer theme { :root { --a: 1; @supports (color: red) { color: red; } } }'),
     ).toContain(':root declares something other than custom properties');
+    // Regression: unwrapping `@supports` must not merge its last declaration with whatever
+    // follows the block when the source has no trailing `;` before the `}` (Tailwind's own output).
+    expect(
+      findGlobalLeaks('@layer theme { :root { @supports (color: red) { --b: 1 } color: red; } }'),
+    ).toContain(':root declares something other than custom properties');
   });
 
   it('contains the utilities used by the sources (fixture) and the rop tokens as variables', () => {
