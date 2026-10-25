@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { expectNoA11yViolations } from './helpers/a11y';
-import { gotoStory } from './helpers/story';
+import { expectPlayToPass, gotoStory } from './helpers/story';
 
 const OVERVIEW = 'foundations-typography--overview';
 
@@ -53,14 +53,23 @@ test.describe('Foundations/Typography', () => {
     expect(withIcon).toBe(plain);
   });
 
-  test('Playground play function (Interactions) passes: mono caption and click', async ({ page }) => {
-    await gotoStory(page, 'foundations-typography--playground');
+  test('the play functions (Interactions) of Text and Title really pass', async ({ page }) => {
+    await expectPlayToPass(page, 'foundations-typography--text-playground');
     await expect(page.getByText('INV-2026-00042')).toBeVisible();
+    await expectNoA11yViolations(page);
+    await expectPlayToPass(page, 'foundations-typography--title-playground');
+    await expect(page.getByRole('heading', { level: 1, name: 'Invoice approvals' })).toBeVisible();
     await expectNoA11yViolations(page);
   });
 
+  test('the play helper does detect a failing play (mono switched off via Controls)', async ({ page }) => {
+    await expect(expectPlayToPass(page, 'foundations-typography--text-playground', 'mono:!false')).rejects.toThrow(
+      /play function/,
+    );
+  });
+
   test('as="label" + htmlFor: clicking the label focuses the field', async ({ page }) => {
-    await gotoStory(page, 'foundations-typography--as-label');
+    await expectPlayToPass(page, 'foundations-typography--as-label');
     await page.getByText('Supplier code').click();
     await expect(page.getByRole('textbox', { name: 'Supplier code' })).toBeFocused();
     await expectNoA11yViolations(page);

@@ -58,6 +58,34 @@ describe('Icon', () => {
     expect(screen.getByTestId('i')).not.toHaveAttribute('aria-label');
   });
 
+  it('label wins over an aria-labelledby (on the svg or on Icon): the name is the label', () => {
+    render(
+      <>
+        <span id="other">Altro</span>
+        <Icon label="Errore" aria-labelledby="other">
+          <svg data-testid="i" aria-labelledby="other" />
+        </Icon>
+      </>,
+    );
+    expect(screen.getByRole('img', { name: 'Errore' })).toBe(screen.getByTestId('i'));
+    expect(screen.queryByRole('img', { name: 'Altro' })).toBeNull();
+  });
+
+  it('a decorative icon is not reachable by keyboard (tabIndex dropped) and has no aria-labelledby', () => {
+    render(
+      <Icon>
+        <svg data-testid="i" tabIndex={0} aria-labelledby="x" />
+      </Icon>,
+    );
+    expect(screen.getByTestId('i')).not.toHaveAttribute('tabindex');
+    expect(screen.getByTestId('i')).not.toHaveAttribute('aria-labelledby');
+  });
+
+  it('adds no margin of its own (no effect on a flex/button layout outside text)', () => {
+    render(<Icon>{svg}</Icon>);
+    expect(Array.from(screen.getByTestId('i').classList).filter((c) => /^-?m[xytblr]?-/.test(c))).toEqual([]);
+  });
+
   it('a consumer className in conflict with the size wins (merge via cn)', () => {
     render(
       <Icon size="lg" className="size-4">
@@ -94,26 +122,50 @@ describe('Icon', () => {
     let warn: ReturnType<typeof vi.spyOn>;
     beforeEach(() => {
       warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      // The warning is emitted once per page load: a fresh module for each case.
+      vi.resetModules();
     });
     afterEach(() => warn.mockRestore());
 
-    it('warns in development and renders nothing (no crash) for an <img>', () => {
+    const freshIcon = async () => (await import('./Icon')).Icon;
+
+    it('warns and renders nothing (no crash) for an <img>', async () => {
+      const FreshIcon = await freshIcon();
       const { container } = render(
         // (JSX elements are typed `ReactElement<any>`: only the runtime check can catch an <img>.)
-        <Icon>
+        <FreshIcon>
           <img alt="" src="x.png" />
-        </Icon>,
+        </FreshIcon>,
       );
       expect(container).toBeEmptyDOMElement();
       expect(warn).toHaveBeenCalledOnce();
     });
 
-    it('warns and renders nothing for text', () => {
+    it('warns and renders nothing for text', async () => {
+      const FreshIcon = await freshIcon();
       const { container } = render(
         // @ts-expect-error the child must be an element
-        <Icon>text</Icon>,
+        <FreshIcon>text</FreshIcon>,
       );
       expect(container).toBeEmptyDOMElement();
+      expect(warn).toHaveBeenCalledOnce();
+    });
+
+    it('warns and renders nothing for a Fragment, and warns only once per page', async () => {
+      const FreshIcon = await freshIcon();
+      const { container } = render(
+        <FreshIcon>
+          <>
+            <svg />
+          </>
+        </FreshIcon>,
+      );
+      expect(container).toBeEmptyDOMElement();
+      render(
+        <FreshIcon>
+          <img alt="" />
+        </FreshIcon>,
+      );
       expect(warn).toHaveBeenCalledOnce();
     });
   });

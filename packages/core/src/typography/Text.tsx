@@ -19,7 +19,7 @@ interface TextBaseProps {
 
 export type TextProps = TextBaseProps &
   (
-    | ({ as?: 'p' | 'span' | 'div' } & HTMLAttributes<HTMLElement>)
+    | ({ as?: 'p' | 'span' | 'div'; htmlFor?: never } & HTMLAttributes<HTMLElement>)
     | ({ as: 'label' } & LabelHTMLAttributes<HTMLElement>)
   );
 
@@ -33,7 +33,14 @@ export const Text = /* @__PURE__ */ forwardRef<HTMLElement, TextProps>(function 
     <Tag
       {...(rest as HTMLAttributes<HTMLParagraphElement>)}
       ref={ref as Ref<HTMLParagraphElement>}
-      className={cn('m-0', VARIANT_CLASS[variant], mono ? 'font-rop-mono' : 'font-rop-sans', className)}
+      // `[&_svg]:my-[-0.25em]`: an icon inline in the text barely touches the line box, so a
+      // 16px icon in a caption line keeps the line height (outside text <Icon> has no margin).
+      className={cn(
+        'm-0 [&_svg]:my-[-0.25em]',
+        VARIANT_CLASS[variant],
+        mono ? 'font-rop-mono' : 'font-rop-sans',
+        className,
+      )}
     />
   );
 });

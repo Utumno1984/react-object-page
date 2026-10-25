@@ -75,6 +75,14 @@ describe('Text', () => {
     expect(screen.getByLabelText('Name')).toBe(document.getElementById('f'));
   });
 
+  it('htmlFor is a type error unless as="label"; inline svg gets the line-box margin only inside Text', () => {
+    // @ts-expect-error htmlFor only makes sense on a label
+    const bad = <Text htmlFor="x">t</Text>;
+    expect(bad).toBeTruthy();
+    render(<Text>t</Text>);
+    expect(screen.getByText('t').className).toContain('[&_svg]:my-[-0.25em]');
+  });
+
   it('forwards the ref and HTML props', () => {
     const ref = createRef<HTMLElement>();
     render(

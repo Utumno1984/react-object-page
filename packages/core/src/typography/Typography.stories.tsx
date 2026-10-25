@@ -5,29 +5,31 @@ import { internalIcons } from '../internal/icons';
 import { Text } from './Text';
 import { Title } from './Title';
 
+// No `component` on the meta: the page documents Text AND Title, each story types its own args.
 const meta = {
   title: 'Foundations/Typography',
-  component: Text,
   parameters: { layout: 'padded' },
-  argTypes: {
-    variant: { control: 'radio', options: ['body', 'caption', 'label'] },
-    as: { control: 'select', options: ['p', 'span', 'div', 'label'] },
-    mono: { control: 'boolean' },
-    children: { control: 'text' },
-  },
-  args: { variant: 'body', as: 'p', mono: false, children: 'The quick brown fox jumps over the lazy dog', onClick: fn() },
-} satisfies Meta<typeof Text>;
+} satisfies Meta;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
+type TextStory = StoryObj<typeof Text>;
+type TitleStory = StoryObj<typeof Title>;
 
 /**
  * Controls drive every prop of `Text`. The play function proves that the HTML props reach the
  * element (click -> Actions panel) and that `mono` is independent of the variant: a caption in
  * monospace keeps the caption size and switches only the family.
  */
-export const Playground: Story = {
-  args: { variant: 'caption', mono: true, children: 'INV-2026-00042' },
+export const TextPlayground: TextStory = {
+  argTypes: {
+    variant: { control: 'radio', options: ['body', 'caption', 'label'] },
+    as: { control: 'select', options: ['p', 'span', 'div', 'label'] },
+    mono: { control: 'boolean' },
+    children: { control: 'text' },
+  },
+  args: { variant: 'caption', as: 'p', mono: true, children: 'INV-2026-00042', onClick: fn() },
+  render: (args) => <Text {...args} />,
   play: async ({ args, canvasElement }) => {
     const text = within(canvasElement).getByText('INV-2026-00042');
     await userEvent.click(text);
@@ -35,6 +37,24 @@ export const Playground: Story = {
     const cs = getComputedStyle(text);
     await expect(cs.fontFamily).toContain('monospace');
     await expect(cs.fontSize).toBe('12px');
+  },
+};
+
+/** Controls for `Title`: `level` (semantics) and `size` (scale) are independent. */
+export const TitlePlayground: TitleStory = {
+  argTypes: {
+    level: { control: 'select', options: [1, 2, 3, 4, 5, 6] },
+    size: { control: 'radio', options: ['sm', 'md', 'lg'] },
+    children: { control: 'text' },
+  },
+  args: { level: 1, size: 'sm', children: 'Invoice approvals', onClick: fn() },
+  render: (args) => <Title {...args} />,
+  play: async ({ args, canvasElement }) => {
+    const title = within(canvasElement).getByRole('heading', { level: 1, name: 'Invoice approvals' });
+    await userEvent.click(title);
+    await expect(args.onClick).toHaveBeenCalledTimes(1);
+    // h1 with the small scale: the level does not decide the size.
+    await expect(getComputedStyle(title).fontSize).toBe('16px');
   },
 };
 
@@ -108,7 +128,7 @@ export const Overview: Story = {
 };
 
 /** `as="label"` + `htmlFor` reach the DOM: clicking the label focuses its field. */
-export const AsLabel: Story = {
+export const AsLabel: TextStory = {
   args: { as: 'label', variant: 'label', htmlFor: 'ty-field', children: 'Supplier code' },
   render: (args) => (
     <div style={{ display: 'grid', gap: 4, maxWidth: 240 }}>

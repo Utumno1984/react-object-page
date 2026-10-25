@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { expectNoA11yViolations } from './helpers/a11y';
-import { gotoStory } from './helpers/story';
+import { expectPlayToPass, gotoStory } from './helpers/story';
 
 const OVERVIEW = 'foundations-icon--overview';
 const SIZES = { xs: 12, sm: 16, md: 20, lg: 24, xl: 32 } as const;
@@ -15,6 +15,26 @@ test.describe('Foundations/Icon', () => {
       expect(box?.height, size).toBe(px);
       expect(px).toBeGreaterThan(previous);
       previous = px;
+    }
+  });
+
+  test('outside text the icon takes exactly its own space: no margin eats into neighbours or padding', async ({
+    page,
+  }) => {
+    await gotoStory(page, OVERVIEW);
+    for (const size of ['xs', 'xl']) {
+      const icon = page.getByTestId(`icon-${size}`);
+      const margins = await icon.evaluate((el) => {
+        const cs = getComputedStyle(el);
+        return [cs.marginTop, cs.marginBottom];
+      });
+      expect(margins, size).toEqual(['0px', '0px']);
+      // The cell is a grid with a 6px gap: icon bottom -> caption top is exactly that gap.
+      const gap = await icon.evaluate((el) => {
+        const next = el.nextElementSibling as HTMLElement;
+        return next.getBoundingClientRect().top - el.getBoundingClientRect().bottom;
+      });
+      expect(gap, size).toBe(6);
     }
   });
 
@@ -64,9 +84,9 @@ test.describe('Foundations/Icon', () => {
   });
 
   test('Playground and Decorative play functions (Interactions) pass', async ({ page }) => {
-    await gotoStory(page, 'foundations-icon--playground');
+    await expectPlayToPass(page, 'foundations-icon--playground');
     await expect(page.getByRole('img', { name: 'Errore' })).toBeVisible();
-    await gotoStory(page, 'foundations-icon--decorative');
+    await expectPlayToPass(page, 'foundations-icon--decorative');
     await expect(page.getByRole('img')).toHaveCount(0);
     await expectNoA11yViolations(page);
   });

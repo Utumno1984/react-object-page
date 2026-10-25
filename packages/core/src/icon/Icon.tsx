@@ -2,6 +2,7 @@ import {
   Children,
   cloneElement,
   forwardRef,
+  Fragment,
   isValidElement,
   version,
   type ReactElement,
@@ -30,16 +31,24 @@ export interface IconProps extends Omit<SVGProps<SVGSVGElement>, 'children' | 'r
    * focusable, no role. With it: `role="img"` named by this text.
    */
   label?: string;
-  /** Exactly one SVG element (any SVG: it is sized and coloured by this component). */
+  /**
+   * Exactly one SVG element (any SVG: it is sized and coloured by this component). A component
+   * is accepted if it renders an `<svg>` and forwards `className`, `ref` and the ARIA props to it.
+   */
   children: ReactElement<SVGProps<SVGSVGElement>>;
 }
 
-// `process` is absent in plain browsers and not typed here (no @types/node in the library build).
-const isDev = (): boolean =>
-  (globalThis as { process?: { env?: { NODE_ENV?: string } } }).process?.env?.NODE_ENV !== 'production';
-
 // A function, not a module-level constant: no top-level work, so the module stays tree-shakable.
 const isReact19 = (): boolean => Number.parseInt(version, 10) >= 19;
+
+// Library code cannot tell dev from prod reliably (no `process` typing, bundler-dependent
+// replacement), so the misuse warning is emitted once per page load instead.
+let warned = false;
+function warnInvalidChild(): void {
+  if (warned) return;
+  warned = true;
+  console.warn('[react-object-page] <Icon> expects exactly one <svg> element as its child; rendering nothing.');
+}
 
 /**
  * Wraps any SVG in the icon scale. The SVG itself is cloned (not wrapped), so it is the node that
@@ -51,11 +60,13 @@ export const Icon = /* @__PURE__ */ forwardRef<SVGSVGElement, IconProps>(functio
   ref,
 ) {
   const child = Children.count(children) === 1 ? Children.toArray(children)[0] : null;
-  if (!isValidElement<SVGProps<SVGSVGElement>>(child) || (typeof child.type === 'string' && child.type !== 'svg')) {
+  if (
+    !isValidElement<SVGProps<SVGSVGElement>>(child) ||
+    child.type === Fragment ||
+    (typeof child.type === 'string' && child.type !== 'svg')
+  ) {
     // Declared behaviour: nothing is rendered (never a half-sized, half-labelled foreign node).
-    if (isDev()) {
-      console.warn('[react-object-page] <Icon> expects exactly one <svg> element as its child; rendering nothing.');
-    }
+    warnInvalidChild();
     return null;
   }
 
@@ -68,17 +79,19 @@ export const Icon = /* @__PURE__ */ forwardRef<SVGSVGElement, IconProps>(functio
     ...rest,
     ref: composeRefs(childRef, ref),
     // Default classes first, then the child's own, then the consumer's: the last one wins.
-    // Negative block margin: the icon box barely touches the line box (an sm icon in a caption
-    // line keeps the line height); larger icons still grow the line, as they must.
-    className: cn(
-      'inline-block shrink-0 align-middle my-[-0.25em]',
-      SIZE_CLASS[size],
-      child.props.className,
-      className,
-    ),
-    // The semantics of `label` always win over whatever the child declared.
+    className: cn('inline-block shrink-0 align-middle', SIZE_CLASS[size], child.props.className, className),
+    // The semantics of `label` always win over whatever the child (or `rest`) declared. A name
+    // given some other way (`aria-labelledby`) would take precedence over `aria-label`, and a
+    // decorative icon must not be reachable by keyboard (`tabIndex`).
     ...(named
-      ? { role: 'img', 'aria-label': label, 'aria-hidden': undefined, focusable: undefined }
-      : { role: undefined, 'aria-label': undefined, 'aria-hidden': true, focusable: 'false' }),
+      ? { role: 'img', 'aria-label': label, 'aria-labelledby': undefined, 'aria-hidden': undefined, focusable: undefined }
+      : {
+          role: undefined,
+          'aria-label': undefined,
+          'aria-labelledby': undefined,
+          'aria-hidden': true,
+          focusable: 'false',
+          tabIndex: undefined,
+        }),
   } as Partial<SVGProps<SVGSVGElement>> & { ref: Ref<SVGSVGElement> });
 });
