@@ -25,6 +25,13 @@ library utilities are not part of your own `utilities` layer, so their precedenc
 layered CSS follows the order in which the layers first appear (import `styles.css` first and
 your layers win; last and the library wins). Un-layered CSS always wins.
 
+One exception to the namespacing: Tailwind v4 itself always emits a layer called `properties`
+(`@layer properties`) for its internal `--tw-*` custom-property defaults. Its name is not under
+our control, so `rop.*` cannot promise it away; what the library guarantees (and a test enforces)
+is that it contains only inert `--tw-*` defaults (today: border style, line height, font weight)
+and never the long list that `shadow-*`, `ring-*`, `translate-*` etc. would add. Components such as
+`Button` therefore draw their focus indicator with a plain `outline`, not with those utilities.
+
 ### (b) Tailwind v4 project: tokens + sources
 
 ```css
