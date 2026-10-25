@@ -26,7 +26,7 @@ export default defineConfig({
     timeout: 300_000,
   },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    { name: 'chromium', grepInvert: /@touch/, use: { ...devices['Desktop Chrome'] } },
     // Touch emulation, for tickets that need it. Opt-in by tag so that it does not
     // duplicate every test: tag tests with `@touch` to run them in this project.
     {

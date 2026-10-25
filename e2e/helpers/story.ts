@@ -27,13 +27,26 @@ export async function gotoStory(page: Page, storyId: string): Promise<void> {
 
   await page.goto(`/iframe.html?id=${encodeURIComponent(storyId)}&viewMode=story`);
   await page.waitForSelector('body.sb-show-main, body.sb-show-errordisplay', { state: 'attached' });
+  // Wait for "root has children OR error display": late render errors surface here.
+  const rendered = await page
+    .waitForFunction(
+      () => {
+        if (document.body.classList.contains('sb-show-errordisplay')) return true;
+        const root = document.querySelector('#storybook-root');
+        return !!root && root.childElementCount > 0;
+      },
+      undefined,
+      { timeout: 5_000 },
+    )
+    .then(() => true)
+    .catch(() => false);
   if ((await page.locator('body.sb-show-errordisplay').count()) > 0) {
+    const message = (await page.locator('#error-message').textContent()) ?? '';
+    throw new Error(`gotoStory: story "${storyId}" failed to render: ${message}`);
+  }
+  if (!rendered) {
     throw new Error(
-      `gotoStory: story "${storyId}" failed to render: ${(await page.locator('#error-message').textContent()) ?? ''}`,
+      `gotoStory: story "${storyId}" rendered nothing in #storybook-root (null, or portal-only output)`,
     );
   }
-  await page.waitForFunction(() => {
-    const root = document.querySelector('#storybook-root');
-    return !!root && root.childElementCount > 0;
-  });
 }

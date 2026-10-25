@@ -23,3 +23,14 @@ Free/Pro, architettura, roadmap) è in [`docs/planning/design-system-spec.md`](d
 
 Vedi `CLAUDE.md` per la pipeline di sviluppo (pianificatore → sviluppatore → tester →
 critico-avversariale) e le regole di dominio.
+
+### Storybook ed e2e
+
+- `npm run storybook` avvia Storybook; `npm run test:e2e` ricostruisce Storybook e lancia
+  Playwright contro la build statica sulla porta 6007.
+- In locale `reuseExistingServer` è attivo: se qualcosa ascolta già sulla porta 6007, Playwright
+  lo riusa senza ricostruire, quindi si può testare una build **vecchia**. Se i risultati sembrano
+  incoerenti, ferma il processo sulla 6007 e rilancia.
+- In CI `retries: 1`: un test instabile che passa al secondo tentativo risulta **flaky ma verde**.
+  Controlla il report per i test marcati flaky, non fidarti solo del colore.
+- I test marcati `@touch` girano solo nel progetto `chromium-touch`.

@@ -15,6 +15,18 @@ test.describe('gotoStory', () => {
     );
     expect(Date.now() - started).toBeLessThan(5_000);
   });
+
+  test('fails explicitly when the story renders nothing', async ({ page }) => {
+    await expect(gotoStory(page, 'internal-harness--renders-nothing')).rejects.toThrow(
+      /rendered nothing in #storybook-root/,
+    );
+  });
+
+  test('fails explicitly when the story throws on render', async ({ page }) => {
+    await expect(gotoStory(page, 'internal-harness--throws-on-render')).rejects.toThrow(
+      /failed to render/,
+    );
+  });
 });
 
 test.describe('expectNoA11yViolations', () => {
@@ -27,5 +39,18 @@ test.describe('expectNoA11yViolations', () => {
     await gotoStory(page, 'internal-harness--button-without-name');
     await expect(page.getByTestId('nameless')).toBeVisible();
     await expect(expectNoA11yViolations(page)).rejects.toThrow(/button-name/);
+  });
+
+  test('detects a violation inside a portal', async ({ page }) => {
+    await gotoStory(page, 'internal-harness--portal-button-without-name');
+    await expect(page.getByTestId('portal-nameless')).toBeVisible();
+    await expect(expectNoA11yViolations(page)).rejects.toThrow(/button-name/);
+  });
+});
+
+test.describe('touch project', () => {
+  test('@touch emulates a touch device', async ({ page }) => {
+    await gotoStory(page, 'internal-harness--valid');
+    expect(await page.evaluate(() => navigator.maxTouchPoints)).toBeGreaterThan(0);
   });
 });
