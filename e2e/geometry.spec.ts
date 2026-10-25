@@ -100,6 +100,16 @@ test.describe('expectNoHorizontalOverflow (round 3)', () => {
     await gotoStory(page, 'internal-geometryfixtures--absolute-escapes-static-clipper');
     await expect(expectNoHorizontalOverflow(root(page))).rejects.toThrow(/spans/);
   });
+
+  test('fails: static child in an absolute box is not clipped by a static wrapper above it', async ({ page }) => {
+    await gotoStory(page, 'internal-geometryfixtures--static-child-in-absolute-box-escapes-static-wrapper');
+    await expect(expectNoHorizontalOverflow(root(page))).rejects.toThrow(/spans/);
+  });
+
+  test('fails: absolute box in a 0x0 absolute anchor is not clipped by a static wrapper above it', async ({ page }) => {
+    await gotoStory(page, 'internal-geometryfixtures--absolute-in-zero-size-anchor-escapes-static-wrapper');
+    await expect(expectNoHorizontalOverflow(root(page))).rejects.toThrow(/spans/);
+  });
 });
 
 test.describe('expectSingleScroller (scroll-locked body)', () => {

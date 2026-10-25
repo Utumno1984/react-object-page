@@ -325,6 +325,40 @@ export const AbsoluteEscapesStaticClipper: Story = {
   ),
 };
 
+/**
+ * Static wide child inside a narrow absolute box `A`; above `A` sits a static overflow:hidden
+ * wrapper `W`. `A`'s containing block is the page (W is static), so W does NOT clip the child:
+ * its chain is A -> page. Really sticks out of the root. Must FAIL.
+ */
+export const StaticChildInAbsoluteBoxEscapesStaticWrapper: Story = {
+  render: () => (
+    <div data-testid="root" style={{ ...box, overflow: 'visible' }}>
+      <div style={{ width: 100, overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', width: 100 }}>
+          <div style={{ width: 400 }}>wide static child</div>
+        </div>
+      </div>
+    </div>
+  ),
+};
+
+/**
+ * Absolute box inside a 0x0 absolute anchor, under a static overflow:hidden wrapper `W`. The
+ * anchor is the containing block (a 0x0 box is still one) and W is not on the chain, so the box
+ * really sticks out of the root. Must FAIL.
+ */
+export const AbsoluteInZeroSizeAnchorEscapesStaticWrapper: Story = {
+  render: () => (
+    <div data-testid="root" style={{ ...box, overflow: 'visible' }}>
+      <div style={{ width: 100, overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', width: 0, height: 0 }}>
+          <div style={{ position: 'absolute', left: 0, width: 400 }}>popup from a 0x0 anchor</div>
+        </div>
+      </div>
+    </div>
+  ),
+};
+
 function BodyScrollLock({ children }: { children: ReactNode }) {
   useLayoutEffect(() => {
     const prev = document.body.style.overflow;

@@ -68,7 +68,7 @@ export async function expectSingleScroller(
  *   vertically a too-wide row inside it is a real, unwanted horizontal overflow. (Computed style
  *   cannot tell a vertical panel with no vertical overflow from a horizontal wrapper.)
  *   Clipping follows CSS containing blocks: an `absolute` box is clipped by its containing block
- *   (first positioned ancestor) and the ancestors above it, NOT by the static ones in between;
+ *   and by the ancestors on ITS containing-block chain, followed step by step, NOT by static ones in between;
  * - a descendant lying entirely off the left edge of the PAGE (e.g. `left: -9999px` hidden text)
  *   does not count: it is off-screen on purpose and cannot cause a scrollbar (LTR). A box that is
  *   merely left of its container but still on screen does count.
@@ -86,24 +86,33 @@ export async function expectNoHorizontalOverflow(container: Locator): Promise<vo
       if (b.width === 0 && b.height === 0) continue;
       let left = b.left;
       let right = b.right;
-      const position = getComputedStyle(el).position;
-      if (position !== 'fixed') {
-        // An absolutely positioned box is not clipped by the ancestors between it and its
-        // containing block (first positioned ancestor); the containing block and everything above
-        // it clip. If the containing block is the root or above, nothing below the root clips it.
-        let reachedContainingBlock = position !== 'absolute';
+      {
+        // An ancestor clips a box only if it lies on the box's chain of containing blocks, so the
+        // chain is followed one step at a time: the containing block found for the current box
+        // becomes the current box, and the next search starts from there (not from `el`).
+        //  - static/relative/sticky box: its containing block is the parent;
+        //  - absolute box: the nearest ancestor that is positioned or has a transform/filter/
+        //    perspective/contain/will-change/backdrop-filter, even if that ancestor is static;
+        //  - fixed box: the nearest ancestor with transform/filter/perspective/contain/... else
+        //    the viewport (end of the chain, nothing below the root clips it).
+        const createsBlock = (s: CSSStyleDeclaration): boolean =>
+          s.transform !== 'none' ||
+          s.perspective !== 'none' ||
+          s.filter !== 'none' ||
+          (s.backdropFilter !== undefined && s.backdropFilter !== 'none') ||
+          /paint|layout|strict|content/.test(s.contain) ||
+          /transform|perspective|filter/.test(s.willChange);
+        let currentPosition = getComputedStyle(el).position;
         for (let p = el.parentElement; p && p !== root; p = p.parentElement) {
           const pcs = getComputedStyle(p);
-          if (!reachedContainingBlock) {
-            const establishes =
-              pcs.position !== 'static' ||
-              pcs.transform !== 'none' ||
-              pcs.perspective !== 'none' ||
-              pcs.filter !== 'none' ||
-              /paint|layout|strict|content/.test(pcs.contain);
-            if (!establishes) continue;
-            reachedContainingBlock = true;
-          }
+          const isContainingBlock =
+            currentPosition === 'fixed'
+              ? createsBlock(pcs)
+              : currentPosition === 'absolute'
+                ? pcs.position !== 'static' || createsBlock(pcs)
+                : true;
+          if (!isContainingBlock) continue;
+          currentPosition = pcs.position;
           const clips =
             pcs.overflowX === 'hidden' ||
             pcs.overflowX === 'clip' ||
