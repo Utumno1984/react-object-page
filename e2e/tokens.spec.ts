@@ -42,9 +42,7 @@ test.describe('Foundations/Tokens', () => {
     }
   });
 
-  test('the library CSS does not reset the host page (no preflight)', async ({ page }) => {
-    await gotoStory(page, STORY);
-    const boxSizing = await page.evaluate(() => getComputedStyle(document.body).boxSizing);
-    expect(boxSizing).toBe('content-box');
-  });
+  // No "no preflight" test on document.body here: Storybook itself adds `sb-main-padded sb-show-main`
+  // to <body> (box-sizing: border-box), so it would measure Storybook, not this library. The real
+  // coverage is the test that scans the compiled dist/styles.css for global html/body/* selectors.
 });
