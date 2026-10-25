@@ -5,7 +5,8 @@ import { gotoStory } from './helpers/story';
 test.describe('gotoStory', () => {
   test('opens an existing story and waits for it to render', async ({ page }) => {
     await gotoStory(page, 'internal-harness--valid');
-    await expect(page.getByRole('button', { name: 'Save' })).toBeVisible();
+    // smoke test: nome sbagliato di proposito per far fallire l'e2e e verificare l'artifact (da revertare)
+    await expect(page.getByRole('button', { name: 'ThisButtonNameDoesNotExist' })).toBeVisible();
   });
 
   test('fails with an explicit error (not a timeout) for an unknown story id', async ({ page }) => {
