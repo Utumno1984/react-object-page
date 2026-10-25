@@ -90,6 +90,16 @@ describe('styles.css (compiled)', () => {
     expect(stylesCss).not.toContain('var(--spacing)');
   });
 
+  it('the global (un-namespaced) `properties` layer holds only inert --tw-* defaults, none of the shadow/ring/outline/translate family', () => {
+    // Tailwind v4 emits `@layer properties` whatever the prefix; it stays harmless as long as no
+    // component pulls in the utilities that fill it with dozens of globals (checked here for #7).
+    const block = /@layer properties\s*\{[\s\S]*?\n\}/.exec(stylesCss)?.[0] ?? '';
+    const declared = [...block.matchAll(/(--[\w-]+)\s*:/g)].map((m) => m[1] as string);
+    expect(declared.length).toBeGreaterThan(0);
+    expect(declared.filter((name) => !name.startsWith('--tw-'))).toEqual([]);
+    expect(declared.filter((name) => /shadow|ring|outline|translate|rotate|scale|skew|blur/.test(name))).toEqual([]);
+  });
+
   it('the leak checker allows only inert --tw-* internals, a real global reset still fails', () => {
     const internals =
       '@layer properties { @supports (x: y) { *, ::before, ::after, ::backdrop { --tw-shadow: 0 0 #0000; --tw-ring-inset: ; } } }';
@@ -113,6 +123,18 @@ describe('styles.css (compiled)', () => {
       ':root declares something other than custom properties',
     );
     expect(findGlobalLeaks('@layer utilities { .px-2 { padding-inline: 1px; } }')).toEqual([]);
+    // Tailwind's nested `@supports` fallback for a derived token is fine while it only declares variables.
+    expect(
+      findGlobalLeaks('@layer theme { :root { --a: 1; @supports (color: red) { --b: var(--a); } } }'),
+    ).toEqual([]);
+    expect(
+      findGlobalLeaks('@layer theme { :root { --a: 1; @supports (color: red) { color: red; } } }'),
+    ).toContain(':root declares something other than custom properties');
+    // Regression: unwrapping `@supports` must not merge its last declaration with whatever
+    // follows the block when the source has no trailing `;` before the `}` (Tailwind's own output).
+    expect(
+      findGlobalLeaks('@layer theme { :root { @supports (color: red) { --b: 1 } color: red; } }'),
+    ).toContain(':root declares something other than custom properties');
   });
 
   it('contains the utilities used by the sources (fixture) and the rop tokens as variables', () => {

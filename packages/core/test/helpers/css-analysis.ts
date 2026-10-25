@@ -100,7 +100,10 @@ export function findGlobalLeaks(css: string): string[] {
     if (parts.every((p) => tailwindInternals.includes(p)) && declaresOnlyTailwindInternals(body)) continue;
     for (const part of parts) {
       if (part === ':root' || part === ':host') {
+        // Tailwind wraps a token whose value is a `color-mix(... var(--x) ...)` in a nested
+        // `@supports (...) { --token: ... }` fallback: unwrap it, what is inside is still checked.
         const decls = body
+          .replace(/@supports[^{}]*\{([^{}]*)\}/g, '$1;')
           .split(';')
           .map((d) => d.trim())
           .filter(Boolean);

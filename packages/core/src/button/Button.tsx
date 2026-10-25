@@ -1,0 +1,204 @@
+import {
+  cloneElement,
+  forwardRef,
+  Fragment,
+  isValidElement,
+  useEffect,
+  version,
+  type ButtonHTMLAttributes,
+  type MouseEvent,
+  type ReactElement,
+  type ReactNode,
+  type Ref,
+  type SVGProps,
+} from 'react';
+import { Slot, Slottable } from '@radix-ui/react-slot';
+import { Icon, type IconSize } from '../icon/Icon';
+import { cn } from '../utils/cn';
+
+export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
+export type ButtonTextSize = 'sm' | 'md' | 'lg' | 'inline';
+export type ButtonIconSize = 'icon-xs' | 'icon-sm' | 'icon-md';
+export type ButtonSize = ButtonTextSize | ButtonIconSize;
+
+// Full literals (Tailwind scan, which also reads comments: do not write the bare names of the
+// shadow-like utilities here). The keyboard focus indicator is an arbitrary declaration, not one of
+// those utilities, because they make Tailwind v4 emit many global `--tw-*` defaults in its
+// un-namespaced layer (see the README). `:focus-visible`: keyboard only, never on click.
+const BASE =
+  'inline-flex max-w-full shrink-0 cursor-pointer select-none items-center justify-center gap-1.5 ' +
+  'rounded-rop-md border border-transparent text-center no-underline font-rop-sans font-[500] [overflow-wrap:anywhere] ' +
+  'focus-visible:[outline:2px_solid_var(--color-rop-primary)] focus-visible:outline-offset-2 ' +
+  'disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:opacity-50';
+
+const VARIANT_CLASS: Record<ButtonVariant, string> = {
+  // Hover only on an enabled control; the primary/danger hover darkens (keeps the white text AA).
+  primary: 'bg-rop-primary text-rop-primary-contrast not-disabled:not-aria-disabled:hover:bg-rop-primary-hover',
+  secondary: 'border-rop-border bg-rop-surface text-rop-text not-disabled:not-aria-disabled:hover:bg-rop-surface-subtle',
+  ghost: 'bg-transparent text-rop-primary not-disabled:not-aria-disabled:hover:bg-rop-surface-subtle',
+  danger: 'bg-rop-error text-rop-primary-contrast not-disabled:not-aria-disabled:hover:bg-rop-error-hover',
+};
+
+// Text sizes get their height from line height + vertical padding (+ 2px border), so they grow when
+// the label wraps and a consumer `h-*` is a plain override; the icon-only ones are fixed squares.
+// `inline` takes font and line height from the surrounding text and is exactly one line tall
+// (`1lh`), so a button inside a paragraph never widens the line.
+const SIZE_CLASS: Record<ButtonSize, string> = {
+  sm: 'px-2.5 py-[5px] text-rop-label', // 32px
+  md: 'px-3.5 py-[7px] text-rop-label', // 36px
+  lg: 'px-4 py-[11px] text-rop-label', // 44px
+  inline: 'h-[1lh] whitespace-nowrap px-1 align-baseline text-[length:inherit] leading-[inherit]',
+  'icon-xs': 'size-6 p-0',
+  'icon-sm': 'size-8 p-0',
+  'icon-md': 'size-9 p-0',
+};
+
+const ICON_SIZE: Record<ButtonSize, IconSize> = {
+  inline: 'xs',
+  sm: 'sm',
+  md: 'sm',
+  lg: 'md',
+  'icon-xs': 'sm',
+  'icon-sm': 'md',
+  'icon-md': 'lg',
+};
+
+type IconElement = ReactElement<SVGProps<SVGSVGElement>>;
+
+interface ButtonBaseProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
+  /** Visual emphasis. Default `secondary`. */
+  variant?: ButtonVariant;
+  /**
+   * Renders the single child element (e.g. an `<a href>`) instead of a `<button>`, merging classes,
+   * props, `onClick` and `ref` into it (the child's own `className` wins over the Button's). `type`
+   * is not defaulted in this mode (an explicit one is passed on); `disabled` becomes
+   * `aria-disabled="true"` + `tabIndex=-1` + a blocked click, since only `<button>` has a native one.
+   * The `href` of a disabled link stays, so middle-click / "open in new tab" still navigate.
+   */
+  asChild?: boolean;
+  /** An `<svg>` shown before the label, sized by `size`. Decorative: never part of the name. */
+  leadingIcon?: IconElement;
+  /** An `<svg>` shown after the label, sized by `size`. Decorative: never part of the name. */
+  trailingIcon?: IconElement;
+  children?: ReactNode;
+}
+
+type AccessibleName =
+  | { 'aria-label': string; 'aria-labelledby'?: string }
+  | { 'aria-labelledby': string; 'aria-label'?: string };
+
+/**
+ * Text sizes need nothing extra. The `icon-*` sizes have no visible text, so TypeScript requires an
+ * accessible name (`aria-label` or `aria-labelledby`); a missing/blank one is also reported with
+ * `console.error` in development.
+ */
+export type ButtonProps = ButtonBaseProps & ({ size?: ButtonTextSize } | ({ size: ButtonIconSize } & AccessibleName));
+
+// Bundlers replace `process.env.NODE_ENV` in consumer builds; without `process` assume development.
+// (`typeof process` is NOT replaced by bundlers, so it would keep the dev code in production.)
+const isDev = (): boolean => {
+  try {
+    return process.env.NODE_ENV !== 'production';
+  } catch {
+    return true;
+  }
+};
+const isBlank = (value: unknown): boolean => typeof value !== 'string' || value.trim() === '';
+
+const blockClick = (event: MouseEvent) => event.preventDefault();
+
+/**
+ * Button primitive. Renders `<button type="button">` (never an implicit `submit`), or, with
+ * `asChild`, the child element carrying the same classes. The consumer `className` is merged last
+ * and wins over the defaults. `ref` points to the rendered node (the child's node with `asChild`).
+ *
+ * `size="inline"` never wraps its label (`whitespace-nowrap`, so it stays one line tall inside a
+ * paragraph). Accepted trade-off: in a container narrower than the label the button stays capped
+ * at the container width and the text overflows it horizontally instead of wrapping; keep inline
+ * labels short or clip/scroll the container.
+ */
+export const Button = /* @__PURE__ */ forwardRef<HTMLElement, ButtonProps>(function Button(props, ref) {
+  const {
+    variant = 'secondary',
+    size = 'md',
+    asChild = false,
+    leadingIcon,
+    trailingIcon,
+    className,
+    disabled,
+    type,
+    onClick,
+    children,
+    ...rest
+  } = props;
+
+  const iconOnly = size.startsWith('icon-');
+  const named = !isBlank(rest['aria-label']) || !isBlank(rest['aria-labelledby']);
+  useEffect(() => {
+    if (iconOnly && !named && isDev()) {
+      console.error(
+        `[react-object-page] <Button size="${size}"> has no visible text: it needs an accessible name (aria-label or aria-labelledby).`,
+      );
+    }
+  }, [iconOnly, named, size]);
+
+  const iconSize = ICON_SIZE[size];
+  const classes = cn(BASE, VARIANT_CLASS[variant], SIZE_CLASS[size], className);
+  const leading = leadingIcon ? <Icon size={iconSize}>{leadingIcon}</Icon> : null;
+  const trailing = trailingIcon ? <Icon size={iconSize}>{trailingIcon}</Icon> : null;
+
+  if (asChild) {
+    if (!isValidElement(children) || children.type === Fragment) {
+      throw new Error('[react-object-page] <Button asChild> expects exactly one React element as its child.');
+    }
+    if (
+      isDev() &&
+      Number.parseInt(version, 10) < 19 &&
+      typeof children.type === 'function' &&
+      !(children.type.prototype as { isReactComponent?: unknown } | undefined)?.isReactComponent
+    ) {
+      console.error(
+        '[react-object-page] <Button asChild>: the child is a function component, which cannot receive the ref on React 18. Wrap it in forwardRef.',
+      );
+    }
+    // Applied to the child itself, not through Slot: Slot only concatenates `className` (no merge
+    // of conflicting utilities) and lets the child's props override ours. Here the child's own
+    // classes go last through `cn`, and a disabled `<a>` (no native `disabled`) gets
+    // `aria-disabled`, `tabIndex=-1` and a blocked click whatever the child declared. The `href`
+    // is kept (link semantics), so middle-click / "open in new tab" are not prevented.
+    const child = cloneElement(children as ReactElement<{ className?: string }>, {
+      className: cn(classes, (children.props as { className?: string }).className),
+      ...(disabled ? { onClick: blockClick, 'aria-disabled': true, tabIndex: -1 } : {}),
+    } as object);
+    return (
+      <Slot {...rest} {...(type ? ({ type } as object) : {})} ref={ref} onClick={disabled ? undefined : onClick}>
+        {leading}
+        <Slottable>{child}</Slottable>
+        {trailing}
+      </Slot>
+    );
+  }
+
+  // Icon-only: a lone <svg> child is put on the icon scale like leading/trailing icons.
+  const content =
+    iconOnly && isValidElement(children) && children.type === 'svg' ? (
+      <Icon size={iconSize}>{children as IconElement}</Icon>
+    ) : (
+      children
+    );
+
+  return (
+    <button
+      {...rest}
+      ref={ref as Ref<HTMLButtonElement>}
+      type={type ?? 'button'}
+      disabled={disabled}
+      onClick={onClick}
+      className={classes}
+    >
+      {leading}
+      {content}
+      {trailing}
+    </button>
+  );
+});

@@ -25,6 +25,13 @@ library utilities are not part of your own `utilities` layer, so their precedenc
 layered CSS follows the order in which the layers first appear (import `styles.css` first and
 your layers win; last and the library wins). Un-layered CSS always wins.
 
+One exception to the namespacing: Tailwind v4 itself always emits a layer called `properties`
+(`@layer properties`) for its internal `--tw-*` custom-property defaults. Its name is not under
+our control, so `rop.*` cannot promise it away; what the library guarantees (and a test enforces)
+is that it contains only inert `--tw-*` defaults (today: border style, line height, font weight)
+and never the long list that `shadow-*`, `ring-*`, `translate-*` etc. would add. Components such as
+`Button` therefore draw their focus indicator with a plain `outline`, not with those utilities.
+
 ### (b) Tailwind v4 project: tokens + sources
 
 ```css
@@ -49,12 +56,17 @@ can use `text-rop-body`, `font-rop-mono`, `z-rop-modal`, `bg-rop-primary`... in 
 
 | Group | Names |
 |---|---|
-| Colors | `text`, `text-muted`, `surface`, `surface-subtle`, `border`, `primary`, `primary-contrast`, `info`, `success`, `warning`, `error` |
+| Colors | `text`, `text-muted`, `surface`, `surface-subtle`, `border`, `primary`, `primary-hover`, `primary-contrast`, `info`, `success`, `warning`, `error`, `error-hover` |
 | Type scale (size + line height) | `caption`, `body`, `label`, `title-sm`, `title-md`, `title-lg` |
 | Families | `font-rop-sans`, `font-rop-mono` (system stacks, no web font; the mono stack ends with `monospace`) |
 | z-index | `sticky` < `overlay` (backdrop) < `modal` < `popover` < `tooltip` |
 
 Tokens are plain CSS variables: override them in your own CSS for theming.
+
+`primary-hover` and `error-hover` (the hover background of the `primary` and `danger` Buttons) are
+not fixed colors: they are `color-mix(in srgb, <base> 80%, black)` of `--color-rop-primary` /
+`--color-rop-error`. Override the base color **on `:root`** (where the tokens are declared) and the
+hover follows; override the hover token too only if you want a different shade.
 
 ## `cn()`
 

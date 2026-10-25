@@ -20,6 +20,9 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     include: ['*.test.{ts,tsx}'],
+    // Radix lives in the root node_modules and would be loaded un-transformed with the root's
+    // React 19; inlining it makes the aliases above apply to it too.
+    server: { deps: { inline: [/@radix-ui/] } },
     // Core sources import tokens.css as text (`?raw`); Vitest would blank it otherwise.
     css: { include: [/\.css\?raw$/] },
   },
