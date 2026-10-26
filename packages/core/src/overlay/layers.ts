@@ -9,7 +9,11 @@
  *
  * Radix content positioned by `@radix-ui/react-popper` (Popover, Select, Tooltip...) lives inside
  * a wrapper element that copies the computed z-index of the content: the class goes on the content
- * element and the wrapper then gets the same level.
+ * element and the wrapper then gets the same level. Popper reads that z-index **once**, when the
+ * content mounts: the level class must already be applied (with the CSS loaded) at mount and the
+ * level cannot change while the content is mounted (remount it, e.g. with a `key`). Otherwise the
+ * `position: fixed` wrapper keeps an automatic z-index, still creates a stacking context, and traps
+ * the content under a modal.
  */
 export const overlayLayer = {
   backdrop: 'z-rop-overlay',

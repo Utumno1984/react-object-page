@@ -6,19 +6,16 @@ import { createPortal } from 'react-dom';
 import * as Popover from '@radix-ui/react-popover';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
-import { cn } from '../utils/cn';
 import { overlayLayer } from '../overlay/layers';
 
 interface LayersArgs {
-  /** Level of the Radix popover that overlaps the modal. */
-  popoverLayer: 'modal' | 'popover';
   onPopoverClick: () => void;
   onModalClick: () => void;
 }
 
 const box = { position: 'fixed', fontFamily: 'sans-serif', fontSize: 14, padding: 12, borderRadius: 6 } as const;
 
-function OverlayLayersFixture({ popoverLayer, onPopoverClick, onModalClick }: LayersArgs) {
+function OverlayLayersFixture({ onPopoverClick, onModalClick }: LayersArgs) {
   return (
     <>
       {createPortal(
@@ -50,7 +47,7 @@ function OverlayLayersFixture({ popoverLayer, onPopoverClick, onModalClick }: La
         <Popover.Portal>
           <Popover.Content
             data-testid="popover"
-            className={cn(overlayLayer[popoverLayer])}
+            className={overlayLayer.popover}
             side="bottom"
             align="start"
             sideOffset={0}
@@ -58,7 +55,7 @@ function OverlayLayersFixture({ popoverLayer, onPopoverClick, onModalClick }: La
             onClick={onPopoverClick}
             style={{ ...box, position: undefined, width: 260, height: 140, background: '#ecfdf5', border: '2px solid #047857' }}
           >
-            Popover (level {popoverLayer}), positioned by a Radix wrapper, overlapping the modal
+            Popover (level popover), positioned by a Radix wrapper, overlapping the modal
           </Popover.Content>
         </Popover.Portal>
       </Popover.Root>
@@ -81,11 +78,10 @@ const meta: Meta<LayersArgs> = {
   title: 'Internal/OverlayLayers',
   parameters: { layout: 'fullscreen' },
   argTypes: {
-    popoverLayer: { control: 'radio', options: ['popover', 'modal'] },
     onPopoverClick: { control: false },
     onModalClick: { control: false },
   },
-  args: { popoverLayer: 'popover', onPopoverClick: fn(), onModalClick: fn() },
+  args: { onPopoverClick: fn(), onModalClick: fn() },
   render: (args) => <OverlayLayersFixture {...args} />,
 };
 

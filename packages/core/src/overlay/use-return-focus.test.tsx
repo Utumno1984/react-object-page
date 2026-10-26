@@ -79,6 +79,29 @@ describe('useReturnFocus', () => {
     outside.remove();
   });
 
+  it('does not return to a stale element when the focus was lost to body before opening', async () => {
+    const { get, set } = setup({ open: false });
+    act(() => get('opener')!.focus());
+    act(() => get('opener')!.blur());
+    expect(document.activeElement).toBe(document.body);
+    set({ open: true });
+    act(() => get('inside')!.focus());
+    set({ open: false });
+    await nextFrame();
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it('falls back to fallbackRef when the focus was lost to body before opening', async () => {
+    const { get, set } = setup({ open: false, withFallback: true });
+    act(() => get('opener')!.focus());
+    act(() => get('opener')!.blur());
+    set({ open: true });
+    act(() => get('inside')!.focus());
+    set({ open: false });
+    await nextFrame();
+    expect(document.activeElement).toBe(get('fallback'));
+  });
+
   it('does not track focus while open', async () => {
     const { get, set } = setup({ open: false });
     act(() => get('opener')!.focus());

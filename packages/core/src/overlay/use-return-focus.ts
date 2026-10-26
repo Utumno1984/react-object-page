@@ -16,7 +16,9 @@ function canTakeFocus(el: HTMLElement | null | undefined): el is HTMLElement {
  * was opened (Radix trigger, keyboard shortcut, a button elsewhere: `open` is all it looks at).
  *
  * - The element is remembered by listening to `focusin` on the document **only while `open` is
- *   false**. The listener is attached in a layout effect and detached when `open` turns true,
+ *   false**, and confirmed against `document.activeElement` at the moment `open` turns true (a focus
+ *   lost to `body` in between is not mistaken for the last focused element). The listener is
+ *   attached in a layout effect and detached when `open` turns true,
  *   before the children of the newly opened overlay can focus anything, so an `autoFocus` field
  *   inside the content (children's effects run before the parent's) never overwrites it.
  * - On `open: true -> false` the focus returns in the next animation frame, i.e. after the content
@@ -48,19 +50,20 @@ export function useReturnFocus({ open, fallbackRef }: UseReturnFocusOptions): vo
 
   useLayoutEffect(() => {
     if (open) return undefined;
-    // Only when mounting closed: on an open -> closed transition the focus is still inside the
-    // content that is going away, and that is not the opener.
-    if (!wasOpenRef.current) {
-      const active = document.activeElement;
-      if (active instanceof HTMLElement && active !== document.body) openerRef.current = active;
-    }
     const onFocusIn = (event: FocusEvent) => {
       if (event.target instanceof HTMLElement && event.target !== document.body) {
         openerRef.current = event.target;
       }
     };
     document.addEventListener('focusin', onFocusIn);
-    return () => document.removeEventListener('focusin', onFocusIn);
+    return () => {
+      document.removeEventListener('focusin', onFocusIn);
+      // Runs in the mutation phase of the commit that opens the overlay, before any child can take
+      // the focus. `focusin` never fires when the focus is lost to `body` (click on an empty area),
+      // so the truth is read here: whatever has the focus right now is the opener, or nothing.
+      const active = document.activeElement;
+      openerRef.current = active instanceof HTMLElement && active !== document.body ? active : null;
+    };
   }, [open]);
 
   useEffect(() => {
