@@ -38,3 +38,23 @@ export type {
   DialogTitleProps,
   DialogCloseProps,
 } from './dialog/Dialog';
+export {
+  Sheet,
+  SheetTrigger,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetBody,
+  SheetFooter,
+  SheetClose,
+} from './sheet/Sheet';
+export type {
+  SheetProps,
+  SheetSide,
+  SheetSize,
+  SheetTriggerProps,
+  SheetContentProps,
+  SheetTitleProps,
+  SheetCloseProps,
+} from './sheet/Sheet';
