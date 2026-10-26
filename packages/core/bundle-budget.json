@@ -6,9 +6,17 @@
       "baseline": 12547,
       "limit": 13802
     },
+    "FieldMessage": {
+      "baseline": 10942,
+      "limit": 12037
+    },
     "Icon": {
       "baseline": 10388,
       "limit": 11427
+    },
+    "MessageStrip": {
+      "baseline": 13446,
+      "limit": 14791
     },
     "Text": {
       "baseline": 10007,
@@ -23,8 +31,8 @@
       "limit": 10865
     },
     "composeRefs": {
-      "baseline": 344,
-      "limit": 379
+      "baseline": 380,
+      "limit": 419
     }
   }
 }

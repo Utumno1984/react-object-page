@@ -9,3 +9,7 @@ export { Icon } from './icon/Icon';
 export type { IconProps, IconSize } from './icon/Icon';
 export { Button } from './button/Button';
 export type { ButtonProps, ButtonVariant, ButtonSize, ButtonTextSize, ButtonIconSize } from './button/Button';
+export { MessageStrip } from './message-strip/MessageStrip';
+export type { MessageStripProps, MessageStripTone } from './message-strip/MessageStrip';
+export { FieldMessage } from './field-message/FieldMessage';
+export type { FieldMessageProps, FieldMessageTone } from './field-message/FieldMessage';
