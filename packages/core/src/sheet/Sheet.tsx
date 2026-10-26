@@ -40,6 +40,8 @@ const SIDE_CLASS: Record<SheetSide, string> = {
 // animation: nothing moves, so nothing depends on `prefers-reduced-motion` or on timing.
 const BASE = /* @__PURE__ */ modalPanelClass('fixed top-[var(--rop-vv-top)] h-[var(--rop-vv-h)] max-w-full');
 
+const NAMES = { part: 'SheetContent', root: 'Sheet', title: 'SheetTitle' };
+
 export type SheetProps = ModalRootProps;
 
 /**
@@ -80,9 +82,7 @@ export const SheetContent = /* @__PURE__ */ forwardRef<ElementRef<typeof RadixDi
       <ModalPanel
         {...rest}
         ref={ref}
-        part="SheetContent"
-        root="Sheet"
-        title="SheetTitle"
+        names={NAMES}
         dismissible={dismissible}
         returnFocusRef={returnFocusRef}
         panelClassName={cn(BASE, SIDE_CLASS[side], SIZE_CLASS[size], overlayLayer.modal, className)}

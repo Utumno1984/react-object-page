@@ -39,6 +39,8 @@ const BASE = /* @__PURE__ */ modalPanelClass(
     '[box-shadow:0_10px_30px_rgb(0_0_0/0.25)]',
 );
 
+const NAMES = { part: 'DialogContent', root: 'Dialog', title: 'DialogTitle' };
+
 export type DialogProps = ModalRootProps;
 
 /**
@@ -86,9 +88,7 @@ export const DialogContent = /* @__PURE__ */ forwardRef<ElementRef<typeof RadixD
       <ModalPanel
         {...rest}
         ref={ref}
-        part="DialogContent"
-        root="Dialog"
-        title="DialogTitle"
+        names={NAMES}
         dismissible={dismissible}
         returnFocusRef={returnFocusRef}
         panelClassName={cn(BASE, SIZE_CLASS[size], overlayLayer.modal, className)}

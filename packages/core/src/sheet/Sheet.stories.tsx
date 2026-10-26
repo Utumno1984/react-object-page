@@ -158,13 +158,11 @@ const playOpen: Story['play'] = async ({ args }) => {
   else await expect(box.left).toBe(0);
 };
 
-/** Attached to the right edge (default), shown open. */
-export const Right: Story = { tags: ['visual'], args: { side: 'right' }, render: renderOpen, play: playOpen };
-/** Attached to the left edge, shown open. */
+/** Attached to the left edge, shown open (the right edge is the default: see the size stories). */
 export const Left: Story = { tags: ['visual'], args: { side: 'left' }, render: renderOpen, play: playOpen };
 /** `sm`: 352px wide at desktop width. */
 export const SizeSm: Story = { tags: ['visual'], args: { size: 'sm' }, render: renderOpen, play: playOpen };
-/** `md` (default): 480px. */
+/** `md` (default), on the right edge (default): 480px. */
 export const SizeMd: Story = { tags: ['visual'], args: { size: 'md' }, render: renderOpen, play: playOpen };
 /** `lg`: 672px; on a narrower viewport it takes the whole width and never overflows. */
 export const SizeLg: Story = { tags: ['visual'], args: { size: 'lg' }, render: renderOpen, play: playOpen };

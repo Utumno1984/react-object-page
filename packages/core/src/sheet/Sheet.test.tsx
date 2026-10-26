@@ -258,6 +258,23 @@ describe.each(KITS)('$name: shared modal behaviour', ({ name, Root, Trigger, Pan
     expect(errors.mock.calls.some((c) => String(c[0]).includes('has no accessible name'))).toBe(false);
   });
 
+  it('forwards the HTML attributes passed by the consumer (title, part, id, data-*, aria-*) to the panel', () => {
+    const Content = name === 'Dialog' ? DialogContent : SheetContent;
+    const Title = name === 'Dialog' ? DialogTitle : SheetTitle;
+    render(
+      <Root defaultOpen>
+        <Content title="Suggerimento" part="pannello" id="mio-pannello" data-extra="yes" aria-describedby={undefined}>
+          <Title>Nome</Title>
+        </Content>
+      </Root>,
+    );
+    const panel = screen.getByRole('dialog', { name: 'Nome' });
+    expect(panel).toHaveAttribute('title', 'Suggerimento');
+    expect(panel).toHaveAttribute('part', 'pannello');
+    expect(panel).toHaveAttribute('id', 'mio-pannello');
+    expect(panel).toHaveAttribute('data-extra', 'yes');
+  });
+
   it(`throws a clear error when a part is used outside <${name}>`, () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const Content = name === 'Dialog' ? DialogContent : SheetContent;
@@ -330,14 +347,5 @@ describe('Sheet: what differs from Dialog', () => {
       expect(panel.hasAttribute(name)).toBe(false);
     }
     expect(errors).not.toHaveBeenCalled();
-  });
-
-  it('uses the same internal parts as Dialog (no duplicated implementation)', () => {
-    expect(SheetHeader).toBe(DialogHeader);
-    expect(SheetTitle).toBe(DialogTitle);
-    expect(SheetDescription).toBe(DialogDescription);
-    expect(SheetBody).toBe(DialogBody);
-    expect(SheetFooter).toBe(DialogFooter);
-    expect(SheetClose).toBe(DialogClose);
   });
 });

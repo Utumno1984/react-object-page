@@ -176,10 +176,12 @@ function hasAccessibleName(node: HTMLElement): boolean {
 
 export interface ModalPanelProps
   extends Omit<ComponentPropsWithoutRef<typeof RadixDialog.Content>, 'children' | 'forceMount'> {
-  /** Names for the error / console messages. */
-  part: string;
-  root: string;
-  title: string;
+  /**
+   * Names of the public components, for the error / console messages. One object with a name that
+   * is not an HTML attribute: `part` and `title` are valid attributes the consumer may pass to the
+   * panel, and must reach the DOM untouched.
+   */
+  names: { part: string; root: string; title: string };
   /** Final class of the panel (the caller merges its own base, size, side and user `className`). */
   panelClassName: string;
   dismissible: boolean;
@@ -195,9 +197,7 @@ export interface ModalPanelProps
 export const ModalPanel = /* @__PURE__ */ forwardRef<ElementRef<typeof RadixDialog.Content>, ModalPanelProps>(
   function ModalPanel(
     {
-      part,
-      root,
-      title,
+      names: { part, root, title },
       panelClassName,
       dismissible,
       returnFocusRef,

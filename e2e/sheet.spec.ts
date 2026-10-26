@@ -24,7 +24,6 @@ const sheetOf = (page: Page): Locator => page.getByRole('dialog', { name: 'Detta
 test.describe('Overlays/Sheet: stories play', () => {
   for (const name of [
     'playground',
-    'right',
     'left',
     'size-sm',
     'size-md',
@@ -134,7 +133,8 @@ test.describe('geometry', () => {
   for (const side of ['right', 'left'] as const) {
     test(`side ${side}: flush with the edge, top 0, as tall as the viewport`, async ({ page }) => {
       await page.setViewportSize({ width: 1280, height: 800 });
-      await gotoStory(page, STORY(side));
+      // `size-md` is shown on the default (right) edge.
+      await gotoStory(page, STORY(side === 'right' ? 'size-md' : 'left'));
       await expect(sheetOf(page)).toBeVisible();
       const r = await sheetOf(page).evaluate((el) => {
         const b = el.getBoundingClientRect();
