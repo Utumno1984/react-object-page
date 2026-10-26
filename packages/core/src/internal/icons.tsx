@@ -14,7 +14,9 @@ const stroke = {
   strokeLinejoin: 'round',
 } as const;
 
-export const internalIcons = {
+// Built by a call marked pure: the `...stroke` spreads are not provably side-effect free for the
+// bundler, so a bare object literal would stay in every bundle that includes this module.
+export const internalIcons = /* @__PURE__ */ (() => ({
   close: (
     <svg {...stroke}>
       <path d="M6 6l12 12M18 6L6 18" />
@@ -54,6 +56,6 @@ export const internalIcons = {
       <path d="M9 9l6 6M15 9l-6 6" />
     </svg>
   ),
-} satisfies Record<string, SvgElement>;
+}) satisfies Record<string, SvgElement>)();
 
 export type InternalIconName = keyof typeof internalIcons;
