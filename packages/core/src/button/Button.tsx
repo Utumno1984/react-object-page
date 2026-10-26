@@ -47,7 +47,11 @@ const SIZE_CLASS: Record<ButtonSize, string> = {
   sm: 'px-2.5 py-[5px] text-rop-label', // 32px
   md: 'px-3.5 py-[7px] text-rop-label', // 36px
   lg: 'px-4 py-[11px] text-rop-label', // 44px
-  inline: 'h-[1lh] whitespace-nowrap px-1 align-baseline text-[length:inherit] leading-[inherit]',
+  // `justify-start` overrides BASE's `justify-center`: centered content whose width is clamped by
+  // `max-w-full` while `whitespace-nowrap` keeps it from wrapping would otherwise overflow
+  // symmetrically on both sides, pushing roughly half the label off-screen to the left (invisible,
+  // not just "overflowing" as documented below).
+  inline: 'h-[1lh] whitespace-nowrap justify-start px-1 align-baseline text-[length:inherit] leading-[inherit]',
   'icon-xs': 'size-6 p-0',
   'icon-sm': 'size-8 p-0',
   'icon-md': 'size-9 p-0',

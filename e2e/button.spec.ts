@@ -129,11 +129,27 @@ test.describe('Primitives/Button', () => {
     const m = await page.getByTestId('narrow-inline').evaluate((el) => {
       const container = document.querySelector('[data-testid="narrow"]')!.getBoundingClientRect();
       const box = el.getBoundingClientRect();
-      return { height: box.height, width: box.width, containerWidth: container.width, content: el.scrollWidth };
+      // The label is a raw text node (no wrapping span): measure where it actually starts on
+      // screen with a Range, instead of trusting box/scrollWidth alone.
+      const textNode = Array.from(el.childNodes).find((n) => n.nodeType === Node.TEXT_NODE)!;
+      const range = document.createRange();
+      range.selectNodeContents(textNode);
+      const textBox = range.getBoundingClientRect();
+      return {
+        height: box.height,
+        width: box.width,
+        left: box.left,
+        textLeft: textBox.left,
+        containerWidth: container.width,
+        content: el.scrollWidth,
+      };
     });
     expect(m.height).toBeLessThanOrEqual(20); // no wrapping: still one line
     expect(m.width).toBeLessThanOrEqual(m.containerWidth); // the button itself is capped (max-w-full)...
     expect(m.content).toBeGreaterThan(m.width); // ...so the label spills out of it: documented trade-off
+    // Regression (#35): a centered overflowing label used to spill ~evenly on BOTH sides, pushing
+    // its start off-screen to the left (invisible) instead of only overflowing to the right.
+    expect(m.textLeft).toBeGreaterThanOrEqual(m.left - 1); // -1px: sub-pixel rounding tolerance
   });
 
   test('disabled: the play function (Interactions) passes', async ({ page }) => {
