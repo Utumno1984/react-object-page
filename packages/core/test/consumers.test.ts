@@ -16,6 +16,15 @@ function run(file: string): string[] {
 
 const EXPORTS = [
   'Button',
+  'Dialog',
+  'DialogBody',
+  'DialogClose',
+  'DialogContent',
+  'DialogDescription',
+  'DialogFooter',
+  'DialogHeader',
+  'DialogTitle',
+  'DialogTrigger',
   'Field',
   'FieldMessage',
   'Icon',

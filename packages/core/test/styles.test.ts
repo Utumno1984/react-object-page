@@ -82,8 +82,12 @@ describe('styles.css (compiled)', () => {
   it('declares no custom property outside the rop namespace (no global --spacing, ...)', () => {
     const outside = [...customProperties(stylesCss).keys()].filter(
       // `--tw-*` are Tailwind's own inert internals (same policy as findGlobalLeaks): any font-weight
-      // utility declares `--tw-font-weight`. Any other non-rop property is still a failure.
-      (name) => !/^--(color|text|font|radius|z-index|icon)-rop-/.test(name) && !name.startsWith('--tw-'),
+      // utility declares `--tw-font-weight`. `--rop-vv-*` are the Dialog's own visual-viewport
+      // variables (#11), in the rop namespace. Any other non-rop property is still a failure.
+      (name) =>
+        !/^--(color|text|font|radius|z-index|icon)-rop-/.test(name) &&
+        !name.startsWith('--tw-') &&
+        !name.startsWith('--rop-vv-'),
     );
     expect(outside).toEqual([]);
     // Tailwind's default spacing is inlined into the utilities, not referenced as a variable.
@@ -152,7 +156,8 @@ describe('styles.css (compiled)', () => {
     // overlay layer map, #10, started using every level).
     expect(stylesCss).not.toContain('.z-rop-sticky');
     // (was `.text-rop-title-lg` until Title started using it, #6)
-    expect(stylesCss).not.toContain('.rounded-rop-lg');
+    // (was `.rounded-rop-lg` until the Dialog started using it, #11)
+    expect(stylesCss).not.toContain('.rounded-rop-sm');
   });
 
   it('is deterministic: two builds produce the same bytes as dist/styles.css', () => {

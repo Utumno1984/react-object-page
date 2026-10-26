@@ -19,3 +19,22 @@ export { useFieldControl } from './field/useFieldControl';
 export type { FieldControlProps, FieldState } from './field/FieldContext';
 export { Input } from './input/Input';
 export type { InputProps, InputSize } from './input/Input';
+export {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogBody,
+  DialogFooter,
+  DialogClose,
+} from './dialog/Dialog';
+export type {
+  DialogProps,
+  DialogSize,
+  DialogTriggerProps,
+  DialogContentProps,
+  DialogTitleProps,
+  DialogCloseProps,
+} from './dialog/Dialog';
