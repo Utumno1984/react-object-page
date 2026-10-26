@@ -3,84 +3,120 @@
   "version": 1,
   "exports": {
     "Button": {
-      "baseline": 12801,
-      "limit": 14082
+      "baseline": 12821,
+      "limit": 14104
     },
     "Dialog": {
-      "baseline": 4945,
-      "limit": 5440
+      "baseline": 5005,
+      "limit": 5506
     },
     "DialogBody": {
-      "baseline": 10408,
-      "limit": 11449
+      "baseline": 10429,
+      "limit": 11472
     },
     "DialogClose": {
-      "baseline": 14833,
-      "limit": 16317
+      "baseline": 14855,
+      "limit": 16341
     },
     "DialogContent": {
-      "baseline": 23679,
-      "limit": 26047
+      "baseline": 23820,
+      "limit": 26203
     },
     "DialogDescription": {
-      "baseline": 12533,
-      "limit": 13787
+      "baseline": 12555,
+      "limit": 13811
     },
     "DialogFooter": {
-      "baseline": 10179,
-      "limit": 11197
+      "baseline": 10200,
+      "limit": 11220
     },
     "DialogHeader": {
-      "baseline": 10183,
-      "limit": 11202
+      "baseline": 10204,
+      "limit": 11225
     },
     "DialogTitle": {
-      "baseline": 12576,
-      "limit": 13834
+      "baseline": 12599,
+      "limit": 13859
     },
     "DialogTrigger": {
-      "baseline": 3236,
-      "limit": 3560
+      "baseline": 3376,
+      "limit": 3714
     },
     "Field": {
-      "baseline": 12124,
-      "limit": 13337
+      "baseline": 12139,
+      "limit": 13353
     },
     "FieldMessage": {
-      "baseline": 11118,
-      "limit": 12230
+      "baseline": 11136,
+      "limit": 12250
     },
     "Icon": {
-      "baseline": 10619,
-      "limit": 11681
+      "baseline": 10636,
+      "limit": 11700
     },
     "Input": {
-      "baseline": 10474,
-      "limit": 11522
+      "baseline": 10489,
+      "limit": 11538
     },
     "MessageStrip": {
-      "baseline": 13616,
-      "limit": 14978
+      "baseline": 13632,
+      "limit": 14996
+    },
+    "Sheet": {
+      "baseline": 5004,
+      "limit": 5505
+    },
+    "SheetBody": {
+      "baseline": 10429,
+      "limit": 11472
+    },
+    "SheetClose": {
+      "baseline": 14855,
+      "limit": 16341
+    },
+    "SheetContent": {
+      "baseline": 23789,
+      "limit": 26168
+    },
+    "SheetDescription": {
+      "baseline": 12555,
+      "limit": 13811
+    },
+    "SheetFooter": {
+      "baseline": 10200,
+      "limit": 11220
+    },
+    "SheetHeader": {
+      "baseline": 10204,
+      "limit": 11225
+    },
+    "SheetTitle": {
+      "baseline": 12599,
+      "limit": 13859
+    },
+    "SheetTrigger": {
+      "baseline": 3380,
+      "limit": 3719
     },
     "Text": {
-      "baseline": 10232,
-      "limit": 11256
+      "baseline": 10247,
+      "limit": 11272
     },
     "Title": {
-      "baseline": 10232,
-      "limit": 11256
+      "baseline": 10249,
+      "limit": 11274
     },
     "cn": {
-      "baseline": 10100,
-      "limit": 11110
+      "baseline": 10116,
+      "limit": 11128
     },
     "composeRefs": {
-      "baseline": 527,
-      "limit": 580
+      "baseline": 541,
+      "limit": 596
     },
     "useFieldControl": {
-      "baseline": 487,
-      "limit": 536
+      "baseline": 502,
+      "limit": 553
     }
   }
 }
