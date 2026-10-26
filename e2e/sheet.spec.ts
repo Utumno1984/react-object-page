@@ -33,6 +33,7 @@ test.describe('Overlays/Sheet: stories play', () => {
     'external-state',
     'not-dismissible',
     'over-a-dialog',
+    'over-a-dialog-from-button',
     'with-form',
   ]) {
     test(`${name}: the play function passes`, async ({ page }) => {
@@ -284,7 +285,7 @@ test.describe('no leak', () => {
 
 test.describe('edge cases', () => {
   test('over a dialog: the sheet covers it, Escape closes only the sheet, the second Escape the dialog', async ({ page }) => {
-    await gotoStory(page, STORY('over-a-dialog'));
+    await gotoStory(page, STORY('over-a-dialog-from-button'));
     const dialog = page.getByRole('dialog', { name: 'Fornitore' });
     await expect(dialog).toBeVisible();
     await dialog.getByRole('button', { name: 'Apri il dettaglio' }).click();

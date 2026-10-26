@@ -254,13 +254,8 @@ export const NotDismissible: Story = {
   },
 };
 
-/**
- * A sheet opened from a button inside a dialog: it appears above the dialog (both are on the modal
- * level, the later one in the DOM wins); Escape closes only the sheet, the second Escape the dialog.
- */
-export const OverADialog: Story = {
-  tags: ['visual'],
-  render: ({ side, size, dismissible }) => (
+function overADialog(sheetOpen: boolean): Story['render'] {
+  return ({ side, size, dismissible }) => (
     <Page>
       <Dialog defaultOpen>
         <DialogContent size="md">
@@ -268,7 +263,7 @@ export const OverADialog: Story = {
             <DialogTitle>Fornitore</DialogTitle>
           </DialogHeader>
           <DialogBody>
-            <Sheet>
+            <Sheet defaultOpen={sheetOpen}>
               <SheetTrigger asChild>
                 <Button>Apri il dettaglio</Button>
               </SheetTrigger>
@@ -278,16 +273,41 @@ export const OverADialog: Story = {
         </DialogContent>
       </Dialog>
     </Page>
-  ),
+  );
+}
+
+/**
+ * A sheet open above a dialog (both are on the modal level, the later one in the DOM wins): the
+ * sheet's panel and backdrop cover the dialog.
+ */
+export const OverADialog: Story = {
+  tags: ['visual'],
+  render: overADialog(true),
+  play: async () => {
+    const sheet = await within(document.body).findByRole('dialog', { name: 'Dettaglio fornitore' });
+    const dialog = document.body.querySelector<HTMLElement>('[role="dialog"]');
+    await expect(dialog).not.toBe(sheet);
+    // Hit-testing waits for the second layer to settle (Radix sets `pointer-events` after the mount).
+    await waitFor(() => {
+      const box = sheet.getBoundingClientRect();
+      expect(sheet.contains(document.elementFromPoint(box.left + 8, box.top + 8))).toBe(true);
+    });
+    // Where the dialog is drawn, the topmost element is the sheet's layer, not the dialog.
+    const d = dialog!.getBoundingClientRect();
+    await expect(dialog!.contains(document.elementFromPoint(d.left + d.width / 2, d.top + 8))).toBe(false);
+  },
+};
+
+/**
+ * The same, opened from a button inside the dialog: Escape closes only the sheet and the focus goes
+ * back to that button; a second Escape closes the dialog.
+ */
+export const OverADialogFromButton: Story = {
+  render: overADialog(false),
   play: async () => {
     const body = within(document.body);
     await userEvent.click(await body.findByRole('button', { name: 'Apri il dettaglio' }));
-    const sheet = await body.findByRole('dialog', { name: 'Dettaglio fornitore' });
-    const dialog = body.getByRole('dialog', { name: 'Fornitore', hidden: true });
-    const box = sheet.getBoundingClientRect();
-    const hit = document.elementFromPoint(box.left + 8, box.top + 8);
-    await expect(sheet.contains(hit)).toBe(true);
-    await expect(dialog).toBeInTheDocument();
+    await body.findByRole('dialog', { name: 'Dettaglio fornitore' });
     await userEvent.keyboard('{Escape}');
     await waitFor(() => expect(body.queryByRole('dialog', { name: 'Dettaglio fornitore' })).toBeNull());
     await expect(body.getByRole('dialog', { name: 'Fornitore' })).toBeInTheDocument();
