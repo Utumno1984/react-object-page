@@ -1,0 +1,76 @@
+import { useEffect, useLayoutEffect, useRef, type RefObject } from 'react';
+
+export interface UseReturnFocusOptions {
+  /** Whether the overlay is open. */
+  open: boolean;
+  /** Receives the focus when the opener is gone or disabled at close time. */
+  fallbackRef?: RefObject<HTMLElement | null>;
+}
+
+function canTakeFocus(el: HTMLElement | null | undefined): el is HTMLElement {
+  return !!el && el.isConnected && !el.matches(':disabled');
+}
+
+/**
+ * Gives the focus back to the element that had it before an overlay opened, however the overlay
+ * was opened (Radix trigger, keyboard shortcut, a button elsewhere: `open` is all it looks at).
+ *
+ * - The element is remembered by listening to `focusin` on the document **only while `open` is
+ *   false**. The listener is attached in a layout effect and detached when `open` turns true,
+ *   before the children of the newly opened overlay can focus anything, so an `autoFocus` field
+ *   inside the content (children's effects run before the parent's) never overwrites it.
+ * - On `open: true -> false` the focus returns in the next animation frame, i.e. after the content
+ *   has unmounted. Closing and reopening within that frame cancels the return.
+ *
+ * Declared limits:
+ * - If the remembered element was unmounted or is `disabled` at close time, the focus goes to
+ *   `fallbackRef` (same checks); without a usable fallback nothing is focused and nothing throws.
+ *   The focus is never moved to an arbitrary node.
+ * - If nothing but `body` had the focus before opening, there is nothing to return to (fallback,
+ *   else left as is). An overlay mounted already open has no remembered element either.
+ * - The focus is returned even if the user moved it elsewhere in the meantime (as Radix does).
+ * - The content must be unmounted by the next frame after `open` becomes false; an exit animation
+ *   that keeps it mounted longer must delay `open` accordingly.
+ * - Only the main document is observed: an opener inside an iframe or in an encapsulated DOM tree
+ *   (web component) is not supported (the document never sees the inner element as the `focusin`
+ *   target).
+ *
+ * Wrappers use this instead of Radix's own `onCloseAutoFocus` (call `preventDefault()` there).
+ */
+export function useReturnFocus({ open, fallbackRef }: UseReturnFocusOptions): void {
+  const openerRef = useRef<HTMLElement | null>(null);
+  const fallbackRefRef = useRef(fallbackRef);
+  const wasOpenRef = useRef(open);
+
+  useLayoutEffect(() => {
+    fallbackRefRef.current = fallbackRef;
+  });
+
+  useLayoutEffect(() => {
+    if (open) return undefined;
+    // Only when mounting closed: on an open -> closed transition the focus is still inside the
+    // content that is going away, and that is not the opener.
+    if (!wasOpenRef.current) {
+      const active = document.activeElement;
+      if (active instanceof HTMLElement && active !== document.body) openerRef.current = active;
+    }
+    const onFocusIn = (event: FocusEvent) => {
+      if (event.target instanceof HTMLElement && event.target !== document.body) {
+        openerRef.current = event.target;
+      }
+    };
+    document.addEventListener('focusin', onFocusIn);
+    return () => document.removeEventListener('focusin', onFocusIn);
+  }, [open]);
+
+  useEffect(() => {
+    const wasOpen = wasOpenRef.current;
+    wasOpenRef.current = open;
+    if (open || !wasOpen) return undefined;
+    const frame = requestAnimationFrame(() => {
+      const target = [openerRef.current, fallbackRefRef.current?.current].find(canTakeFocus);
+      target?.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [open]);
+}
