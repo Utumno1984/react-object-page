@@ -58,4 +58,17 @@ describe('useReturnFocus on React 18', () => {
     expect(document.activeElement).toBe(view.get('inside'));
     view.unmount();
   });
+
+  it('remembers the real opener across a close-reopen-close before the first frame fires (regression)', async () => {
+    const view = mount(false);
+    const opener = view.get('opener')!;
+    act(() => opener.focus());
+    view.set(true);
+    view.set(false); // schedules a return
+    view.set(true); // reopens before that frame: must not forget the opener
+    view.set(false); // second close: must still return to the real opener
+    await nextFrame();
+    expect(document.activeElement).toBe(opener);
+    view.unmount();
+  });
 });
