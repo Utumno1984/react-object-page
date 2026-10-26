@@ -3,10 +3,11 @@ import { createContext } from 'react';
 export type FieldState = 'default' | 'disabled' | 'forced' | 'locked';
 
 /**
- * What a form control receives from its `Field`. Spread it on a native `<input>`/`<button>`:
- * the enumerable keys below are HTML/ARIA attributes (`readOnly` renders as a harmless `readonly`
- * on a `<button>`). Keys that do not apply are absent (never `undefined`/`"false"`), so they
- * cannot override a control's own props.
+ * What a form control receives from its `Field`. Spread it on a native `<input>` or on a control
+ * whose role supports these attributes (`switch`, `checkbox`, `textbox`...): the enumerable keys
+ * below are HTML/ARIA attributes, but `readOnly`/`aria-readonly` are not valid on e.g. a bare
+ * `<button>` (pick the keys you need there). Keys that do not apply are absent (never
+ * `undefined`/`"false"`), so they cannot override a control's own props.
  *
  * `state` and `interactionBlocked` are NOT attributes: they are non-enumerable, readable only
  * explicitly (`control.interactionBlocked`), and therefore lost by a spread. A custom control that
@@ -15,6 +16,11 @@ export type FieldState = 'default' | 'disabled' | 'forced' | 'locked';
  */
 export interface FieldControlProps {
   id: string;
+  /**
+   * The label's id: names controls that `<label for>` cannot reach (e.g. a `div role="switch"`).
+   * The name is the label text, the `aria-hidden` required marker excluded.
+   */
+  'aria-labelledby': string;
   /** Ids of the state reason, error and help, in this order; only of messages that exist. */
   'aria-describedby'?: string;
   'aria-invalid'?: true;

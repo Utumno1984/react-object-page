@@ -241,8 +241,13 @@ describe('Field', () => {
       const toggle = screen.getByRole('switch', { name: 'Attivo' });
       expect(toggle).toHaveAccessibleDescription("Gestito dall'amministratore");
       expect(toggle).toHaveAttribute('aria-readonly', 'true');
+      // One gesture at a time: with an odd total a missing guard would flip the switch.
       await userEvent.click(toggle);
-      await userEvent.type(toggle, ' {Enter}');
+      expect(toggle).toHaveAttribute('aria-checked', 'false');
+      toggle.focus();
+      await userEvent.keyboard(' ');
+      expect(toggle).toHaveAttribute('aria-checked', 'false');
+      await userEvent.keyboard('{Enter}');
       expect(toggle).toHaveAttribute('aria-checked', 'false');
     });
 
@@ -299,21 +304,44 @@ describe('Field', () => {
       expect({ ...captured }).not.toHaveProperty('interactionBlocked');
     });
 
-    it.each([
-      ['input', (c: FieldControlProps) => <input {...c} />],
-      ['button', (c: FieldControlProps) => <button {...c} />],
-    ])('spreading the control on a native <%s> logs no React warning and adds only valid attributes', (_n, make) => {
+    it('spreading the control on a native <input> logs no React warning and adds exactly the valid attributes', () => {
       const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
       const { container } = render(
         <Field label="X" state="forced" stateReason="Motivo" error="E" help="H" required>
-          {make}
+          {(c) => <input {...c} />}
         </Field>,
       );
-      const el = container.querySelector('input, button') as HTMLElement;
-      const allowed = /^(id|disabled|readonly|aria-[a-z]+)$/;
-      expect(Array.from(el.attributes).map((a) => a.name).filter((n) => !allowed.test(n))).toEqual([]);
+      const el = container.querySelector('input') as HTMLElement;
+      expect(
+        Array.from(el.attributes)
+          .map((a) => a.name)
+          .sort(),
+      ).toEqual(
+        ['aria-describedby', 'aria-invalid', 'aria-labelledby', 'aria-readonly', 'aria-required', 'id', 'readonly'].sort(),
+      );
       expect(spy).not.toHaveBeenCalled();
       spy.mockRestore();
+    });
+
+    it('spreading the control on any element logs no React warning (the non-DOM keys do not travel)', () => {
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      render(
+        <Field label="X" state="locked" stateReason="Motivo">
+          {(c) => <button {...c} />}
+        </Field>,
+      );
+      expect(spy).not.toHaveBeenCalled();
+      spy.mockRestore();
+    });
+
+    it('names a non-labelable custom control (div role=switch) through aria-labelledby, without the required marker', () => {
+      render(
+        <Field label="Attivo" required state="locked" stateReason="Motivo">
+          {(c) => <div role="switch" tabIndex={0} aria-checked="false" id={c.id} aria-labelledby={c['aria-labelledby']} aria-describedby={c['aria-describedby']} />}
+        </Field>,
+      );
+      const sw = screen.getByRole('switch', { name: 'Attivo' });
+      expect(sw).toHaveAccessibleDescription('Motivo');
     });
   });
 });
@@ -325,6 +353,7 @@ describe('keyboard-safe focus', () => {
     const vv = {
       height: initial.height,
       offsetTop: initial.offsetTop ?? 0,
+      scale: 1,
       addEventListener: (_t: string, l: Listener) => listeners.add(l),
       removeEventListener: (_t: string, l: Listener) => listeners.delete(l),
     };
@@ -382,6 +411,43 @@ describe('keyboard-safe focus', () => {
     (input.closest('[data-state]') as HTMLElement).getBoundingClientRect = () => ({ top: 100, bottom: 150 }) as DOMRect;
     act(() => input.focus());
     expect(scrollIntoView).not.toHaveBeenCalled();
+  });
+
+  it('stops listening when the focused control is unmounted without a blur', () => {
+    Object.defineProperty(window, 'innerHeight', { value: 800, configurable: true });
+    const { fire, count } = installVisualViewport({ height: 800 });
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    function Demo({ show }: { show: boolean }) {
+      return <Field label="Nome">{show ? <Input /> : <span />}</Field>;
+    }
+    const { rerender } = render(<Demo show />);
+    act(() => screen.getByRole('textbox').focus());
+    expect(count()).toBe(1);
+    rerender(<Demo show={false} />);
+    act(() => fire());
+    expect(count()).toBe(0);
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    expect(document.documentElement.style.getPropertyValue('--rop-keyboard-inset')).toBe('');
+  });
+
+  it('does nothing while the page is pinch-zoomed (scale is not 1)', () => {
+    Object.defineProperty(window, 'innerHeight', { value: 800, configurable: true });
+    const { vv, fire } = installVisualViewport({ height: 400 });
+    vv.scale = 2;
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    render(
+      <Field label="Nome">
+        <Input />
+      </Field>,
+    );
+    const input = screen.getByRole('textbox');
+    (input.closest('[data-state]') as HTMLElement).getBoundingClientRect = () => ({ top: 700, bottom: 750 }) as DOMRect;
+    act(() => input.focus());
+    act(() => fire());
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    expect(document.documentElement.style.getPropertyValue('--rop-keyboard-inset')).toBe('');
   });
 
   it('is a no-op where visualViewport does not exist', () => {

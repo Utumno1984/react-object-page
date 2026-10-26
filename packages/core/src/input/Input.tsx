@@ -42,6 +42,7 @@ export const Input = /* @__PURE__ */ forwardRef<HTMLInputElement, InputProps>(fu
       ref={ref}
       id={control?.id ?? rest.id}
       aria-describedby={describedBy}
+      aria-labelledby={control?.['aria-labelledby'] ?? rest['aria-labelledby']}
       aria-invalid={control?.['aria-invalid'] ?? rest['aria-invalid']}
       aria-required={control?.['aria-required'] ?? rest['aria-required']}
       aria-readonly={control?.['aria-readonly'] ?? rest['aria-readonly']}

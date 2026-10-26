@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState, type HTMLAttributes, type ReactNode, type RefObject } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type HTMLAttributes, type ReactNode, type RefObject } from 'react';
 import { FieldMessage } from '../field-message/FieldMessage';
 import { defineHidden } from '../internal/define-hidden';
 import { hasContent } from '../internal/react-nodes';
@@ -43,16 +43,27 @@ const KEYBOARD_INSET = '--rop-keyboard-inset';
  * scroll container with it) and, if the Field is not inside the visual viewport, it is scrolled
  * into view. Re-run on every visual-viewport resize (the keyboard animates in after the focus).
  */
-function useKeyboardSafe(active: boolean, ref: RefObject<HTMLElement | null>) {
+function useKeyboardSafe(active: boolean, ref: RefObject<HTMLElement | null>, onFocusLost: () => void) {
   useEffect(() => {
     const vv = typeof window === 'undefined' ? null : window.visualViewport;
     if (!active || !vv) return undefined;
     const root = document.documentElement;
+    let published = '';
     const ensureVisible = () => {
       const el = ref.current;
       if (!el) return;
-      const covered = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-      root.style.setProperty(KEYBOARD_INSET, `${covered}px`);
+      // The focused control may have been unmounted or disabled with no focusout event (Safari): stop here.
+      if (!el.contains(document.activeElement)) {
+        onFocusLost();
+        return;
+      }
+      // Pinch-zoom also resizes the visual viewport: the arithmetic below is for scale 1 only.
+      if (vv.scale !== 1) return;
+      const covered = `${Math.max(0, window.innerHeight - vv.height - vv.offsetTop)}px`;
+      if (covered !== published) {
+        published = covered;
+        root.style.setProperty(KEYBOARD_INSET, covered);
+      }
       const rect = el.getBoundingClientRect();
       if (rect.top < vv.offsetTop || rect.bottom > vv.offsetTop + vv.height) {
         el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
@@ -64,7 +75,7 @@ function useKeyboardSafe(active: boolean, ref: RefObject<HTMLElement | null>) {
       vv.removeEventListener('resize', ensureVisible);
       root.style.removeProperty(KEYBOARD_INSET);
     };
-  }, [active, ref]);
+  }, [active, ref, onFocusLost]);
 }
 
 /**
@@ -93,11 +104,13 @@ export function Field(props: FieldProps) {
   const id = idProp ?? generatedId;
   const rootRef = useRef<HTMLDivElement>(null);
   const [focused, setFocused] = useState(false);
-  useKeyboardSafe(focused, rootRef);
+  const onFocusLost = useCallback(() => setFocused(false), []);
+  useKeyboardSafe(focused, rootRef, onFocusLost);
 
   const hasReason = state !== 'default' && hasContent(stateReason);
   const hasError = hasContent(error);
   const hasHelp = hasContent(help);
+  const labelId = `${id}-label`;
   const reasonId = `${id}-reason`;
   const errorId = `${id}-error`;
   const helpId = `${id}-help`;
@@ -105,7 +118,10 @@ export function Field(props: FieldProps) {
   const readOnly = state === 'forced' || state === 'locked';
 
   const control = useMemo(() => {
-    const c = defineHidden({ id } as FieldControlProps, { state, interactionBlocked: state !== 'default' });
+    const c = defineHidden({ id, 'aria-labelledby': labelId } as FieldControlProps, {
+      state,
+      interactionBlocked: state !== 'default',
+    });
     // Assigned only when set: an absent key cannot override the control's own prop on spread.
     if (describedBy) c['aria-describedby'] = describedBy;
     if (hasError) c['aria-invalid'] = true;
@@ -116,7 +132,7 @@ export function Field(props: FieldProps) {
       c['aria-readonly'] = true;
     }
     return c;
-  }, [id, state, describedBy, hasError, required, readOnly]);
+  }, [id, labelId, state, describedBy, hasError, required, readOnly]);
 
   return (
     <FieldContext.Provider value={control}>
@@ -135,7 +151,7 @@ export function Field(props: FieldProps) {
           onBlur?.(event);
         }}
       >
-        <label htmlFor={id} className={LABEL}>
+        <label id={labelId} htmlFor={id} className={LABEL}>
           {label}
           {required ? (
             <span aria-hidden="true" className="ms-0.5 text-rop-error">
