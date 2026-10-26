@@ -6,6 +6,10 @@
       "baseline": 12547,
       "limit": 13802
     },
+    "Field": {
+      "baseline": 11977,
+      "limit": 13175
+    },
     "FieldMessage": {
       "baseline": 10942,
       "limit": 12037
@@ -13,6 +17,10 @@
     "Icon": {
       "baseline": 10388,
       "limit": 11427
+    },
+    "Input": {
+      "baseline": 10396,
+      "limit": 11436
     },
     "MessageStrip": {
       "baseline": 13446,
@@ -31,8 +39,12 @@
       "limit": 10865
     },
     "composeRefs": {
-      "baseline": 380,
-      "limit": 419
+      "baseline": 456,
+      "limit": 502
+    },
+    "useFieldControl": {
+      "baseline": 413,
+      "limit": 455
     }
   }
 }
