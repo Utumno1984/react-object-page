@@ -106,23 +106,29 @@ export const Overview: Story = {
     <div style={{ display: 'grid', gap: 24, maxWidth: 640, color: 'var(--color-rop-text)' }}>
       <section aria-label="Variants and sizes" style={{ display: 'grid', gap: 12 }}>
         {VARIANTS.map((variant) => (
-          <div key={variant} style={row}>
-            {(['sm', 'md', 'lg'] as const).map((size) => (
-              <Button key={size} variant={variant} size={size} data-testid={`matrix-${variant}-${size}`}>
-                {variant} {size}
+          <div key={variant} style={{ display: 'grid', gap: 8 }}>
+            <div style={row}>
+              {(['sm', 'md', 'lg'] as const).map((size) => (
+                <Button key={size} variant={variant} size={size} data-testid={`matrix-${variant}-${size}`}>
+                  {variant} {size}
+                </Button>
+              ))}
+              <Button variant={variant} leadingIcon={internalIcons.check} data-testid={`matrix-${variant}-lead`}>
+                Con icona
               </Button>
-            ))}
-            <Button variant={variant} leadingIcon={internalIcons.check} data-testid={`matrix-${variant}-lead`}>
-              Con icona
-            </Button>
-            <Button variant={variant} trailingIcon={internalIcons['chevron-down']}>
-              Menu
-            </Button>
-            {ICON_SIZES.map((size) => (
-              <Button key={size} variant={variant} size={size} aria-label={`Chiudi ${variant} ${size}`}>
-                {internalIcons.close}
+              <Button variant={variant} trailingIcon={internalIcons['chevron-down']}>
+                Menu
               </Button>
-            ))}
+            </div>
+            {/* Own row: wrapping the icon-only sizes into the text-button row above produced orphan
+                lines with one or two stray icons once the container ran out of width (#35). */}
+            <div style={row}>
+              {ICON_SIZES.map((size) => (
+                <Button key={size} variant={variant} size={size} aria-label={`Chiudi ${variant} ${size}`}>
+                  {internalIcons.close}
+                </Button>
+              ))}
+            </div>
           </div>
         ))}
       </section>
