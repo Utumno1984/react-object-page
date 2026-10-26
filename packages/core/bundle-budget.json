@@ -3,48 +3,84 @@
   "version": 1,
   "exports": {
     "Button": {
-      "baseline": 12547,
-      "limit": 13802
+      "baseline": 12801,
+      "limit": 14082
+    },
+    "Dialog": {
+      "baseline": 4945,
+      "limit": 5440
+    },
+    "DialogBody": {
+      "baseline": 10408,
+      "limit": 11449
+    },
+    "DialogClose": {
+      "baseline": 14833,
+      "limit": 16317
+    },
+    "DialogContent": {
+      "baseline": 23679,
+      "limit": 26047
+    },
+    "DialogDescription": {
+      "baseline": 12533,
+      "limit": 13787
+    },
+    "DialogFooter": {
+      "baseline": 10179,
+      "limit": 11197
+    },
+    "DialogHeader": {
+      "baseline": 10183,
+      "limit": 11202
+    },
+    "DialogTitle": {
+      "baseline": 12576,
+      "limit": 13834
+    },
+    "DialogTrigger": {
+      "baseline": 3236,
+      "limit": 3560
     },
     "Field": {
-      "baseline": 11977,
-      "limit": 13175
+      "baseline": 12124,
+      "limit": 13337
     },
     "FieldMessage": {
-      "baseline": 10942,
-      "limit": 12037
+      "baseline": 11118,
+      "limit": 12230
     },
     "Icon": {
-      "baseline": 10388,
-      "limit": 11427
+      "baseline": 10619,
+      "limit": 11681
     },
     "Input": {
-      "baseline": 10396,
-      "limit": 11436
+      "baseline": 10474,
+      "limit": 11522
     },
     "MessageStrip": {
-      "baseline": 13446,
-      "limit": 14791
+      "baseline": 13616,
+      "limit": 14978
     },
     "Text": {
-      "baseline": 10007,
-      "limit": 11008
+      "baseline": 10232,
+      "limit": 11256
     },
     "Title": {
-      "baseline": 10008,
-      "limit": 11009
+      "baseline": 10232,
+      "limit": 11256
     },
     "cn": {
-      "baseline": 9877,
-      "limit": 10865
+      "baseline": 10100,
+      "limit": 11110
     },
     "composeRefs": {
-      "baseline": 456,
-      "limit": 502
+      "baseline": 527,
+      "limit": 580
     },
     "useFieldControl": {
-      "baseline": 413,
-      "limit": 455
+      "baseline": 487,
+      "limit": 536
     }
   }
 }

@@ -14,6 +14,15 @@ export default defineConfig({
       { find: /^react\/jsx-dev-runtime$/, replacement: here('./node_modules/react/jsx-dev-runtime.js') },
       { find: /^react-dom$/, replacement: here('./node_modules/react-dom') },
       { find: /^react-dom\/client$/, replacement: here('./node_modules/react-dom/client.js') },
+      // The scroll-lock libraries behind Radix's Dialog resolve to their CommonJS build, which
+      // `require`s the root's React 19 whatever is aliased here: point them at the ES build so the
+      // aliases above apply (without this a Dialog backdrop renders React 19 elements under 18).
+      ...['react-remove-scroll-bar', 'react-remove-scroll', 'react-style-singleton', 'use-callback-ref', 'use-sidecar'].map(
+        (name) => ({
+          find: new RegExp(`^${name}$`),
+          replacement: here(`../../node_modules/${name}/dist/es2015/index.js`),
+        }),
+      ),
     ],
   },
   test: {
@@ -21,8 +30,13 @@ export default defineConfig({
     globals: true,
     include: ['*.test.{ts,tsx}'],
     // Radix lives in the root node_modules and would be loaded un-transformed with the root's
-    // React 19; inlining it makes the aliases above apply to it too.
-    server: { deps: { inline: [/@radix-ui/] } },
+    // React 19; inlining it makes the aliases above apply to it too. Same for the scroll-lock
+    // libraries Radix's Dialog depends on (they render React elements themselves).
+    server: {
+      deps: {
+        inline: [/@radix-ui/, /react-remove-scroll/, /react-style-singleton/, /use-callback-ref/, /use-sidecar/],
+      },
+    },
     // Core sources import tokens.css as text (`?raw`); Vitest would blank it otherwise.
     css: { include: [/\.css\?raw$/] },
   },
