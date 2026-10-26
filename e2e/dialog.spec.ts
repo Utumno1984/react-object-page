@@ -105,6 +105,27 @@ for (const path of PATHS) {
   });
 }
 
+test.describe('browsers that do not focus a button on click', () => {
+  test('the focus still returns to the trigger (mousedown default prevented, as Safari/Firefox on macOS behave)', async ({
+    page,
+  }) => {
+    await gotoStory(page, STORY('playground'));
+    await page.evaluate(() =>
+      document.addEventListener('mousedown', (e) => {
+        if ((e.target as Element).closest('button')) e.preventDefault();
+      }),
+    );
+    // Not by role: the page is aria-hidden while the dialog is open.
+    const opener = page.locator('button:text-is("Apri")');
+    await opener.click();
+    await expect(dialogOf(page)).toBeVisible();
+    await expect(opener).not.toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(dialogOf(page)).toHaveCount(0);
+    await expect(opener).toBeFocused();
+  });
+});
+
 test.describe('dismissible={false}', () => {
   test('Escape and the backdrop do nothing; an explicit button closes', async ({ page }) => {
     await gotoStory(page, STORY('not-dismissible'));

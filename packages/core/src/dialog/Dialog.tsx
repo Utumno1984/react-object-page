@@ -46,6 +46,8 @@ const isDev = (): boolean => {
 interface DialogContextValue {
   /** Where `DialogContent` publishes its `returnFocusRef`, read by `useReturnFocus` at close time. */
   fallbackHolder: { current: RefObject<HTMLElement | null> | undefined };
+  /** The `DialogTrigger` node, if any: the last-resort target when the focus never sat on the opener. */
+  triggerHolder: { current: HTMLElement | null };
 }
 
 const DialogContext = /* @__PURE__ */ createContext<DialogContextValue | null>(null);
@@ -76,12 +78,17 @@ export function Dialog({ open, defaultOpen = false, onOpenChange, children }: Di
   const [innerOpen, setInnerOpen] = useState(defaultOpen);
   const current = open ?? innerOpen;
   const fallbackHolder = useRef<RefObject<HTMLElement | null> | undefined>(undefined);
+  const triggerHolder = useRef<HTMLElement | null>(null);
   // Stable object whose `current` is resolved when the focus is returned, i.e. after the content
-  // (which publishes the ref) has unmounted.
+  // (which publishes the ref) has unmounted. Order: `returnFocusRef`, then the `DialogTrigger`
+  // (Safari and Firefox on macOS do not focus a button on click, so the remembered opener can be
+  // missing even though the dialog was opened by its own trigger, as Radix itself handles).
   const fallbackRef = useMemo<RefObject<HTMLElement | null>>(
     () => ({
       get current() {
-        return fallbackHolder.current?.current ?? null;
+        const explicit = fallbackHolder.current?.current;
+        if (explicit?.isConnected && !explicit.matches(':disabled')) return explicit;
+        return triggerHolder.current ?? explicit ?? null;
       },
       set current(_value) {
         /* read-only view */
@@ -99,7 +106,7 @@ export function Dialog({ open, defaultOpen = false, onOpenChange, children }: Di
     [open, onOpenChange],
   );
 
-  const ctx = useMemo(() => ({ fallbackHolder }), []);
+  const ctx = useMemo(() => ({ fallbackHolder, triggerHolder }), []);
   return (
     <DialogContext.Provider value={ctx}>
       <RadixDialog.Root open={current} onOpenChange={handleOpenChange}>
@@ -113,8 +120,17 @@ export type DialogTriggerProps = ComponentPropsWithoutRef<typeof RadixDialog.Tri
 
 /** Opens the dialog on click. `asChild` renders your own element (e.g. a `Button`) instead. */
 export const DialogTrigger = /* @__PURE__ */ forwardRef<ElementRef<typeof RadixDialog.Trigger>, DialogTriggerProps>(
-  function DialogTrigger(props, ref) {
-    return <RadixDialog.Trigger {...props} ref={ref} />;
+  function DialogTrigger(props, forwardedRef) {
+    const { triggerHolder } = useDialogContext('DialogTrigger');
+    const setRef = useCallback(
+      (node: HTMLButtonElement | null) => {
+        triggerHolder.current = node;
+        if (typeof forwardedRef === 'function') forwardedRef(node);
+        else if (forwardedRef) forwardedRef.current = node;
+      },
+      [triggerHolder, forwardedRef],
+    );
+    return <RadixDialog.Trigger {...props} ref={setRef} />;
   },
 );
 
@@ -172,7 +188,12 @@ export interface DialogContentProps
    * dialogs that require an explicit choice (a button must close it).
    */
   dismissible?: boolean;
-  /** Receives the focus on close when the opener is gone or disabled (or there never was one). */
+  /**
+   * Receives the focus on close when the opener is gone or disabled (or there never was one). Needed
+   * for a chain where one dialog closes and another opens in the same handler ("Continue" ->
+   * confirmation): the second one's opener is a button of the first, which unmounts, so without it
+   * the focus is not returned anywhere when the second closes.
+   */
   returnFocusRef?: RefObject<HTMLElement | null>;
   children?: ReactNode;
 }

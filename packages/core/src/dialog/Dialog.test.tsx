@@ -235,6 +235,66 @@ describe('Dialog', () => {
     expect(document.querySelector('[data-aria-hidden]')).toBeNull();
   });
 
+  it('returns the focus to the trigger even when a click never focused it (Safari, Firefox on macOS)', async () => {
+    render(
+      <Dialog>
+        <DialogTrigger>Apri</DialogTrigger>
+        <Panel />
+      </Dialog>,
+    );
+    const trigger = screen.getByRole('button', { name: 'Apri' });
+    // A bare click event: unlike a user click in Chromium, it does not move the focus to the button.
+    act(() => trigger.click());
+    expect(trigger).not.toHaveFocus();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    act(() => screen.getByRole('button', { name: 'Annulla' }).click());
+    await nextFrame();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(trigger).toHaveFocus();
+  });
+
+  it('a chain (close one dialog, open another in the same handler) returns the focus with returnFocusRef', async () => {
+    const opener = createRef<HTMLButtonElement>();
+    function Host() {
+      const [a, setA] = useState(false);
+      const [b, setB] = useState(false);
+      return (
+        <>
+          <button ref={opener} onClick={() => setA(true)}>
+            Elimina riga
+          </button>
+          <Dialog open={a} onOpenChange={setA}>
+            <DialogContent aria-describedby={undefined}>
+              <DialogTitle>Primo</DialogTitle>
+              <button
+                onClick={() => {
+                  setA(false);
+                  setB(true);
+                }}
+              >
+                Procedi
+              </button>
+            </DialogContent>
+          </Dialog>
+          <Dialog open={b} onOpenChange={setB}>
+            <DialogContent aria-describedby={undefined} returnFocusRef={opener}>
+              <DialogTitle>Conferma</DialogTitle>
+              <button onClick={() => setB(false)}>Chiudi conferma</button>
+            </DialogContent>
+          </Dialog>
+        </>
+      );
+    }
+    const user = userEvent.setup();
+    render(<Host />);
+    await user.click(screen.getByRole('button', { name: 'Elimina riga' }));
+    await user.click(await screen.findByRole('button', { name: 'Procedi' }));
+    await user.click(await screen.findByRole('button', { name: 'Chiudi conferma' }));
+    await nextFrame();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(opener.current).toHaveFocus();
+  });
+
   it('throws a clear error when a part is used outside Dialog', () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
     expect(() => render(<DialogContent>x</DialogContent>)).toThrow(/inside <Dialog>/);
