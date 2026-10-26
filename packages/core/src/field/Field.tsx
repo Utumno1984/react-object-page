@@ -1,0 +1,177 @@
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type HTMLAttributes, type ReactNode, type RefObject } from 'react';
+import { FieldMessage } from '../field-message/FieldMessage';
+import { defineHidden } from '../internal/define-hidden';
+import { hasContent } from '../internal/react-nodes';
+import { cn } from '../utils/cn';
+import { FieldContext, type FieldControlProps } from './FieldContext';
+
+/**
+ * `forced`: the value is decided by a business rule. `locked`: not editable because of
+ * permissions or the record's status. Same interaction (focusable, read-only), so the reason is
+ * required in both; `disabled` may have one. In `default` there is none.
+ */
+export type FieldStateProps =
+  | { state?: 'default'; stateReason?: never }
+  | { state: 'disabled'; stateReason?: ReactNode }
+  | { state: 'forced' | 'locked'; stateReason: ReactNode };
+
+export type FieldProps = Omit<HTMLAttributes<HTMLDivElement>, 'children' | 'id'> &
+  FieldStateProps & {
+    /** Accessible name of the control. A required marker is added visually, never to the name. */
+    label: ReactNode;
+    help?: ReactNode;
+    /** Non-empty: the control gets `aria-invalid`. Empty is the same as absent. */
+    error?: ReactNode;
+    required?: boolean;
+    /** Id of the control (the label's `htmlFor`). Default: generated. */
+    id?: string;
+    /** A node, or a render-prop to wire any control by hand: `(control) => <X {...control} />`. */
+    children: ReactNode | ((control: FieldControlProps) => ReactNode);
+  };
+
+// Full literals (Tailwind scan). The scroll margin (inline: it reads a runtime variable) lets
+// scrollIntoView stop above the virtual keyboard.
+const ROOT = 'flex min-w-0 flex-col font-rop-sans';
+const SCROLL_MARGIN = { scrollMarginTop: '0.5rem', scrollMarginBottom: 'calc(var(--rop-keyboard-inset, 0px) + 0.5rem)' };
+const LABEL = 'mb-1 text-rop-label text-rop-text [overflow-wrap:anywhere]';
+const KEYBOARD_INSET = '--rop-keyboard-inset';
+
+/**
+ * While focus is inside the Field, keeps it clear of the on-screen keyboard (spec §1.10). The
+ * keyboard shrinks the visual viewport, not the layout one, so media queries and `vh` do not see
+ * it: the covered height is published as `--rop-keyboard-inset` on <html> (consumers can pad their
+ * scroll container with it) and, if the Field is not inside the visual viewport, it is scrolled
+ * into view. Re-run on every visual-viewport resize (the keyboard animates in after the focus).
+ */
+function useKeyboardSafe(active: boolean, ref: RefObject<HTMLElement | null>, onFocusLost: () => void) {
+  useEffect(() => {
+    const vv = typeof window === 'undefined' ? null : window.visualViewport;
+    if (!active || !vv) return undefined;
+    const root = document.documentElement;
+    let published = '';
+    const ensureVisible = () => {
+      const el = ref.current;
+      if (!el) return;
+      // The focused control may have been unmounted or disabled with no focusout event (Safari): stop here.
+      if (!el.contains(document.activeElement)) {
+        onFocusLost();
+        return;
+      }
+      // Pinch-zoom also resizes the visual viewport: the arithmetic below is for scale 1 only.
+      if (vv.scale !== 1) return;
+      const covered = `${Math.max(0, window.innerHeight - vv.height - vv.offsetTop)}px`;
+      if (covered !== published) {
+        published = covered;
+        root.style.setProperty(KEYBOARD_INSET, covered);
+      }
+      const rect = el.getBoundingClientRect();
+      if (rect.top < vv.offsetTop || rect.bottom > vv.offsetTop + vv.height) {
+        el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      }
+    };
+    ensureVisible();
+    vv.addEventListener('resize', ensureVisible);
+    return () => {
+      vv.removeEventListener('resize', ensureVisible);
+      root.style.removeProperty(KEYBOARD_INSET);
+    };
+  }, [active, ref, onFocusLost]);
+}
+
+/**
+ * Container of a form control: label, help, error and state reason, and the ARIA wiring.
+ * `Input` inside a Field connects itself; any other control takes the props from the render-prop
+ * or from `useFieldControl()`. `aria-describedby` lists exactly the messages that are rendered:
+ * reason, then error, then help.
+ */
+export function Field(props: FieldProps) {
+  const {
+    label,
+    help,
+    error,
+    required,
+    id: idProp,
+    state = 'default',
+    stateReason,
+    children,
+    className,
+    style,
+    onFocus,
+    onBlur,
+    ...rest
+  } = props;
+  const generatedId = useId();
+  const id = idProp ?? generatedId;
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [focused, setFocused] = useState(false);
+  const onFocusLost = useCallback(() => setFocused(false), []);
+  useKeyboardSafe(focused, rootRef, onFocusLost);
+
+  const hasReason = state !== 'default' && hasContent(stateReason);
+  const hasError = hasContent(error);
+  const hasHelp = hasContent(help);
+  const labelId = `${id}-label`;
+  const reasonId = `${id}-reason`;
+  const errorId = `${id}-error`;
+  const helpId = `${id}-help`;
+  const describedBy = [hasReason && reasonId, hasError && errorId, hasHelp && helpId].filter(Boolean).join(' ');
+  const readOnly = state === 'forced' || state === 'locked';
+
+  const control = useMemo(() => {
+    const c = defineHidden({ id, 'aria-labelledby': labelId } as FieldControlProps, {
+      state,
+      interactionBlocked: state !== 'default',
+    });
+    // Assigned only when set: an absent key cannot override the control's own prop on spread.
+    if (describedBy) c['aria-describedby'] = describedBy;
+    if (hasError) c['aria-invalid'] = true;
+    if (required) c['aria-required'] = true;
+    if (state === 'disabled') c.disabled = true;
+    if (readOnly) {
+      c.readOnly = true;
+      c['aria-readonly'] = true;
+    }
+    return c;
+  }, [id, labelId, state, describedBy, hasError, required, readOnly]);
+
+  return (
+    <FieldContext.Provider value={control}>
+      <div
+        {...rest}
+        ref={rootRef}
+        data-state={state}
+        className={cn(ROOT, className)}
+        style={{ ...SCROLL_MARGIN, ...style }}
+        onFocus={(event) => {
+          setFocused(true);
+          onFocus?.(event);
+        }}
+        onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false);
+          onBlur?.(event);
+        }}
+      >
+        <label id={labelId} htmlFor={id} className={LABEL}>
+          {label}
+          {required ? (
+            <span aria-hidden="true" className="ms-0.5 text-rop-error">
+              *
+            </span>
+          ) : null}
+        </label>
+        {typeof children === 'function' ? children(control) : children}
+        {hasReason ? (
+          <FieldMessage id={reasonId} tone="help" data-field-reason={state}>
+            {stateReason}
+          </FieldMessage>
+        ) : null}
+        <FieldMessage id={errorId} tone="error">
+          {error}
+        </FieldMessage>
+        <FieldMessage id={helpId} tone="help">
+          {help}
+        </FieldMessage>
+      </div>
+    </FieldContext.Provider>
+  );
+}

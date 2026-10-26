@@ -201,6 +201,18 @@ describe('internal icons', () => {
   it('are not exposed by the public entry', () => {
     const exposed = Object.keys(publicApi);
     expect(exposed).not.toContain('internalIcons');
-    expect(exposed.sort()).toEqual(['Button', 'FieldMessage', 'Icon', 'MessageStrip', 'Text', 'Title', 'cn', 'composeRefs']);
+    expect(exposed.sort()).toEqual([
+      'Button',
+      'Field',
+      'FieldMessage',
+      'Icon',
+      'Input',
+      'MessageStrip',
+      'Text',
+      'Title',
+      'cn',
+      'composeRefs',
+      'useFieldControl',
+    ]);
   });
 });
