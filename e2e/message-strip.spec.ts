@@ -21,15 +21,12 @@ test.describe('Primitives/MessageStrip', () => {
     await expectPlayToPass(page, 'primitives-messagestrip--distinct-close-names');
   });
 
-  test('the close button is keyboard-operable and the strip does not unmount itself', async ({ page }) => {
-    await gotoStory(page, 'primitives-messagestrip--distinct-close-names');
-    const first = page.getByRole('button', { name: 'Dismiss message: Salvataggio non riuscito' });
-    await first.focus();
-    await expect(first).toBeFocused();
-    await page.keyboard.press('Enter');
-    await page.keyboard.press('Space');
+  test('Enter and Space on the close button each call onDismiss exactly once; the strip stays', async ({ page }) => {
+    // The play function presses Enter (count 1), then Space (count 2): it fails on any other count.
+    await expectPlayToPass(page, 'primitives-messagestrip--dismiss-count');
+    await expect(page.getByTestId('dismiss-count')).toHaveText('2');
     // The strip does not hide itself: the consumer owns the unmount.
-    await expect(page.getByRole('alert')).toBeVisible();
+    await expect(page.getByRole('status')).toBeVisible();
   });
 
   test('the live roles are alert for error and status for the others', async ({ page }) => {
@@ -72,6 +69,10 @@ test.describe('Primitives/MessageStrip', () => {
     const withTitle = await page.getByTestId('title-only').evaluate((el) => el.getBoundingClientRect().height);
     // padding 12*2 + border 2 + one 20px body line
     expect(withTitle).toBe(46);
+    const tags = await page
+      .getByTestId('title-only')
+      .evaluate((el) => Array.from(el.querySelector('.min-w-0')?.children ?? []).map((c) => c.tagName));
+    expect(tags).toEqual(['SPAN', 'STRONG']);
   });
 });
 

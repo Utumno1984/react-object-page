@@ -1,8 +1,17 @@
-import { Children, isValidElement, type ReactNode } from 'react';
+import { Children, Fragment, isValidElement, type ReactNode } from 'react';
 
-/** True if the node would render something: `null`, booleans, `undefined` and `''` count as empty. */
+/**
+ * True if the node would render something: `null`, booleans, `undefined`, blank strings and
+ * Fragments with only such children count as empty.
+ */
 export function hasContent(node: ReactNode): boolean {
-  return Children.toArray(node).some((child) => child !== '');
+  return Children.toArray(node).some((child) => {
+    if (typeof child === 'string') return child.trim() !== '';
+    if (isValidElement<{ children?: ReactNode }>(child) && child.type === Fragment) {
+      return hasContent(child.props.children);
+    }
+    return true;
+  });
 }
 
 /** Plain text of a React node (strings and numbers, depth first); elements without text give ''. */

@@ -37,6 +37,8 @@ export interface MessageStripProps extends Omit<HTMLAttributes<HTMLDivElement>, 
   /**
    * Accessible name of the close button. Default: "Dismiss message: <title>", so strips with
    * different titles get different names ("Dismiss message" alone when there is no title text).
+   * The text is read from the `title` node itself: a title produced by a component that renders
+   * its text on its own (e.g. a translation component) has none, so pass `dismissLabel` then.
    */
   dismissLabel?: string;
   /** Visually hidden tone name read before the content (colour alone is not enough). Default: English tone name. */
@@ -45,7 +47,8 @@ export interface MessageStripProps extends Omit<HTMLAttributes<HTMLDivElement>, 
    * Live region: `alert` for `error`, `status` for the other tones. `false` removes the role, for
    * strips already on the page at load that must not be announced. Default `true`. Changing `tone`
    * after mount updates the role, but some screen readers only announce a live region when it is
-   * inserted: mount a new strip to be sure an error is announced.
+   * inserted (the same goes for a strip that is mounted already filled): mount a new strip to be
+   * sure an error is announced.
    */
   live?: boolean;
 }

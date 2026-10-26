@@ -75,6 +75,20 @@ describe('FieldMessage', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it('renders nothing for an empty Fragment or blank text', () => {
+    const { container } = render(
+      <>
+        <FieldMessage id="a" tone="error">
+          <></>
+        </FieldMessage>
+        <FieldMessage id="b" tone="error">
+          {'  '}
+        </FieldMessage>
+      </>,
+    );
+    expect(container).toBeEmptyDOMElement();
+  });
+
   it('forwards ref and className', () => {
     const ref = createRef<HTMLDivElement>();
     render(

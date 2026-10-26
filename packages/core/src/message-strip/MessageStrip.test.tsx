@@ -108,6 +108,17 @@ describe('MessageStrip', () => {
       expect(Array.from(block.children).map((c) => c.tagName)).toEqual(['SPAN']);
     });
 
+    it('empty Fragments and blank strings count as no content', () => {
+      render(
+        <MessageStrip title="T">
+          <></>
+          {' '}
+        </MessageStrip>,
+      );
+      const block = screen.getByRole('status').querySelector('.min-w-0') as HTMLElement;
+      expect(Array.from(block.children).map((c) => c.tagName)).toEqual(['SPAN', 'STRONG']);
+    });
+
     it('forwards ref, className and DOM props to the root', () => {
       const ref = createRef<HTMLDivElement>();
       render(

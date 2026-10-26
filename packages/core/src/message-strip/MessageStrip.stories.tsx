@@ -29,13 +29,50 @@ type Story = StoryObj<typeof meta>;
  * changes: the live role (`alert` for error, `status` otherwise) and the hidden tone name.
  */
 export const Playground: Story = {
-  args: { tone: 'error', title: 'Salvataggio non riuscito', children: 'Controlla la connessione e riprova.' },
-  play: async ({ canvasElement }) => {
-    const strip = within(canvasElement).getByRole('alert');
+  args: {
+    tone: 'error',
+    title: 'Salvataggio non riuscito',
+    children: 'Controlla la connessione e riprova.',
+    onDismiss: fn(),
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    const strip = canvas.getByRole('alert');
     await expect(strip).toHaveTextContent('Error: Salvataggio non riuscito');
     await expect(strip).toHaveTextContent('Controlla la connessione e riprova.');
+    await userEvent.click(canvas.getByRole('button', { name: 'Dismiss message: Salvataggio non riuscito' }));
+    await expect(args.onDismiss).toHaveBeenCalledTimes(1);
   },
 };
+
+/** Each key press on the close button calls `onDismiss` exactly once; the strip stays mounted. */
+export const DismissCount: Story = {
+  render: () => {
+    return <DismissCounter />;
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const count = canvas.getByTestId('dismiss-count');
+    await userEvent.tab();
+    await userEvent.keyboard('{Enter}');
+    await expect(count).toHaveTextContent('1');
+    await userEvent.keyboard(' ');
+    await expect(count).toHaveTextContent('2');
+    await expect(canvas.getByRole('status')).toBeInTheDocument();
+  },
+};
+
+function DismissCounter() {
+  const [count, setCount] = useState(0);
+  return (
+    <div style={{ maxWidth: 480 }}>
+      <MessageStrip title="Conteggio chiusure" onDismiss={() => setCount((c) => c + 1)} />
+      <p>
+        onDismiss chiamato: <span data-testid="dismiss-count">{count}</span>
+      </p>
+    </div>
+  );
+}
 
 function DismissibleDemo({ onDismiss, ...args }: ComponentProps<typeof MessageStrip>) {
   const [open, setOpen] = useState(true);
