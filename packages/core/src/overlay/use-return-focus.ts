@@ -33,6 +33,10 @@ function canTakeFocus(el: HTMLElement | null | undefined): el is HTMLElement {
  * - The focus is returned even if the user moved it elsewhere in the meantime (as Radix does).
  * - The content must be unmounted by the next frame after `open` becomes false; an exit animation
  *   that keeps it mounted longer must delay `open` accordingly.
+ * - Closing and reopening before that frame fires does not forget the real opener: while a return
+ *   is still pending, the listener's cleanup (which runs on the same reopen) does not overwrite
+ *   `openerRef` with `document.activeElement` (transiently `body` right after the content
+ *   unmounts, not a genuine new focus target) — see `pendingReturnRef` below.
  * - Only the main document is observed: an opener inside an iframe or in an encapsulated DOM tree
  *   (web component) is not supported (the document never sees the inner element as the `focusin`
  *   target).
@@ -43,6 +47,12 @@ export function useReturnFocus({ open, fallbackRef }: UseReturnFocusOptions): vo
   const openerRef = useRef<HTMLElement | null>(null);
   const fallbackRefRef = useRef(fallbackRef);
   const wasOpenRef = useRef(open);
+  // True from the moment a return-to-opener is scheduled (rAF) until it fires or is cancelled.
+  // Guards the race where closing and reopening before that frame makes the layout effect's
+  // cleanup (which also runs on reopen, and runs before the rAF's own cancellation) see
+  // `document.activeElement === body` — the content just unmounted, nothing has claimed focus yet
+  // — and mistake that transient state for "the user focused something else", wiping `openerRef`.
+  const pendingReturnRef = useRef(false);
 
   useLayoutEffect(() => {
     fallbackRefRef.current = fallbackRef;
@@ -61,6 +71,9 @@ export function useReturnFocus({ open, fallbackRef }: UseReturnFocusOptions): vo
       // Runs in the mutation phase of the commit that opens the overlay, before any child can take
       // the focus. `focusin` never fires when the focus is lost to `body` (click on an empty area),
       // so the truth is read here: whatever has the focus right now is the opener, or nothing.
+      // Skipped while a return is pending (see `pendingReturnRef`): `document.activeElement` is
+      // transiently `body` right after the previous overlay's content unmounted, not a real signal.
+      if (pendingReturnRef.current) return;
       const active = document.activeElement;
       openerRef.current = active instanceof HTMLElement && active !== document.body ? active : null;
     };
@@ -70,10 +83,15 @@ export function useReturnFocus({ open, fallbackRef }: UseReturnFocusOptions): vo
     const wasOpen = wasOpenRef.current;
     wasOpenRef.current = open;
     if (open || !wasOpen) return undefined;
+    pendingReturnRef.current = true;
     const frame = requestAnimationFrame(() => {
+      pendingReturnRef.current = false;
       const target = [openerRef.current, fallbackRefRef.current?.current].find(canTakeFocus);
       target?.focus();
     });
-    return () => cancelAnimationFrame(frame);
+    return () => {
+      pendingReturnRef.current = false;
+      cancelAnimationFrame(frame);
+    };
   }, [open]);
 }

@@ -173,6 +173,23 @@ describe('useReturnFocus', () => {
     expect(document.activeElement).not.toBe(opener);
   });
 
+  it('remembers the real opener across a close-reopen-close before the first frame fires (regression)', async () => {
+    // The first close schedules a return-to-opener frame and, in the same transition, the
+    // listener's cleanup would otherwise read `document.activeElement` (transiently `body`, the
+    // content just unmounted) and overwrite `openerRef` with `null` before that frame runs.
+    const { get, set } = setup({ open: false });
+    const opener = get('opener')!;
+    act(() => opener.focus());
+    set({ open: true });
+    act(() => get('inside')!.focus());
+    set({ open: false }); // schedules a return, nothing focused in between (jsdom: activeElement -> body)
+    set({ open: true }); // reopens before that frame: must not forget `opener`
+    act(() => get('inside')!.focus());
+    set({ open: false }); // second close: must still return to the real opener
+    await nextFrame();
+    expect(document.activeElement).toBe(opener);
+  });
+
   it('removes its focusin listener on unmount, also when unmounted without passing through open=false', () => {
     const add = vi.spyOn(document, 'addEventListener');
     const remove = vi.spyOn(document, 'removeEventListener');
