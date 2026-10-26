@@ -148,8 +148,9 @@ describe('styles.css (compiled)', () => {
 
   it('does NOT contain utilities no source uses (no safelist)', () => {
     expect(stylesCss).not.toContain('skew-x-12');
-    // A token that exists as a variable but has no utility in use.
-    expect(stylesCss).not.toContain('.z-rop-tooltip');
+    // A token that exists as a variable but has no utility in use (was `.z-rop-tooltip` until the
+    // overlay layer map, #10, started using every level).
+    expect(stylesCss).not.toContain('.z-rop-sticky');
     // (was `.text-rop-title-lg` until Title started using it, #6)
     expect(stylesCss).not.toContain('.rounded-rop-lg');
   });
