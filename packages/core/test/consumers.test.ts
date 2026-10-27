@@ -46,6 +46,8 @@ const EXPORTS = [
   'TooltipProvider',
   'cn',
   'composeRefs',
+  'defaultComboboxFilter',
+  'useCombobox',
   'useFieldControl',
 ];
 

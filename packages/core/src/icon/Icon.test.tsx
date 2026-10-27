@@ -233,6 +233,8 @@ describe('internal icons', () => {
       'TooltipProvider',
       'cn',
       'composeRefs',
+      'defaultComboboxFilter',
+      'useCombobox',
       'useFieldControl',
     ]);
   });
