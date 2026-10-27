@@ -146,14 +146,19 @@ export const Select = /* @__PURE__ */ forwardRef<HTMLButtonElement, SelectProps>
   }
   // Options that change under an open list: if the active option went away Radix leaves the
   // focus on the list container; put it on the first enabled option.
+  // Deferred: Radix's focus scope moves the focus to the container after the removed option
+  // unmounts (a mutation observer), later than this effect.
   useEffect(() => {
-    const list = content.current;
-    if (!list || !open) return;
-    const active = document.activeElement;
-    if (active instanceof HTMLElement && active.getAttribute('role') === 'option' && list.contains(active)) return;
-    list.querySelector<HTMLElement>('[role="option"]:not([data-disabled])')?.focus();
+    const timer = setTimeout(() => {
+      const list = content.current;
+      if (!list) return;
+      const active = document.activeElement;
+      if (active instanceof HTMLElement && active.getAttribute('role') === 'option' && list.contains(active)) return;
+      if (!list.contains(active) && active !== list) return;
+      list.querySelector<HTMLElement>('[role="option"]:not([data-disabled])')?.focus();
+    }, 0);
+    return () => clearTimeout(timer);
     // Deliberately only on `options`: opening is Radix's to focus (the selected option).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [options]);
 
   const byValue = useMemo(() => {
