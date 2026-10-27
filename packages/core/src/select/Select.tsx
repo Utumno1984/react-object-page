@@ -1,4 +1,14 @@
-import { forwardRef, useContext, useMemo, useState, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import {
+  forwardRef,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ButtonHTMLAttributes,
+  type KeyboardEvent,
+  type ReactNode,
+} from 'react';
 import * as RadixSelect from '@radix-ui/react-select';
 import { FieldContext } from '../field/FieldContext';
 import { Icon } from '../icon/Icon';
@@ -28,7 +38,7 @@ export interface SelectOption {
 export interface SelectProps
   extends Omit<
     ButtonHTMLAttributes<HTMLButtonElement>,
-    'value' | 'defaultValue' | 'onChange' | 'children' | 'role' | 'type' | 'dir'
+    'value' | 'defaultValue' | 'onChange' | 'children' | 'role' | 'type' | 'dir' | 'name' | 'form'
   > {
   options: readonly SelectOption[];
   /**
@@ -67,12 +77,13 @@ const SIZE_CLASS: Record<SelectSize, string> = {
 };
 const VALUE = 'block min-w-0 flex-1 truncate';
 
-let warnedDuplicates = false;
-function warnDuplicateValues(options: readonly SelectOption[]): void {
-  if (warnedDuplicates) return;
-  if (new Set(options.map((o) => o.value)).size === options.length) return;
-  warnedDuplicates = true;
-  console.warn('[react-object-page] <Select> options must have unique values; the first of each duplicate wins.');
+const DUPLICATES_WARNING =
+  '[react-object-page] <Select> options must have unique values; the first of each duplicate wins.';
+
+// Keys Radix's trigger reacts to while closed: the opening keys and the typeahead characters.
+function opensOrSearches(event: KeyboardEvent<HTMLElement>): boolean {
+  if (event.key === 'Enter' || event.key === 'ArrowDown' || event.key === 'ArrowUp') return true;
+  return event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey;
 }
 
 /**
@@ -80,12 +91,15 @@ function warnDuplicateValues(options: readonly SelectOption[]): void {
  * portal, on the `popover` level (above a Dialog or Sheet). Inside a `Field` it takes `id`,
  * `aria-labelledby`, `aria-describedby`, `aria-invalid`, `aria-required` and the state from it:
  * `disabled` is out of the tab order; `forced`/`locked` keep the focus and the value but never
- * open (click, Enter, Space, arrows and typeahead included).
+ * open (click, Enter, Space, arrows and typeahead included) and do not even reach Radix.
  *
- * The consumer's `onValueChange` is the only exit of a choice and is reached only through the
- * handler below, which the value fed to Radix cannot trigger: Radix is always controlled by this
- * component, so a new `value` from outside is just a render. No `name` is forwarded to Radix (it
- * would add a hidden native `<select>` that can echo on its own).
+ * `onValueChange` is reached only through an explicit user-gesture gate: a pointer or key event
+ * on the trigger or in the list arms it for the duration of that event, and a change that
+ * arrives with the gate closed is dropped. Radix is always controlled by this component, so a new
+ * `value` from outside is just a render, and the other ways Radix can report a value on its own
+ * (a native `form.reset()` back to the value it mounted with, its hidden native `<select>`) never
+ * get through. A listbox with a form around it still renders that hidden `<select>`; `name` and
+ * `form` are not props of this component.
  */
 export const Select = /* @__PURE__ */ forwardRef<HTMLButtonElement, SelectProps>(function Select(props, ref) {
   const {
@@ -106,8 +120,42 @@ export const Select = /* @__PURE__ */ forwardRef<HTMLButtonElement, SelectProps>
   const current = controlled ? valueProp : inner;
   const blocked = control?.interactionBlocked ?? false;
   const [open, setOpen] = useState(false);
+  // The list never survives a block: Radix does not report a controlled `open` going false, and
+  // the stale `true` would reopen it, with the focus jumping in, when the Field is unblocked.
+  if (blocked && open) setOpen(false);
+  const gesture = useRef(false);
+  // Disarmed by a timer, not a microtask: in a browser a microtask checkpoint runs between React's
+  // capture and bubble listeners (two separate native listeners), i.e. before the option's handler.
+  const arm = () => {
+    gesture.current = true;
+    setTimeout(() => {
+      gesture.current = false;
+    }, 0);
+  };
+  const gestureProps = {
+    onPointerDownCapture: arm,
+    onPointerUpCapture: arm,
+    onKeyDownCapture: arm,
+    onClickCapture: arm,
+  };
+  const content = useRef<HTMLDivElement>(null);
+  const duplicatesWarned = useRef(false);
+  if (!duplicatesWarned.current && new Set(options.map((o) => o.value)).size !== options.length) {
+    duplicatesWarned.current = true;
+    console.warn(DUPLICATES_WARNING);
+  }
+  // Options that change under an open list: if the active option went away Radix leaves the
+  // focus on the list container; put it on the first enabled option.
+  useEffect(() => {
+    const list = content.current;
+    if (!list || !open) return;
+    const active = document.activeElement;
+    if (active instanceof HTMLElement && active.getAttribute('role') === 'option' && list.contains(active)) return;
+    list.querySelector<HTMLElement>('[role="option"]:not([data-disabled])')?.focus();
+    // Deliberately only on `options`: opening is Radix's to focus (the selected option).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [options]);
 
-  warnDuplicateValues(options);
   const byValue = useMemo(() => {
     const map = new Map<string, SelectOption>();
     for (const option of options) if (!map.has(option.value)) map.set(option.value, option);
@@ -119,10 +167,10 @@ export const Select = /* @__PURE__ */ forwardRef<HTMLButtonElement, SelectProps>
   // `forced`/`locked`: the list never opens, whatever asks (the trigger keeps the focus).
   const shown = blocked ? false : open;
 
-  // The single path to the consumer. Radix only calls it for a pick made inside the list or a
-  // typeahead on the trigger; a stray empty or unknown value (never a user's choice) is dropped.
+  // The single path to the consumer: only while a user gesture is being handled (see `arm`), and
+  // only for an enabled option. Anything else Radix reports (form reset, native select) is dropped.
   const handleValueChange = (next: string) => {
-    if (blocked) return;
+    if (blocked || !gesture.current) return;
     const option = byValue.get(next);
     if (!option || option.disabled) return;
     if (!controlled) setInner(next);
@@ -147,12 +195,27 @@ export const Select = /* @__PURE__ */ forwardRef<HTMLButtonElement, SelectProps>
         aria-labelledby={control?.['aria-labelledby'] ?? rest['aria-labelledby']}
         aria-invalid={control?.['aria-invalid'] ?? rest['aria-invalid']}
         aria-required={control?.['aria-required'] ?? rest['aria-required']}
-        aria-readonly={control?.['aria-readonly'] ?? undefined}
+        aria-readonly={control?.['aria-readonly'] ?? rest['aria-readonly']}
         // Radix hides everything outside the open list with `aria-hidden`, trigger included; a
         // focusable control under `aria-hidden` is an axe violation. The focus is in the list while
         // open and comes back to the trigger on close (a programmatic focus ignores tabindex).
-        tabIndex={shown ? -1 : undefined}
+        tabIndex={shown ? -1 : rest.tabIndex}
         className={cn(TRIGGER, SIZE_CLASS[size], className)}
+        {...gestureProps}
+        // Blocked (forced/locked): the events never reach Radix's trigger, which would otherwise
+        // run its typeahead (and fire a native `change` from its hidden select) on a refused value.
+        onKeyDown={(event) => {
+          rest.onKeyDown?.(event);
+          if (blocked && opensOrSearches(event)) event.preventDefault();
+        }}
+        onPointerDown={(event) => {
+          rest.onPointerDown?.(event);
+          if (blocked) event.preventDefault();
+        }}
+        onClick={(event) => {
+          rest.onClick?.(event);
+          if (blocked) event.preventDefault();
+        }}
       >
         {/* Radix's Value drops `className`: the clipping box is this wrapper. */}
         <span className={VALUE}>
@@ -166,6 +229,8 @@ export const Select = /* @__PURE__ */ forwardRef<HTMLButtonElement, SelectProps>
       </RadixSelect.Trigger>
       <RadixSelect.Portal>
         <RadixSelect.Content
+          ref={content}
+          {...gestureProps}
           position="popper"
           sideOffset={4}
           collisionPadding={8}

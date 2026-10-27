@@ -28,6 +28,8 @@ test.describe('Forms/Select: stories play', () => {
     'with-error',
     'disabled',
     'forced',
+    'unknown-value',
+    'inside-sheet',
     'long-list',
     'long-labels',
     'async-load',

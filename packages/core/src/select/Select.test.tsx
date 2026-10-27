@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '../dialog/Dialog';
 import { Field } from '../field/Field';
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '../sheet/Sheet';
 import { Select, type SelectOption } from './Select';
 
 // jsdom lacks what Radix Select measures and scrolls with.
@@ -230,7 +231,137 @@ describe('Select', () => {
     );
     await user.click(screen.getByRole('combobox'));
     expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(['Uno']);
-    expect(warn.mock.calls.filter(([m]) => String(m).includes('unique values')).length).toBeLessThanOrEqual(1);
+    expect(warn.mock.calls.filter(([m]) => String(m).includes('unique values'))).toHaveLength(1);
+  });
+
+  it('warns for every Select that has duplicates, not once per session', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const dup = [
+      { value: 'a', label: 'Uno' },
+      { value: 'a', label: 'Due' },
+    ];
+    render(<Select aria-label="Uno" options={dup} />);
+    render(<Select aria-label="Due" options={dup} />);
+    expect(warn.mock.calls.filter(([m]) => String(m).includes('unique values'))).toHaveLength(2);
+  });
+
+  describe('native form around the Select', () => {
+    it('form.reset() never reports the value the Select mounted with', async () => {
+      const user = userEvent.setup();
+      const onValueChange = vi.fn();
+      function Host() {
+        const [v, setV] = useState<string | undefined>('it');
+        return (
+          <form data-testid="form">
+            <Select
+              aria-label="Paese"
+              options={COUNTRIES}
+              value={v}
+              onValueChange={(next) => {
+                onValueChange(next);
+                setV(next);
+              }}
+            />
+          </form>
+        );
+      }
+      render(<Host />);
+      await user.click(screen.getByRole('combobox'));
+      await user.click(screen.getByRole('option', { name: 'Francia' }));
+      expect(onValueChange).toHaveBeenCalledExactlyOnceWith('fr');
+      act(() => (screen.getByTestId('form') as HTMLFormElement).reset());
+      expect(onValueChange).toHaveBeenCalledOnce();
+      expect(screen.getByRole('combobox')).toHaveTextContent('Francia');
+    });
+
+    it('a forced Select fires no change event and no onValueChange on typeahead', async () => {
+      const user = userEvent.setup();
+      const onValueChange = vi.fn();
+      const onFormChange = vi.fn();
+      render(
+        <form onChange={onFormChange}>
+          <Field label="Paese" state="forced" stateReason="Contratto">
+            <Select options={COUNTRIES} value="it" onValueChange={onValueChange} />
+          </Field>
+        </form>,
+      );
+      await user.tab();
+      await user.keyboard('fr');
+      expect(onValueChange).not.toHaveBeenCalled();
+      expect(onFormChange).not.toHaveBeenCalled();
+    });
+
+    it('an unblocked Select does not reach onValueChange from a stray change of the hidden select', () => {
+      const onValueChange = vi.fn();
+      const { container } = render(
+        <form>
+          <Select aria-label="Paese" options={COUNTRIES} value="it" onValueChange={onValueChange} />
+        </form>,
+      );
+      const native = container.querySelector('select');
+      if (native) {
+        native.value = 'fr';
+        native.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      expect(onValueChange).not.toHaveBeenCalled();
+    });
+  });
+
+  it('a list open when the Field blocks does not reopen when the Field is unblocked', async () => {
+    const user = userEvent.setup();
+    function Host({ state }: { state: 'default' | 'locked' }) {
+      return state === 'default' ? (
+        <Field label="Paese">
+          <Select options={COUNTRIES} />
+        </Field>
+      ) : (
+        <Field label="Paese" state="locked" stateReason="Salvataggio in corso">
+          <Select options={COUNTRIES} />
+        </Field>
+      );
+    }
+    const { rerender } = render(<Host state="default" />);
+    await user.click(screen.getByRole('combobox'));
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
+    rerender(<Host state="locked" />);
+    rerender(<Host state="default" />);
+    expect(screen.queryByRole('listbox')).toBeNull();
+  });
+
+  it('the active option removed under the open list: the first enabled option takes the focus', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<Select aria-label="Paese" options={COUNTRIES} />);
+    await user.click(screen.getByRole('combobox'));
+    await user.keyboard('{ArrowDown}');
+    rerender(<Select aria-label="Paese" options={COUNTRIES.slice(2)} />);
+    expect(screen.getByRole('option', { name: 'Spagna' })).toHaveFocus();
+  });
+
+  it('inside a Sheet, picking an option leaves the sheet open and Escape closes the list first', async () => {
+    const user = userEvent.setup();
+    render(
+      <Sheet>
+        <SheetTrigger>Apri</SheetTrigger>
+        <SheetContent>
+          <SheetTitle>Modifica</SheetTitle>
+          <Select aria-label="Paese" options={COUNTRIES} />
+        </SheetContent>
+      </Sheet>,
+    );
+    await user.click(screen.getByRole('button', { name: 'Apri' }));
+    await user.click(screen.getByRole('combobox', { name: 'Paese' }));
+    await user.click(screen.getByRole('option', { name: 'Spagna' }));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    await user.click(screen.getByRole('combobox', { name: 'Paese' }));
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('listbox')).toBeNull();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('keeps the consumer tabIndex and aria-readonly when the Select is outside a Field', () => {
+    render(<Select aria-label="Paese" options={COUNTRIES} tabIndex={-1} aria-readonly />);
+    expect(screen.getByRole('combobox')).toHaveAttribute('tabindex', '-1');
+    expect(screen.getByRole('combobox')).toHaveAttribute('aria-readonly', 'true');
   });
 
   describe('Field states', () => {

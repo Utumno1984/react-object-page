@@ -76,7 +76,10 @@ test.describe('select QA', () => {
     await page.waitForTimeout(300);
     const open = await listbox(page).count();
     const active = await page.evaluate(() => document.activeElement?.tagName + ':' + document.activeElement?.getAttribute('role'));
-    console.log('after Tab: listbox count', open, 'active', active);
+    // Radix traps Tab inside the list: it stays open and the focus does not fall to the page.
+    expect(open).toBe(1);
+    expect(active).not.toBe('BODY:null');
+    expect(await listbox(page).evaluate((el) => el.contains(document.activeElement))).toBe(true);
     // The page must stay usable: pressing Escape closes anything left.
     await page.keyboard.press('Escape');
     await expect(listbox(page)).toHaveCount(0);

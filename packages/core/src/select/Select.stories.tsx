@@ -13,6 +13,7 @@ import {
   DialogTrigger,
 } from '../dialog/Dialog';
 import { Field, type FieldStateProps } from '../field/Field';
+import { Sheet, SheetBody, SheetContent, SheetHeader, SheetTitle } from '../sheet/Sheet';
 import type { FieldState } from '../field/FieldContext';
 import { Select, type SelectOption, type SelectSize } from './Select';
 
@@ -42,7 +43,6 @@ const LONG: SelectOption[] = [
 interface DemoArgs {
   size: SelectSize;
   placeholder: string;
-  unknownValueLabel: string;
   state: FieldState;
   onValueChange: (value: string) => void;
 }
@@ -53,12 +53,11 @@ const meta: Meta<DemoArgs> = {
   argTypes: {
     size: { control: 'radio', options: SIZES },
     placeholder: { control: 'text' },
-    unknownValueLabel: { control: 'text' },
     // forced = value decided by a business rule; locked = not editable. Neither ever opens the list.
     state: { control: 'radio', options: STATES },
     onValueChange: { control: false },
   },
-  args: { size: 'md', placeholder: 'Seleziona', unknownValueLabel: '', state: 'default', onValueChange: fn() },
+  args: { size: 'md', placeholder: 'Seleziona', state: 'default', onValueChange: fn() },
 };
 
 export default meta;
@@ -79,7 +78,8 @@ function Controlled({
 }: {
   options?: SelectOption[];
   initial?: string;
-} & Pick<DemoArgs, 'size' | 'placeholder' | 'unknownValueLabel' | 'onValueChange'>) {
+  unknownValueLabel?: string;
+} & Pick<DemoArgs, 'size' | 'placeholder' | 'onValueChange'>) {
   const [value, setValue] = useState<string | undefined>(initial);
   return (
     <Select
@@ -87,7 +87,7 @@ function Controlled({
       value={value}
       size={size}
       placeholder={placeholder}
-      unknownValueLabel={unknownValueLabel || undefined}
+      unknownValueLabel={unknownValueLabel}
       onValueChange={(next) => {
         setValue(next);
         onValueChange(next);
@@ -100,7 +100,7 @@ const trigger = (canvasElement: HTMLElement, name = 'Paese') => within(canvasEle
 const listbox = () => within(document.body).findByRole('listbox');
 
 /**
- * Controls: `size`, `placeholder`, `unknownValueLabel` and the Field `state`; `onValueChange` is in
+ * Controls: `size`, `placeholder` and the Field `state`; `onValueChange` is in
  * Actions. The play function picks an option with the mouse and another with the keyboard (arrows
  * skip the disabled one), then checks the trigger shows it and the Actions got exactly those picks.
  */
@@ -204,6 +204,59 @@ export const Forced: Story = {
     await expect(within(document.body).queryByRole('listbox')).toBeNull();
     await expect(control).toHaveTextContent('Italia');
     await expect(control).toHaveAccessibleDescription('Deciso dal contratto quadro.');
+    await expect(args.onValueChange).not.toHaveBeenCalled();
+  },
+};
+
+/** Same stacking as in a Dialog: the options are above the sheet and a pick leaves it open. */
+export const InsideSheet: Story = {
+  render: (args) => (
+    <Sheet defaultOpen>
+      <main style={{ padding: 24, fontFamily: 'system-ui, sans-serif' }}>
+        <h1 style={{ margin: 0, fontSize: 20 }}>Fornitori</h1>
+      </main>
+      <SheetContent>
+        <SheetHeader>
+          <SheetTitle>Modifica fornitore</SheetTitle>
+        </SheetHeader>
+        <SheetBody>
+          <Field label="Paese">
+            <Controlled {...args} />
+          </Field>
+        </SheetBody>
+      </SheetContent>
+    </Sheet>
+  ),
+  play: async () => {
+    const body = within(document.body);
+    const sheet = await body.findByRole('dialog', { name: 'Modifica fornitore' });
+    await userEvent.click(within(sheet).getByRole('combobox', { name: 'Paese' }));
+    const list = await listbox();
+    for (const option of within(list).getAllByRole('option')) {
+      const box = option.getBoundingClientRect();
+      await expect(option.contains(document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2))).toBe(true);
+    }
+    await userEvent.click(within(list).getByRole('option', { name: 'Spagna' }));
+    await expect(body.getByRole('dialog', { name: 'Modifica fornitore' })).toBeInTheDocument();
+    await waitFor(() => expect(within(sheet).getByRole('combobox', { name: 'Paese' })).toHaveTextContent('Spagna'));
+  },
+};
+
+/** A value the catalogue no longer has: the trigger shows the declared label (or the raw value), and nothing is reported. */
+export const UnknownValue: Story = {
+  render: (args) => (
+    <div style={column}>
+      <Field label="Paese">
+        <Controlled {...args} initial="zz" unknownValueLabel="(non più disponibile)" />
+      </Field>
+      <Field label="Paese (senza etichetta)">
+        <Controlled {...args} initial="yy" />
+      </Field>
+    </div>
+  ),
+  play: async ({ args, canvasElement }) => {
+    await expect(trigger(canvasElement)).toHaveTextContent('(non più disponibile)');
+    await expect(trigger(canvasElement, 'Paese (senza etichetta)')).toHaveTextContent('yy');
     await expect(args.onValueChange).not.toHaveBeenCalled();
   },
 };
