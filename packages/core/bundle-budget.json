@@ -126,6 +126,14 @@
       "baseline": 598,
       "limit": 658
     },
+    "defaultComboboxFilter": {
+      "baseline": 590,
+      "limit": 649
+    },
+    "useCombobox": {
+      "baseline": 2290,
+      "limit": 2519
+    },
     "useFieldControl": {
       "baseline": 558,
       "limit": 614

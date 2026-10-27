@@ -16,3 +16,5 @@
 @source not '../**/*.stories.*';
 @source not '../**/*.test.*';
 @source not '../**/*.css';
+/* Headless hooks hold no class names; their `filter` option would be read as the `filter` utility. */
+@source not '../combobox';
