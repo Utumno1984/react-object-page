@@ -41,6 +41,8 @@ const EXPORTS = [
   'SheetTrigger',
   'Text',
   'Title',
+  'Tooltip',
+  'TooltipProvider',
   'cn',
   'composeRefs',
   'useFieldControl',

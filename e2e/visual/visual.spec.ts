@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
-import { gotoStory } from '../helpers/story';
+import { expectPlayToPass } from '../helpers/story';
 
 // One test per story tagged `visual` in Storybook's index.json, generated at load time:
 // nothing is listed by hand and an untagged story is never photographed.
@@ -51,8 +51,10 @@ for (const story of visualStories) {
           'Run "npm run test:visual:update" instead; nothing was written.',
       );
     }
-    // gotoStory throws on render errors, so we never photograph Storybook's error page.
-    await gotoStory(page, story.id);
+    // Waits for the story's play function: a story whose picture needs an interaction (a tooltip
+    // opened by a simulated hover) is photographed after it, not while it is still running. It
+    // also throws on render errors, so we never photograph Storybook's error page.
+    await expectPlayToPass(page, story.id);
     await page.addStyleTag({
       content: `*, *::before, *::after { animation: none !important; transition: none !important; caret-color: transparent !important; }`,
     });
