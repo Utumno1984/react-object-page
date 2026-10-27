@@ -289,8 +289,22 @@ export const OpenedByArrowDown: Story = {
           </Tooltip>
           <Button onKeyDown={(event) => event.key === 'ArrowDown' && setOpen(true)}>Menu</Button>
           {open && (
-            <div role="menu" aria-label="Menu">
-              <Tooltip content="Dettaglio della voce" delayDuration={delayDuration}>
+            <div
+              role="menu"
+              aria-label="Menu"
+              style={{
+                marginTop: 4,
+                padding: 4,
+                border: '1px solid #e2e8f0',
+                borderRadius: 8,
+                boxShadow: '0 4px 12px rgb(0 0 0 / 0.1)',
+                display: 'inline-block',
+              }}
+            >
+              {/* side="right": a menu panel is vertically dense, there is rarely enough room above or
+                  below an item for a "top"/"bottom" tooltip not to cover a neighbour (even the menu's
+                  own trigger, as this story caught) — the standard fix is to open tooltips sideways. */}
+              <Tooltip content="Dettaglio della voce" side="right" delayDuration={delayDuration}>
                 {/* eslint-disable-next-line jsx-a11y/no-autofocus -- the autoFocus item is the case under test */}
                 <Button autoFocus>Prima voce</Button>
               </Tooltip>
