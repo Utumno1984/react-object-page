@@ -70,6 +70,7 @@ test.describe('mouse and keyboard', () => {
     await page.keyboard.press('ArrowDown');
     await expect(page.getByRole('option', { name: 'Italia' })).toBeFocused();
     await page.keyboard.press('ArrowDown');
+    await expect(page.getByRole('option', { name: 'Francia' })).toBeFocused();
     await page.keyboard.press('ArrowDown');
     await expect(page.getByRole('option', { name: 'Spagna' })).toBeFocused(); // Germania skipped
     await page.keyboard.press('End');
