@@ -1,6 +1,6 @@
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { createRef } from 'react';
+import { createRef, useState } from 'react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { Button } from '../button/Button';
 import { Tooltip, TooltipProvider } from './Tooltip';
@@ -111,6 +111,62 @@ describe('Tooltip: opens only on real gestures', () => {
     expect(queryTooltip()).toBeNull();
   });
 
+  it('a panel opened by ArrowDown whose autoFocus lands on a trigger does not open it', async () => {
+    const user = userEvent.setup();
+    function Menu() {
+      const [open, setOpen] = useState(false);
+      return (
+        <>
+          {/* Another tooltip, already mounted: the key tracking must not depend on it being the first. */}
+          <Tooltip content="Altro" delayDuration={0}>
+            <Button>Altro</Button>
+          </Tooltip>
+          <button onKeyDown={(e) => e.key === 'ArrowDown' && setOpen(true)}>Menu</button>
+          {open && (
+            <Tooltip content="Dentro il menu" delayDuration={0}>
+              {/* eslint-disable-next-line jsx-a11y/no-autofocus -- the autoFocus trigger is the case under test */}
+              <Button autoFocus>Prima voce</Button>
+            </Tooltip>
+          )}
+        </>
+      );
+    }
+    render(<Menu />);
+    screen.getByRole('button', { name: 'Menu' }).focus();
+    await user.keyboard('{ArrowDown}');
+    expect(screen.getByRole('button', { name: 'Prima voce' })).toHaveFocus();
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 50)));
+    expect(queryTooltip()).toBeNull();
+  });
+
+  it('arrow keys moving the focus between triggers that already exist do open the tooltip', async () => {
+    const user = userEvent.setup();
+    function Toolbar() {
+      const [refs] = useState(() => [createRef<HTMLButtonElement>(), createRef<HTMLButtonElement>()]);
+      return (
+        <div
+          role="toolbar"
+          aria-label="Azioni"
+          onKeyDown={(e) => e.key === 'ArrowRight' && refs[1]!.current?.focus()}
+        >
+          <Tooltip content="Uno" delayDuration={0}>
+            <Button ref={refs[0]}>Uno</Button>
+          </Tooltip>
+          <Tooltip content="Due" delayDuration={0}>
+            <Button ref={refs[1]} tabIndex={-1}>
+              Due
+            </Button>
+          </Tooltip>
+        </div>
+      );
+    }
+    render(<Toolbar />);
+    await user.tab();
+    await user.keyboard('{ArrowRight}');
+    expect(screen.getByRole('button', { name: 'Due' })).toHaveFocus();
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Due');
+  });
+
   it('a click closes it and its focus does not reopen it', async () => {
     const user = userEvent.setup();
     const onClick = vi.fn();
@@ -152,6 +208,38 @@ describe('Tooltip: empty content', () => {
       expect(button).not.toHaveAttribute('aria-describedby');
     });
   }
+
+  it('an empty-content trigger does not make the next tooltip of the provider skip its delay', async () => {
+    const user = userEvent.setup();
+    render(
+      <TooltipProvider delayDuration={400}>
+        <Tooltip content="">
+          <Button>Vuoto</Button>
+        </Tooltip>
+        <Tooltip content="Pieno">
+          <Button>Pieno</Button>
+        </Tooltip>
+      </TooltipProvider>,
+    );
+    await user.hover(screen.getByRole('button', { name: 'Vuoto' }));
+    await user.unhover(screen.getByRole('button', { name: 'Vuoto' }));
+    await user.hover(screen.getByRole('button', { name: 'Pieno' }));
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 100)));
+    expect(queryTooltip()).toBeNull();
+    expect(await screen.findByRole('tooltip', undefined, { timeout: 1500 })).toHaveTextContent('Pieno');
+  });
+
+  it('a missing child (false, null) renders nothing and does not throw', () => {
+    expect(() =>
+      render(
+        <>
+          <Tooltip content="x">{false as const}</Tooltip>
+          <Tooltip content="x">{null}</Tooltip>
+        </>,
+      ),
+    ).not.toThrow();
+    expect(queryTooltip()).toBeNull();
+  });
 
   it('content that becomes empty while open closes the tooltip', async () => {
     const user = userEvent.setup();

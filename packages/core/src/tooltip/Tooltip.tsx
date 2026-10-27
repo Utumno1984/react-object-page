@@ -1,14 +1,17 @@
 import {
   createContext,
   useContext,
+  isValidElement,
   useEffect,
+  useRef,
   useState,
   type FocusEvent,
+  type PointerEvent,
   type ReactElement,
   type ReactNode,
 } from 'react';
 import * as RadixTooltip from '@radix-ui/react-tooltip';
-import { isKeyboardNavigating, trackKeyboardNavigation } from '../internal/keyboard-navigation';
+import { isKeyboardNavigating, now, trackKeyboardNavigation } from '../internal/keyboard-navigation';
 import { overlayLayer } from '../overlay/layers';
 import { cn } from '../utils/cn';
 
@@ -84,15 +87,21 @@ export interface TooltipProps {
    * A trigger with the `disabled` attribute gets no tooltip, because a disabled control receives no
    * pointer or focus events. With this prop it is wrapped in a focusable `span` that does: the
    * span (not the disabled control) is then the trigger and the tab stop. Wrapping happens only
-   * while the child is disabled, so toggling `disabled` remounts the child.
+   * while the child is disabled, so toggling `disabled` remounts the child (its internal state is
+   * lost), and the span is `inline-flex`, which can change the child's layout (a `w-full` or
+   * `flex-1` child no longer fills its parent). The span has no role of its own: the reason is
+   * announced as its description, the disabled control inside keeps its name.
    */
   disabledTriggerFocusable?: boolean;
   /**
    * The trigger: exactly one element, which receives the handlers and `ref` (`asChild`). A custom
    * component must spread its props and forward its `ref` onto the DOM element, or the tooltip
-   * never opens.
+   * never opens. `disabled` is read from this element's own props, so put it there. Compose with
+   * other `asChild` triggers by wrapping them: `<Tooltip><DialogTrigger asChild><Button/></DialogTrigger></Tooltip>`,
+   * not the other way round (`Tooltip` does not forward props or a `ref` to a parent trigger). A
+   * missing child (`false`, `null`, e.g. `{allowed && <Button/>}`) renders nothing.
    */
-  children: ReactElement;
+  children: ReactElement | false | null | undefined;
 }
 
 function isEmptyContent(content: ReactNode): boolean {
@@ -125,12 +134,17 @@ export function Tooltip({
 }: TooltipProps) {
   const hasProvider = useContext(ProviderPresent);
   useEffect(() => trackKeyboardNavigation(), []);
+  // When this tooltip (and so its trigger) was first rendered: a focus that reaches a trigger mounted
+  // after the key went down is the app's (a menu opened by ArrowDown), not the user's.
+  const mountedAt = useRef<number | null>(null);
+  mountedAt.current ??= now();
 
   // The open state lives here (never Radix's `defaultOpen`), so a tooltip can only open through
   // `onOpenChange`, i.e. through a gesture, and a blocked one is forced closed.
   const [innerOpen, setInnerOpen] = useState(false);
   const empty = isEmptyContent(content);
-  const triggerDisabled = !!(children.props as { disabled?: boolean }).disabled;
+  const child = isValidElement<{ disabled?: boolean }>(children) ? children : null;
+  const triggerDisabled = !!child?.props.disabled;
   const blocked = empty || (triggerDisabled && !disabledTriggerFocusable);
   // Derived reset: a state left `true` must not reopen the tooltip when it is unblocked.
   if (blocked && innerOpen) setInnerOpen(false);
@@ -142,10 +156,17 @@ export function Tooltip({
     onOpenChange?.(next);
   };
 
-  // Radix opens on every focus event; the only ones that count are the user's own.
+  // Radix opens on every focus event; the only ones that count are the user's own. A prevented
+  // handler is skipped by Radix's composed one, which also keeps a blocked tooltip from touching the
+  // provider's shared "a tooltip is open" state (it would skip the delay of the next tooltip).
   const gateFocus = (event: FocusEvent<HTMLElement>) => {
-    if (!isKeyboardNavigating()) event.preventDefault();
+    if (blocked || !isKeyboardNavigating(mountedAt.current ?? 0)) event.preventDefault();
   };
+  const gatePointer = (event: PointerEvent<HTMLElement>) => {
+    if (blocked) event.preventDefault();
+  };
+
+  if (!child) return <>{children}</>;
 
   const wrapped = triggerDisabled && disabledTriggerFocusable;
   const trigger = wrapped ? (
@@ -160,7 +181,7 @@ export function Tooltip({
 
   const tree = (
     <RadixTooltip.Root open={open} onOpenChange={handleOpenChange} delayDuration={delayDuration}>
-      <RadixTooltip.Trigger asChild onFocus={gateFocus}>
+      <RadixTooltip.Trigger asChild onFocus={gateFocus} onPointerMove={gatePointer}>
         {trigger}
       </RadixTooltip.Trigger>
       {empty ? null : (

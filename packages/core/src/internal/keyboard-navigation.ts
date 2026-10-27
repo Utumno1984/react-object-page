@@ -25,8 +25,10 @@ const STALE_AFTER_MS = 1000;
 let navigationKeyDownAt: number | null = null;
 let listeners = 0;
 
+// `performance.now()` (sub-millisecond), so that "mounted after the key went down" is a strict
+// comparison even when a handler renders in the same millisecond as the keydown.
 const onKeyDown = (event: KeyboardEvent) => {
-  navigationKeyDownAt = NAVIGATION_KEYS.has(event.key) ? Date.now() : null;
+  navigationKeyDownAt = NAVIGATION_KEYS.has(event.key) ? performance.now() : null;
 };
 const reset = () => {
   navigationKeyDownAt = null;
@@ -55,7 +57,19 @@ export function trackKeyboardNavigation(): () => void {
   };
 }
 
-/** True while a focus-moving key is held down, i.e. a focus event now is the user's. */
-export function isKeyboardNavigating(): boolean {
-  return navigationKeyDownAt !== null && Date.now() - navigationKeyDownAt < STALE_AFTER_MS;
+/** `performance.now()` for use as the `mountedAt` of `isKeyboardNavigating`. */
+export const now = (): number => performance.now();
+
+/**
+ * True while a focus-moving key is held down, i.e. a focus event now is the user's, **and** the
+ * element receiving it already existed when that key went down (`mountedAt`, from `now()`): an
+ * element mounted afterwards, with `autoFocus` or a `focus()` call, was focused by the app in
+ * reaction to the key (a menu that opens on ArrowDown), not by the user moving to it.
+ */
+export function isKeyboardNavigating(mountedAt: number): boolean {
+  return (
+    navigationKeyDownAt !== null &&
+    performance.now() - navigationKeyDownAt < STALE_AFTER_MS &&
+    mountedAt < navigationKeyDownAt
+  );
 }

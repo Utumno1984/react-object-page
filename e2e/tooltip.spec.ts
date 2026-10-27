@@ -7,7 +7,7 @@ const STORY = (name: string) => `overlays-tooltip--${name}`;
 // Every story but the fixture has a play function that hovers with synthetic events. The tests that
 // drive the real mouse and keyboard start after it, from the clean state it ends in (see `settle`
 // in the stories); `inside-dialog-manual` has no play and is opened as is.
-const WITHOUT_PLAY = new Set([STORY('inside-dialog-manual')]);
+const WITHOUT_PLAY = new Set([STORY('inside-dialog-manual'), STORY('opened-by-arrow-down')]);
 async function gotoStory(page: Page, id: string, args?: string): Promise<void> {
   if (WITHOUT_PLAY.has(id)) await openStory(page, id, args);
   else await expectPlayToPass(page, id, args);
@@ -29,7 +29,8 @@ test.describe('Overlays/Tooltip: stories play', () => {
     'auto-focus',
     'toolbar',
     'clipped-and-in-sheet',
-    'changing-content',
+    'click-action',
+    'content-changes-while-open',
   ]) {
     test(`${name}: the play function passes`, async ({ page }) => {
       await expectPlayToPass(page, STORY(name));
@@ -46,8 +47,8 @@ test.describe('hover', () => {
     // otherwise the next one opens with no delay (that is the toolbar test below).
     await page.waitForTimeout(450);
     await trigger.hover();
-    // Not yet: well inside the delay.
-    await page.waitForTimeout(150);
+    // Not yet: most of the 500ms delay is still to go (a 200ms delay would fail here).
+    await page.waitForTimeout(350);
     await expect(tooltips(page)).toHaveCount(0);
     const tooltip = tooltips(page);
     await expect(tooltip).toHaveText('Elimina riga');
@@ -91,7 +92,7 @@ test.describe('hover', () => {
   });
 
   test('a click on the trigger closes it and runs the action', async ({ page }) => {
-    await gotoStory(page, STORY('changing-content'));
+    await gotoStory(page, STORY('click-action'));
     const trigger = page.getByRole('button', { name: 'Conta' });
     await trigger.hover();
     await expect(tooltips(page)).toHaveText('Cliccato 0 volte');
@@ -132,6 +133,53 @@ test.describe('keyboard', () => {
     await page.keyboard.press('Tab');
     await expect(trigger).toBeFocused();
     await expect(tooltips(page)).toHaveCount(1);
+  });
+
+  test('a panel opened with ArrowDown that autofocuses a trigger does not open it; Shift+Tab then Tab does', async ({
+    page,
+  }) => {
+    await gotoStory(page, STORY('opened-by-arrow-down'));
+    await page.getByRole('button', { name: 'Menu' }).focus();
+    await page.keyboard.press('ArrowDown');
+    const item = page.getByRole('button', { name: 'Prima voce' });
+    await expect(item).toBeFocused();
+    await page.waitForTimeout(SETTLE);
+    await expect(tooltips(page)).toHaveCount(0);
+    // A real move onto it does open it: Shift+Tab away and Tab back.
+    await page.keyboard.press('Shift+Tab');
+    await page.keyboard.press('Tab');
+    await expect(item).toBeFocused();
+    await expect(tooltips(page)).toHaveText('Dettaglio della voce');
+  });
+
+  test('content that changes while it is open: the text follows and it stays centred on the trigger', async ({ page }) => {
+    await gotoStory(page, STORY('content-changes-while-open'));
+    const trigger = page.getByRole('button', { name: 'Premi + o -' });
+    // The play function tabbed to the button, pressed "+" and blurred it: the page is in the "long
+    // text" state and the sequential-focus starting point is after the button, so the first Tab may
+    // leave the page and a second one comes back.
+    for (let i = 0; i < 3 && !(await trigger.evaluate((el) => el === document.activeElement)); i += 1) {
+      await page.keyboard.press('Tab');
+    }
+    await expect(trigger).toBeFocused();
+    const tooltip = tooltips(page);
+    await expect(tooltip).toBeVisible();
+    await page.keyboard.press('Minus');
+    await expect(tooltip).toHaveText('Breve');
+    const narrow = (await tooltip.boundingBox())!;
+    await page.keyboard.press('Shift+Equal'); // the "+" key
+    await expect(tooltip).toHaveText(/Un testo molto più lungo/);
+    await expect
+      .poll(async () => {
+        const box = (await tooltip.boundingBox())!;
+        const anchor = (await trigger.boundingBox())!;
+        return {
+          wider: box.width > narrow.width + 40,
+          centred: Math.abs(box.x + box.width / 2 - (anchor.x + anchor.width / 2)) < 2,
+          inside: box.x >= 0,
+        };
+      })
+      .toEqual({ wider: true, centred: true, inside: true });
   });
 
   test('a programmatic focus() after Enter on another control does not open it', async ({ page }) => {
@@ -379,7 +427,7 @@ test.describe('no leak', () => {
 // Touch: the `chromium-touch` project (tag `@touch`).
 test.describe('touch @touch', () => {
   test('a tap runs the button action and leaves no tooltip open', async ({ page }) => {
-    await gotoStory(page, STORY('changing-content'));
+    await gotoStory(page, STORY('click-action'));
     const trigger = page.getByRole('button', { name: 'Conta' });
     await trigger.tap();
     await expect(page.getByTestId('count')).toHaveText('1');

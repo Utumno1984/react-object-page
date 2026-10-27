@@ -25,7 +25,16 @@ interface DemoArgs {
   align: TooltipAlign;
   delayDuration: number;
   onOpenChange: (open: boolean) => void;
+  // Only the Playground has these controls.
+  sideOffset?: number;
+  disabled?: boolean;
+  disabledTriggerFocusable?: boolean;
 }
+
+// The meta controls of the props a story does not wire up are hidden there, so no control in the
+// panel does nothing.
+const ONLY_DELAY = { controls: { exclude: ['content', 'side', 'align'] } };
+const NO_CONTROLS = { controls: { exclude: ['content', 'side', 'align', 'delayDuration'] } };
 
 const meta: Meta<DemoArgs> = {
   title: 'Overlays/Tooltip',
@@ -72,21 +81,52 @@ async function settle(trigger: HTMLElement) {
 }
 
 /**
- * Controls: `content`, `side`, `align`, `delayDuration`; `onOpenChange` appears in Actions. The
- * play function hovers the icon-only button (the tooltip opens after the delay and describes the
- * button), checks that Escape closes it, hovers again and moves away.
+ * Controls: every prop (`content`, `side`, `align`, `sideOffset`, `delayDuration`, plus `disabled`
+ * and `disabledTriggerFocusable` on the trigger); `onOpenChange` appears in Actions. The play
+ * function follows what the controls say: it hovers the icon-only button (the tooltip opens after
+ * the delay and describes the button) and checks that Escape closes it; with an empty `content`, or a
+ * disabled trigger, it checks that nothing opens (or, with `disabledTriggerFocusable`, that Tab does).
  */
 export const Playground: Story = {
-  render: ({ content, side, align, delayDuration, onOpenChange }) => (
+  args: { sideOffset: 6, disabled: false, disabledTriggerFocusable: false },
+  argTypes: {
+    sideOffset: { control: { type: 'number', min: 0, max: 24, step: 2 } },
+    disabled: { control: 'boolean' },
+    disabledTriggerFocusable: { control: 'boolean' },
+  },
+  render: ({ content, side, align, sideOffset, delayDuration, disabled, disabledTriggerFocusable, onOpenChange }) => (
     <Page>
-      <Tooltip content={content} side={side} align={align} delayDuration={delayDuration} onOpenChange={onOpenChange}>
-        <TrashButton />
+      <Tooltip
+        content={content}
+        side={side}
+        align={align}
+        sideOffset={sideOffset}
+        delayDuration={delayDuration}
+        disabledTriggerFocusable={disabledTriggerFocusable}
+        onOpenChange={onOpenChange}
+      >
+        <TrashButton disabled={disabled} />
       </Tooltip>
     </Page>
   ),
   play: async ({ args, canvasElement }) => {
     const button = within(canvasElement).getByRole('button', { name: 'Elimina riga' });
     await expect(within(document.body).queryByRole('tooltip')).toBeNull();
+    if (!args.content.trim() || (args.disabled && !args.disabledTriggerFocusable)) {
+      await userEvent.hover(button);
+      await userEvent.tab();
+      await new Promise((resolve) => setTimeout(resolve, args.delayDuration + 150));
+      await expect(within(document.body).queryByRole('tooltip')).toBeNull();
+      await expect(button).not.toHaveAttribute('aria-describedby');
+      await settle(button);
+      return;
+    }
+    if (args.disabled) {
+      await userEvent.tab();
+      await expect(await within(document.body).findByRole('tooltip')).toHaveTextContent(args.content);
+      await settle(button);
+      return;
+    }
     await userEvent.hover(button);
     const tooltip = await within(document.body).findByRole('tooltip', undefined, { timeout: 3000 });
     await expect(tooltip).toHaveTextContent(args.content);
@@ -106,6 +146,7 @@ export const Playground: Story = {
  */
 export const Sides: Story = {
   tags: ['visual'],
+  parameters: NO_CONTROLS,
   render: () => (
     <Page style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 160, minHeight: 320 }}>
       {SIDES.map((side) => (
@@ -230,6 +271,39 @@ export const InsideDialogManual: Story = {
 };
 
 /**
+ * A panel opened with ArrowDown (the menu-button pattern) that moves the focus to its first item, which
+ * has a tooltip: the focus is the app's reaction to the key, not the user's move, so nothing opens.
+ * No play function: the starting point for the end-to-end test that presses the real key.
+ */
+export const OpenedByArrowDown: Story = {
+  args: { delayDuration: 0 },
+  parameters: ONLY_DELAY,
+  render: ({ delayDuration }) => {
+    function Host() {
+      const [open, setOpen] = useState(false);
+      return (
+        <Page>
+          {/* A tooltip already mounted elsewhere on the page, as in any real app. */}
+          <Tooltip content="Azione della pagina" delayDuration={delayDuration}>
+            <TrashButton label="Azione della pagina" />
+          </Tooltip>
+          <Button onKeyDown={(event) => event.key === 'ArrowDown' && setOpen(true)}>Menu</Button>
+          {open && (
+            <div role="menu" aria-label="Menu">
+              <Tooltip content="Dettaglio della voce" delayDuration={delayDuration}>
+                {/* eslint-disable-next-line jsx-a11y/no-autofocus -- the autoFocus item is the case under test */}
+                <Button autoFocus>Prima voce</Button>
+              </Tooltip>
+            </div>
+          )}
+        </Page>
+      );
+    }
+    return <Host />;
+  },
+};
+
+/**
  * Disabled trigger. By default a disabled control gets no tooltip (it receives no pointer or focus
  * events, so there is no gesture to react to). With `disabledTriggerFocusable` it is wrapped in a
  * focusable `span` that is the trigger and the tab stop; use it when the reason for the disabled
@@ -237,6 +311,7 @@ export const InsideDialogManual: Story = {
  */
 export const DisabledTrigger: Story = {
   args: { delayDuration: 0 },
+  parameters: ONLY_DELAY,
   render: ({ delayDuration }) => (
     <Page style={{ display: 'flex', gap: 24 }}>
       <Tooltip content="Non visibile: nessun tooltip di default" delayDuration={delayDuration}>
@@ -263,6 +338,7 @@ export const DisabledTrigger: Story = {
 /** An empty `content` renders no tooltip and no `aria-describedby`; useful for a conditional text. */
 export const EmptyContent: Story = {
   args: { delayDuration: 0 },
+  parameters: ONLY_DELAY,
   render: ({ delayDuration }) => (
     <Page>
       <Tooltip content="" delayDuration={delayDuration}>
@@ -305,6 +381,7 @@ export const AutoFocus: Story = {
  * opens the second at once (`skipDelayDuration`) and closes the first.
  */
 export const Toolbar: Story = {
+  parameters: NO_CONTROLS,
   render: () => (
     <Page>
       <TooltipProvider delayDuration={600} skipDelayDuration={400}>
@@ -342,6 +419,7 @@ export const Toolbar: Story = {
  */
 export const ClippedAndInSheet: Story = {
   args: { delayDuration: 0 },
+  parameters: ONLY_DELAY,
   render: ({ delayDuration }) => (
     <Page>
       <div style={{ overflow: 'hidden', width: 80, height: 40, border: '1px solid #c4cdd6', marginBottom: 24 }}>
@@ -374,9 +452,57 @@ export const ClippedAndInSheet: Story = {
   },
 };
 
-/** Content that changes while the tooltip is open: the text follows and the position is recomputed. */
-export const ChangingContent: Story = {
+/**
+ * Content that changes while the tooltip is open: the text follows and the position is recomputed
+ * (the tooltip stays centred on the trigger as it gets wider). Tab to the button (the tooltip opens),
+ * then press `+` (long text) or `-` (short text).
+ */
+export const ContentChangesWhileOpen: Story = {
   args: { delayDuration: 0 },
+  parameters: ONLY_DELAY,
+  render: ({ delayDuration }) => {
+    function Host() {
+      const [long, setLong] = useState(false);
+      return (
+        <Page style={{ paddingTop: 120, paddingLeft: 280 }}>
+          <Tooltip
+            content={long ? 'Un testo molto più lungo, che cambia la larghezza del tooltip mentre è aperto' : 'Breve'}
+            delayDuration={delayDuration}
+          >
+            <Button onKeyDown={(event) => (event.key === '+' || event.key === '-') && setLong(event.key === '+')}>
+              Premi + o -
+            </Button>
+          </Tooltip>
+        </Page>
+      );
+    }
+    return <Host />;
+  },
+  play: async ({ canvasElement }) => {
+    const body = within(document.body);
+    const trigger = within(canvasElement).getByRole('button', { name: 'Premi + o -' });
+    await userEvent.tab();
+    await expect(trigger).toHaveFocus();
+    await expect(await body.findByRole('tooltip')).toHaveTextContent('Breve');
+    const narrow = body.getByRole('tooltip').getBoundingClientRect().width;
+    await userEvent.keyboard('+');
+    await waitFor(() => {
+      const tooltip = body.getByRole('tooltip');
+      expect(tooltip).toHaveTextContent('Un testo molto più lungo');
+      const box = tooltip.getBoundingClientRect();
+      const anchor = trigger.getBoundingClientRect();
+      expect(box.width).toBeGreaterThan(narrow + 40);
+      // Still centred on the trigger: the position was recomputed for the new size.
+      expect(Math.abs(box.left + box.width / 2 - (anchor.left + anchor.width / 2))).toBeLessThan(2);
+    });
+    await settle(trigger);
+  },
+};
+
+/** A click (or a tap) runs the button's action and closes the tooltip; the label shows the count. */
+export const ClickAction: Story = {
+  args: { delayDuration: 0 },
+  parameters: ONLY_DELAY,
   render: ({ delayDuration }) => {
     function Host() {
       const [count, setCount] = useState(0);
