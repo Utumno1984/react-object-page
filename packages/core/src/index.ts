@@ -58,3 +58,5 @@ export type {
   SheetTitleProps,
   SheetCloseProps,
 } from './sheet/Sheet';
+export { Tooltip, TooltipProvider } from './tooltip/Tooltip';
+export type { TooltipProps, TooltipProviderProps, TooltipSide, TooltipAlign } from './tooltip/Tooltip';

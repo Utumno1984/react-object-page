@@ -228,6 +228,8 @@ describe('internal icons', () => {
       'SheetTrigger',
       'Text',
       'Title',
+      'Tooltip',
+      'TooltipProvider',
       'cn',
       'composeRefs',
       'useFieldControl',
