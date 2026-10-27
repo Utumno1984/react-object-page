@@ -49,7 +49,7 @@ test.describe('useCombobox QA round 2', () => {
     await selectTorino(page);
     await page.keyboard.type('x');
     await expect(input(page)).toHaveValue('Torinox');
-    await input(page).dispatchEvent('blur');
+    await input(page).dispatchEvent('focusout'); // React's `onBlur` listens to focusout, not blur
     await expect(input(page)).toHaveValue('Torinox');
     await expect(input(page)).toHaveAttribute('aria-expanded', 'true');
   });

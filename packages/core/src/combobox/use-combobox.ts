@@ -48,7 +48,7 @@ export interface UseComboboxReturn<T> {
     ref: (node: HTMLInputElement | null) => void | (() => void);
   };
   getListboxProps: <E extends HTMLElement = HTMLElement>(props?: ElementDomProps<E>) => ElementDomProps<E>;
-  /** `index` is the position of `item` in `filteredItems` (options are tracked by key, not index). */
+  /** `index` (position in `filteredItems`) is not used for tracking: options are tracked by key. */
   getOptionProps: <E extends HTMLElement = HTMLElement>(
     item: T,
     index: number,

@@ -169,8 +169,9 @@ test.describe('useCombobox QA', () => {
     await gotoStory(page, STORY);
     await input(page).click();
     await page.keyboard.type('mod');
-    // Emulate the window losing focus: a blur event while document.activeElement is still the input.
-    await input(page).dispatchEvent('blur');
+    // Emulate the window losing focus: a focusout (React's `onBlur` listens to it, not to `blur`)
+    // while document.activeElement is still the input.
+    await input(page).dispatchEvent('focusout');
     await expect(input(page)).toHaveValue('mod');
     await expect(input(page)).toHaveAttribute('aria-expanded', 'true');
   });
