@@ -1,7 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createRef, useState } from 'react';
-import { renderToString } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { defaultComboboxFilter } from './filter';
 import { useCombobox, type UseComboboxOptions } from './use-combobox';
@@ -392,6 +391,44 @@ describe('useCombobox: selection outside the results', () => {
     expect(onSelectedItemChange).not.toHaveBeenCalled();
   });
 
+  it('emptied text activates no option: Enter does not replace the selection, it restores the text', async () => {
+    const user = userEvent.setup();
+    const onSelectedItemChange = vi.fn();
+    render(<Demo defaultSelectedItem={CITIES[4]} onSelectedItemChange={onSelectedItemChange} />);
+    await user.click(input());
+    await user.clear(input());
+    expect(state()).toEqual({ open: true, active: -1, n: 5 });
+    await user.keyboard('{Enter}');
+    expect(onSelectedItemChange).not.toHaveBeenCalled();
+    expect(input()).toHaveValue('Torino');
+    expect(state().open).toBe(false);
+  });
+
+  it('clearOnEmpty: Enter on emptied text clears the selection once', async () => {
+    const user = userEvent.setup();
+    const onSelectedItemChange = vi.fn();
+    render(<Demo defaultSelectedItem={CITIES[4]} onSelectedItemChange={onSelectedItemChange} clearOnEmpty />);
+    await user.click(input());
+    await user.clear(input());
+    await user.keyboard('{Enter}');
+    expect(onSelectedItemChange).toHaveBeenCalledTimes(1);
+    expect(onSelectedItemChange).toHaveBeenCalledWith(null);
+    expect(input()).toHaveValue('');
+  });
+
+  it('losing the window focus (the input stays the active element) keeps the text and the list', async () => {
+    const user = userEvent.setup();
+    const onSelectedItemChange = vi.fn();
+    render(<Demo defaultSelectedItem={CITIES[0]} onSelectedItemChange={onSelectedItemChange} clearOnEmpty />);
+    await user.click(input());
+    await user.clear(input());
+    expect(input()).toHaveFocus();
+    fireEvent.blur(input()); // what the browser fires on alt-tab: activeElement is still the input
+    expect(input()).toHaveValue('');
+    expect(state().open).toBe(true);
+    expect(onSelectedItemChange).not.toHaveBeenCalled();
+  });
+
   it('with the selection shown, the list is unfiltered', async () => {
     const user = userEvent.setup();
     render(<Demo defaultSelectedItem={CITIES[0]} />);
@@ -448,6 +485,47 @@ describe('useCombobox: no echo', () => {
     await user.tab();
     expect(input()).toHaveValue('Zzz (fuori lista)');
     expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('with inputValue controlled too, an external selection change does not call back and leaves the text to the consumer', async () => {
+    const user = userEvent.setup();
+    const onSelectedItemChange = vi.fn();
+    const onInputValueChange = vi.fn();
+    function Both() {
+      const [selected, setSelected] = useState<City>(CITIES[0]!);
+      const [text, setText] = useState('Milano');
+      return (
+        <>
+          <Demo
+            selectedItem={selected}
+            inputValue={text}
+            onSelectedItemChange={onSelectedItemChange}
+            onInputValueChange={(v) => {
+              onInputValueChange(v);
+              setText(v);
+            }}
+          />
+          <button type="button" onClick={() => setSelected(CITIES[1]!)}>
+            select-modena
+          </button>
+          <button type="button" onClick={() => setText('Modena')}>
+            text-modena
+          </button>
+        </>
+      );
+    }
+    render(<Both />);
+    await user.click(screen.getByRole('button', { name: 'select-modena' }));
+    expect(onSelectedItemChange).not.toHaveBeenCalled();
+    expect(onInputValueChange).not.toHaveBeenCalled();
+    expect(input()).toHaveValue('Milano'); // documented: the consumer owns the text
+    // Entering and leaving without typing does not fire a text change the user did not make.
+    await user.click(input());
+    await user.tab();
+    expect(onInputValueChange).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'text-modena' }));
+    expect(input()).toHaveValue('Modena');
+    expect(onSelectedItemChange).not.toHaveBeenCalled();
   });
 
   it('a controlled selection the parent refuses to apply reverts the text', async () => {
@@ -509,6 +587,41 @@ describe('useCombobox: composable getters', () => {
     expect(ref.current).toBe(input());
   });
 
+  it('keeps the composed input ref stable across renders while the consumer ref is stable', async () => {
+    const user = userEvent.setup();
+    const ref = vi.fn();
+    render(<Demo inputProps={{ ref }} />);
+    expect(ref).toHaveBeenCalledTimes(1);
+    await user.click(input());
+    await user.keyboard('mi');
+    expect(ref).toHaveBeenCalledTimes(1); // re-renders did not detach and re-attach it
+  });
+
+  it('hovering an option activates it by key even when the consumer passes a group-relative index', async () => {
+    const user = userEvent.setup();
+    function Grouped() {
+      const c = useCombobox<City>({ items: CITIES, itemToString: (x) => x.label, itemToKey: (x) => x.id });
+      return (
+        <div>
+          <input aria-label="City" {...c.getInputProps()} />
+          <ul {...c.getListboxProps()}>
+            {c.filteredItems.map((city, i) => (
+              <li key={city.id} {...c.getOptionProps(city, i % 2)}>
+                {city.label}
+              </li>
+            ))}
+          </ul>
+          <output data-testid="active">{c.activeIndex}</output>
+        </div>
+      );
+    }
+    render(<Grouped />);
+    await user.click(input());
+    await user.keyboard('{ArrowDown}');
+    await user.hover(screen.getByRole('option', { name: 'Torino' }));
+    expect(screen.getByTestId('active')).toHaveTextContent('4');
+  });
+
   it('forwards extra attributes (id, placeholder) to the input', () => {
     render(<Demo inputProps={{ id: 'mine', placeholder: 'Citta' }} />);
     expect(input()).toHaveAttribute('id', 'mine');
@@ -548,20 +661,16 @@ describe('useCombobox: no leak', () => {
   });
 });
 
-describe('useCombobox: dev warning and SSR', () => {
-  it('warns once the keys are duplicated', () => {
+// SSR (render with react-dom/server, no DOM globals): use-combobox.ssr.test.tsx, node environment.
+describe('useCombobox: dev warning', () => {
+  it('warns about duplicate keys once, not on every render', async () => {
+    const user = userEvent.setup();
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     render(<Demo itemToKey={() => 'same'} />);
+    await user.click(input());
+    await user.keyboard('mi');
+    expect(warn).toHaveBeenCalledTimes(1);
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('duplicate keys'));
-  });
-
-  it('renders on the server without errors and without touching the DOM', () => {
-    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    const html = renderToString(<Demo defaultSelectedItem={CITIES[0]} />);
-    expect(html).toContain('role="combobox"');
-    expect(html).toContain('value="Milano"');
-    expect(html).toContain('aria-expanded="false"');
-    expect(error).not.toHaveBeenCalled();
   });
 });
 

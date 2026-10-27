@@ -145,18 +145,34 @@ test.describe('useCombobox QA', () => {
     await expect(log(page)).toHaveCount(1);
   });
 
-  test('clearOnEmpty off: typing then emptying then Enter does not clear', async ({ page }) => {
+  test('clearOnEmpty off: emptying the text then Enter neither clears nor replaces the selection', async ({
+    page,
+  }) => {
     await gotoStory(page, STORY);
     await input(page).click();
     await page.keyboard.type('tor');
     await page.keyboard.press('Enter');
     await page.keyboard.press('Control+A');
     await page.keyboard.press('Backspace');
-    // Observation: emptying the text shows all options with the first active, so Enter selects Milano.
+    await expect(page.getByRole('option')).toHaveCount(5);
+    await expect(page.getByTestId('active-index')).toHaveText('-1');
     await page.keyboard.press('Enter');
+    await expect(input(page)).toHaveValue('Torino');
     await page.keyboard.press('Tab');
-    await expect(page.getByTestId('selected')).toHaveText('Milano');
-    await expect(log(page)).toHaveCount(2);
+    await expect(page.getByTestId('selected')).toHaveText('Torino');
+    await expect(log(page)).toHaveCount(1);
+  });
+
+  test('alt-tab style blur (window loses focus, input stays active) keeps the typed text and the list', async ({
+    page,
+  }) => {
+    await gotoStory(page, STORY);
+    await input(page).click();
+    await page.keyboard.type('mod');
+    // Emulate the window losing focus: a blur event while document.activeElement is still the input.
+    await input(page).dispatchEvent('blur');
+    await expect(input(page)).toHaveValue('mod');
+    await expect(input(page)).toHaveAttribute('aria-expanded', 'true');
   });
 
   test('typing diacritics-insensitive: "CITTA" finds Città di Castello', async ({ page }) => {

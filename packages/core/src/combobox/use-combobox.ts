@@ -22,9 +22,13 @@ export interface UseComboboxOptions<T> {
   defaultSelectedItem?: T | null;
   /** Called only for a selection made by the user, once per gesture, never for the same item. */
   onSelectedItemChange?: (item: T | null) => void;
-  /** Controlled input text. */
+  /**
+   * Controlled input text. The filter uses it as is. The hook never rewrites it on its own: when
+   * `selectedItem` changes from outside, the consumer sets the text too (a system change is not a
+   * user gesture, so `onInputValueChange` is not called for it).
+   */
   inputValue?: string;
-  /** Called only when the user changes the text (typing, picking an option, revert on exit). */
+  /** Called only when the user changes the text (typing, picking an option, revert after typing). */
   onInputValueChange?: (value: string) => void;
   /** Replaces the default filter. Receives the items and the current input text. */
   filter?: (items: readonly T[], inputValue: string) => readonly T[];
@@ -44,7 +48,7 @@ export interface UseComboboxReturn<T> {
     ref: (node: HTMLInputElement | null) => void | (() => void);
   };
   getListboxProps: <E extends HTMLElement = HTMLElement>(props?: ElementDomProps<E>) => ElementDomProps<E>;
-  /** `index` is the position in `filteredItems`. */
+  /** `index` is the position of `item` in `filteredItems` (options are tracked by key, not index). */
   getOptionProps: <E extends HTMLElement = HTMLElement>(
     item: T,
     index: number,
@@ -114,6 +118,10 @@ export function useCombobox<T>(options: UseComboboxOptions<T>): UseComboboxRetur
   const [internalSelected, setInternalSelected] = useState<T | null>(defaultSelectedItem ?? null);
   const composing = useRef(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const duplicatesWarned = useRef(false);
+  // The composed input ref keeps its identity while the consumer's ref does: React would otherwise
+  // detach and re-attach it (consumer callback called with `null`, then the node) on every render.
+  const composedInputRef = useRef<{ user: Ref<HTMLInputElement> | undefined; composed: ReturnType<typeof composeRefs<HTMLInputElement>> } | null>(null);
 
   const selectedControlled = options.selectedItem !== undefined;
   const selectedItem = selectedControlled ? (options.selectedItem ?? null) : internalSelected;
@@ -142,9 +150,10 @@ export function useCombobox<T>(options: UseComboboxOptions<T>): UseComboboxRetur
   const activeIndex = isOpen ? rawIndex : -1;
 
   useEffect(() => {
-    if (!isDev()) return;
+    if (!isDev() || duplicatesWarned.current) return;
     const keys = items.map(itemToKey);
     if (new Set(keys).size !== keys.length) {
+      duplicatesWarned.current = true;
       console.warn('[react-object-page] useCombobox: `itemToKey` returned duplicate keys; option ids must be unique.');
     }
   }, [items, itemToKey]);
@@ -236,7 +245,8 @@ export function useCombobox<T>(options: UseComboboxOptions<T>): UseComboboxRetur
         if (!isOpen) break;
         event.preventDefault();
         if (activeIndex >= 0) selectItem(filteredItems[activeIndex]!);
-        else if (clearOnEmpty && typedText !== null && inputValue === '') {
+        else if (typedText !== null && inputValue === '') {
+          // Emptied text with no option to pick: clears the selection (`clearOnEmpty`) or restores it.
           revertText();
           close();
         }
@@ -266,13 +276,17 @@ export function useCombobox<T>(options: UseComboboxOptions<T>): UseComboboxRetur
     onInputValueChange?.(text);
     setIsOpen(true);
     const matches = applyFilter(text);
-    setActive(matches, clearOnEmpty && text === '' ? -1 : firstEnabled(matches));
+    // Empty text is not a match: no option is active, so Enter cannot replace the selection.
+    setActive(matches, text === '' ? -1 : firstEnabled(matches));
   };
 
-  const onBlur = () => {
+  const onBlur = (event: FocusEvent<HTMLInputElement>) => {
+    // The window lost the focus (alt-tab) but the input is still the active element: the user has
+    // not left the field, keep the text and the list.
+    if (document.activeElement === event.currentTarget) return;
     composing.current = false;
     close();
-    revertText();
+    if (typedText !== null) revertText();
   };
 
   const getInputProps: UseComboboxReturn<T>['getInputProps'] = (props = {}) => {
@@ -285,10 +299,15 @@ export function useCombobox<T>(options: UseComboboxOptions<T>): UseComboboxRetur
       onCompositionEnd,
       ...rest
     } = props;
+    let cached = composedInputRef.current;
+    if (cached === null || cached.user !== ref) {
+      cached = { user: ref, composed: composeRefs(ref, inputRef) };
+      composedInputRef.current = cached;
+    }
     return {
       autoComplete: 'off',
       ...rest,
-      ref: composeRefs(ref, inputRef),
+      ref: cached.composed,
       role: 'combobox',
       value: inputValue,
       'aria-expanded': isOpen,
@@ -305,7 +324,7 @@ export function useCombobox<T>(options: UseComboboxOptions<T>): UseComboboxRetur
       },
       onBlur: (event: FocusEvent<HTMLInputElement>) => {
         userBlur?.(event);
-        if (!event.defaultPrevented) onBlur();
+        if (!event.defaultPrevented) onBlur(event);
       },
       onCompositionStart: (event: CompositionEvent<HTMLInputElement>) => {
         composing.current = true;
@@ -337,16 +356,17 @@ export function useCombobox<T>(options: UseComboboxOptions<T>): UseComboboxRetur
 
   function getOptionProps<E extends HTMLElement = HTMLElement>(
     item: T,
-    index: number,
+    _index: number,
     props: ElementDomProps<E> = {},
   ): ElementDomProps<E> {
     const { onClick, onMouseMove, ...rest } = props;
     const isDisabled = disabled(item);
+    const key = itemToKey(item);
     return {
       ...rest,
       role: 'option',
       id: optionId(item),
-      'aria-selected': selectedKey !== null && itemToKey(item) === selectedKey,
+      'aria-selected': selectedKey !== null && key === selectedKey,
       'aria-disabled': isDisabled,
       onClick: (event: MouseEvent<E>) => {
         onClick?.(event);
@@ -356,7 +376,8 @@ export function useCombobox<T>(options: UseComboboxOptions<T>): UseComboboxRetur
       },
       onMouseMove: (event: MouseEvent<E>) => {
         onMouseMove?.(event);
-        if (!event.defaultPrevented && !isDisabled && index !== activeIndex) setActive(filteredItems, index);
+        // By key, so a consumer that renders the options in groups (relative index) still works.
+        if (!event.defaultPrevented && !isDisabled && key !== activeKey) setActiveKey(key);
       },
     };
   }
