@@ -148,11 +148,18 @@ export const Select = /* @__PURE__ */ forwardRef<HTMLButtonElement, SelectProps>
         aria-invalid={control?.['aria-invalid'] ?? rest['aria-invalid']}
         aria-required={control?.['aria-required'] ?? rest['aria-required']}
         aria-readonly={control?.['aria-readonly'] ?? undefined}
+        // Radix hides everything outside the open list with `aria-hidden`, trigger included; a
+        // focusable control under `aria-hidden` is an axe violation. The focus is in the list while
+        // open and comes back to the trigger on close (a programmatic focus ignores tabindex).
+        tabIndex={shown ? -1 : undefined}
         className={cn(TRIGGER, SIZE_CLASS[size], className)}
       >
-        <RadixSelect.Value placeholder={placeholder} className={VALUE}>
-          {selected ? selected.label : (unknownValueLabel ?? current)}
-        </RadixSelect.Value>
+        {/* Radix's Value drops `className`: the clipping box is this wrapper. */}
+        <span className={VALUE}>
+          <RadixSelect.Value placeholder={placeholder}>
+            {selected ? selected.label : (unknownValueLabel ?? current)}
+          </RadixSelect.Value>
+        </span>
         <RadixSelect.Icon asChild>
           <Icon size="sm">{internalIcons['chevron-down']}</Icon>
         </RadixSelect.Icon>
