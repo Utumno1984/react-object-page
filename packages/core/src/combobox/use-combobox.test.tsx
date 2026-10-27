@@ -380,6 +380,18 @@ describe('useCombobox: selection outside the results', () => {
     expect(onSelectedItemChange).toHaveBeenCalledWith(null);
   });
 
+  it('clearOnEmpty: Escape on a closed list with empty text restores the text, it does not clear the selection', async () => {
+    const user = userEvent.setup();
+    const onSelectedItemChange = vi.fn();
+    render(<Demo defaultSelectedItem={CITIES[0]} onSelectedItemChange={onSelectedItemChange} clearOnEmpty />);
+    await user.click(input());
+    await user.clear(input());
+    await user.keyboard('{Escape}'); // closes the list
+    await user.keyboard('{Escape}'); // list closed: restores the text
+    expect(input()).toHaveValue('Milano');
+    expect(onSelectedItemChange).not.toHaveBeenCalled();
+  });
+
   it('with the selection shown, the list is unfiltered', async () => {
     const user = userEvent.setup();
     render(<Demo defaultSelectedItem={CITIES[0]} />);

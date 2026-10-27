@@ -246,8 +246,9 @@ export function useCombobox<T>(options: UseComboboxOptions<T>): UseComboboxRetur
           event.preventDefault();
           close();
         } else if (typedText !== null) {
+          // Escape only restores the text; clearing the selection is reserved to leaving the field.
           event.preventDefault();
-          revertText();
+          commitText(selectedText);
         }
         break;
       case 'Tab':
