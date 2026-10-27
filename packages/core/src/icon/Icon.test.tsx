@@ -217,6 +217,7 @@ describe('internal icons', () => {
       'Icon',
       'Input',
       'MessageStrip',
+      'Select',
       'Sheet',
       'SheetBody',
       'SheetClose',

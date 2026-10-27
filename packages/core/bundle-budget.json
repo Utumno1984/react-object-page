@@ -62,6 +62,10 @@
       "baseline": 13632,
       "limit": 14996
     },
+    "Select": {
+      "baseline": 43258,
+      "limit": 47584
+    },
     "Sheet": {
       "baseline": 5004,
       "limit": 5505

@@ -30,6 +30,7 @@ const EXPORTS = [
   'Icon',
   'Input',
   'MessageStrip',
+  'Select',
   'Sheet',
   'SheetBody',
   'SheetClose',
