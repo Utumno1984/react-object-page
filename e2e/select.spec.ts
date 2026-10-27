@@ -83,7 +83,9 @@ test.describe('mouse and keyboard', () => {
     await expect(listbox(page)).toHaveCount(0);
     await expect(trigger).toHaveText('Seleziona');
     await page.keyboard.press('ArrowDown');
+    await expect(page.getByRole('option', { name: 'Italia' })).toBeFocused();
     await page.keyboard.type('fr');
+    await expect(page.getByRole('option', { name: 'Francia' })).toBeFocused();
     await page.keyboard.press('Enter');
     await expect(trigger).toHaveText('Francia');
   });
