@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen, within } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -334,7 +334,7 @@ describe('Select', () => {
     await user.click(screen.getByRole('combobox'));
     await user.keyboard('{ArrowDown}');
     rerender(<Select aria-label="Paese" options={COUNTRIES.slice(2)} />);
-    expect(screen.getByRole('option', { name: 'Spagna' })).toHaveFocus();
+    await waitFor(() => expect(screen.getByRole('option', { name: 'Spagna' })).toHaveFocus());
   });
 
   it('inside a Sheet, picking an option leaves the sheet open and Escape closes the list first', async () => {
