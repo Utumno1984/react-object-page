@@ -4,11 +4,19 @@
 // The library ships no box-sizing reset (boxes are content-box): paddings and borders add to the
 // declared sizes, which is why the widths below are `min-w` / `max-w` only.
 
-/** The positioned panel, never taller or wider than the room the viewport leaves. */
-export const LISTBOX_CONTENT =
-  'min-w-(--radix-select-trigger-width) max-w-(--radix-select-content-available-width) max-h-(--radix-select-content-available-height) ' +
+const LISTBOX_SURFACE =
   'overflow-hidden rounded-rop-md border border-rop-border bg-rop-surface font-rop-sans text-rop-body text-rop-text ' +
   '[box-shadow:0_4px_16px_rgb(0_0_0/0.2)]';
+
+/** The Select's positioned panel, never taller or wider than the room the viewport leaves. */
+export const LISTBOX_CONTENT =
+  'min-w-(--radix-select-trigger-width) max-w-(--radix-select-content-available-width) max-h-(--radix-select-content-available-height) ' +
+  LISTBOX_SURFACE;
+
+/** The Combobox's panel (a Popover anchored to the input): same box, the Popover's size variables. */
+export const LISTBOX_CONTENT_POPOVER =
+  'min-w-(--radix-popover-trigger-width) max-w-(--radix-popover-content-available-width) max-h-(--radix-popover-content-available-height) ' +
+  LISTBOX_SURFACE;
 
 /** The scroll container: at most 20rem tall and 24rem wide, the list scrolls here, never the page. */
 export const LISTBOX_VIEWPORT = 'max-h-80 max-w-96 overflow-y-auto p-1';

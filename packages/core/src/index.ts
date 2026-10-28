@@ -62,6 +62,8 @@ export { Tooltip, TooltipProvider } from './tooltip/Tooltip';
 export type { TooltipProps, TooltipProviderProps, TooltipSide, TooltipAlign } from './tooltip/Tooltip';
 export { Select } from './select/Select';
 export type { SelectProps, SelectOption, SelectSize } from './select/Select';
+export { Combobox } from './combobox/Combobox';
+export type { ComboboxProps, ComboboxOption, ComboboxSize } from './combobox/Combobox';
 export { useCombobox } from './combobox/use-combobox';
 export type { UseComboboxOptions, UseComboboxReturn } from './combobox/use-combobox';
 export { defaultComboboxFilter } from './combobox/filter';
