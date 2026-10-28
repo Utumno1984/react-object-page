@@ -6,6 +6,10 @@
       "baseline": 12821,
       "limit": 14104
     },
+    "Combobox": {
+      "baseline": 38153,
+      "limit": 41968
+    },
     "Dialog": {
       "baseline": 5005,
       "limit": 5506
