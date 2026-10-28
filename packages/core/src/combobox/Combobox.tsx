@@ -12,6 +12,13 @@ import {
 import * as Popover from '@radix-ui/react-popover';
 import { FieldContext } from '../field/FieldContext';
 import { Icon } from '../icon/Icon';
+import {
+  COMBOBOX_ANCHOR,
+  COMBOBOX_INPUT,
+  COMBOBOX_LIST,
+  COMBOBOX_OPTION,
+  COMBOBOX_SIZE,
+} from '../internal/combobox-styles';
 import { internalIcons } from '../internal/icons';
 import {
   LISTBOX_CONTENT_POPOVER,
@@ -34,11 +41,10 @@ export interface ComboboxOption {
   disabled?: boolean;
 }
 
-export interface ComboboxProps
-  extends Omit<
-    InputHTMLAttributes<HTMLInputElement>,
-    'value' | 'defaultValue' | 'onChange' | 'size' | 'role' | 'type' | 'children'
-  > {
+export interface ComboboxProps extends Omit<
+  InputHTMLAttributes<HTMLInputElement>,
+  'value' | 'defaultValue' | 'onChange' | 'size' | 'role' | 'type' | 'children'
+> {
   options: readonly ComboboxOption[];
   /**
    * Controlled value. `undefined` (the key being present) means "nothing selected" and shows the
@@ -63,17 +69,6 @@ export interface ComboboxProps
   /** Height scale. Default `md`. */
   size?: ComboboxSize;
 }
-
-// Full literals (Tailwind scan). Same box as Input (32px / 36px); the text is clipped by the input
-// itself, whose `max-w-full` / `min-w-0` keep a long label from widening the Field.
-const INPUT =
-  'block max-w-full min-w-0 rounded-rop-md border border-rop-border bg-rop-surface px-3 font-rop-sans text-rop-body text-rop-text ' +
-  'placeholder:text-rop-text-muted focus-visible:[outline:2px_solid_var(--color-rop-primary)] focus-visible:outline-offset-2 ' +
-  'read-only:bg-rop-surface-subtle disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-rop-error';
-const SIZE_CLASS: Record<ComboboxSize, string> = {
-  sm: 'py-[5px]',
-  md: 'py-[7px]',
-};
 
 // Keys that would open the list (the others only act on an open one): swallowed while the Field
 // blocks interaction. Enter and Escape are left alone (implicit form submit, closing a Dialog).
@@ -211,7 +206,7 @@ export const Combobox = /* @__PURE__ */ forwardRef<HTMLInputElement, ComboboxPro
       }}
     >
       <Popover.Anchor asChild>
-        <div ref={anchorRef} className="flex min-w-0 max-w-full flex-col">
+        <div ref={anchorRef} className={COMBOBOX_ANCHOR}>
           <input
             {...inputProps}
             id={control?.id ?? rest.id}
@@ -223,7 +218,7 @@ export const Combobox = /* @__PURE__ */ forwardRef<HTMLInputElement, ComboboxPro
             aria-readonly={control?.['aria-readonly'] ?? rest['aria-readonly']}
             disabled={control?.disabled ?? rest.disabled}
             readOnly={control?.readOnly ?? rest.readOnly}
-            className={cn(INPUT, SIZE_CLASS[size], className)}
+            className={cn(COMBOBOX_INPUT, COMBOBOX_SIZE[size], className)}
           />
         </div>
       </Popover.Anchor>
@@ -252,7 +247,7 @@ export const Combobox = /* @__PURE__ */ forwardRef<HTMLInputElement, ComboboxPro
             }}
             className={cn(LISTBOX_CONTENT_POPOVER, overlayLayer.popover)}
           >
-            <div {...listbox} className={LISTBOX_VIEWPORT}>
+            <div {...listbox} className={cn(LISTBOX_VIEWPORT, COMBOBOX_LIST)}>
               {combobox.filteredItems.length === 0 ? <div className={LISTBOX_EMPTY}>{emptyLabel}</div> : null}
               {combobox.filteredItems.map((option, index) => {
                 const selected = combobox.selectedItem?.value === option.value;
@@ -263,7 +258,7 @@ export const Combobox = /* @__PURE__ */ forwardRef<HTMLInputElement, ComboboxPro
                     data-active={index === combobox.activeIndex}
                     data-highlighted={index === combobox.activeIndex ? '' : undefined}
                     data-disabled={option.disabled ? '' : undefined}
-                    className={cn(LISTBOX_ITEM, '[overflow-wrap:anywhere]')}
+                    className={cn(LISTBOX_ITEM, COMBOBOX_OPTION)}
                   >
                     {selected ? (
                       <span className={LISTBOX_ITEM_INDICATOR}>

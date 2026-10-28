@@ -16,7 +16,9 @@
 @source not '../**/*.stories.*';
 @source not '../**/*.test.*';
 @source not '../**/*.css';
-/* The headless combobox files hold no class names, but their `filter` option would be read as the
-   `filter` utility. Excluded file by file: a styled component added to that folder is still scanned. */
+/* The combobox files hold no class names (the Combobox's are in internal/combobox-styles.ts), but
+   their `filter` option would be read as the `filter` utility. Excluded file by file: a styled
+   component added to that folder is still scanned. */
 @source not '../combobox/use-combobox.ts';
+@source not '../combobox/Combobox.tsx';
 @source not '../combobox/filter.ts';

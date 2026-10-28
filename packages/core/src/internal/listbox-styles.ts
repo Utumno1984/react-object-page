@@ -16,6 +16,7 @@ export const LISTBOX_CONTENT =
 /** The Combobox's panel (a Popover anchored to the input): same box, the Popover's size variables. */
 export const LISTBOX_CONTENT_POPOVER =
   'min-w-(--radix-popover-trigger-width) max-w-(--radix-popover-content-available-width) max-h-(--radix-popover-content-available-height) ' +
+  'flex flex-col ' +
   LISTBOX_SURFACE;
 
 /** The scroll container: at most 20rem tall and 24rem wide, the list scrolls here, never the page. */

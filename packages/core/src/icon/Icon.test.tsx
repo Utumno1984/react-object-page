@@ -203,6 +203,7 @@ describe('internal icons', () => {
     expect(exposed).not.toContain('internalIcons');
     expect(exposed.sort()).toEqual([
       'Button',
+      'Combobox',
       'Dialog',
       'DialogBody',
       'DialogClose',
