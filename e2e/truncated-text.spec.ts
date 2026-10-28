@@ -1,6 +1,10 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { expectNoHorizontalOverflow } from './helpers/geometry';
-import { expectPlayToPass, gotoStory } from './helpers/story';
+import { expectPlayToPass } from './helpers/story';
+
+// Every story has a play function: the tests that drive the real mouse and keyboard start after it
+// has finished (it leaves the story clean: nothing open, the pointer away, no focus).
+const gotoStory = expectPlayToPass;
 
 const STORY = (name: string) => `data-truncatedtext--${name}`;
 const tooltips = (page: Page): Locator => page.getByRole('tooltip');
@@ -79,8 +83,9 @@ test.describe('geometry', () => {
       el.textContent = 'uno   due\n\ntre   quattro cinque sei sette otto nove dieci undici dodici tredici';
     });
     const height = await text.evaluate((el) => el.getBoundingClientRect().height);
-    const lineHeight = await text.evaluate((el) => parseFloat(getComputedStyle(el).lineHeight));
-    expect(height).toBeLessThanOrEqual(lineHeight + 1);
+    const fontSize = await text.evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+    // One line: well under two lines of text, whatever the (possibly `normal`) line height.
+    expect(height).toBeLessThan(fontSize * 1.8);
   });
 
   test('rtl: ellipsis on the left (direction rtl, still truncated)', async ({ page }) => {
@@ -197,8 +202,8 @@ test.describe('keyboard and mount', () => {
     await page.waitForTimeout(SETTLE);
     await expect(tooltips(page)).toHaveCount(0);
 
+    // The play function opened the dialog, which focused the text.
     await gotoStory(page, STORY('inside-dialog'));
-    await page.getByRole('button', { name: 'Apri' }).click();
     await expect(page.getByTestId('text')).toBeFocused();
     await page.waitForTimeout(SETTLE);
     await expect(tooltips(page)).toHaveCount(0);

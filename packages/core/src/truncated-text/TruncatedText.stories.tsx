@@ -13,7 +13,7 @@ interface DemoArgs {
   children: string;
   /** Width of the demo container, px. */
   width: number;
-  tabIndex: 'nessuno' | '0';
+  tabIndex: 'nessuno' | 0;
   onFocus: (event: unknown) => void;
 }
 
@@ -25,7 +25,7 @@ const meta: Meta<DemoArgs> = {
     width: { control: { type: 'range', min: 80, max: 600, step: 10 }, description: 'Larghezza del contenitore demo (px)' },
     tabIndex: {
       control: 'select',
-      options: ['nessuno', '0'],
+      options: ['nessuno', 0],
       description: 'Senza tabIndex il testo non è un tab stop; con 0 il fuoco da tastiera apre il tooltip.',
     },
     onFocus: { control: false },
@@ -64,7 +64,7 @@ export const Playground: Story = {
   render: ({ children, width, tabIndex, onFocus }) => (
     <Page>
       <div data-testid="container" style={{ width, border: BORDER }}>
-        <TruncatedText data-testid="text" tabIndex={tabIndex === '0' ? 0 : undefined} onFocus={onFocus}>
+        <TruncatedText data-testid="text" tabIndex={tabIndex === 0 ? 0 : undefined} onFocus={onFocus}>
           {children}
         </TruncatedText>
       </div>
