@@ -60,6 +60,8 @@ export type {
 } from './sheet/Sheet';
 export { Tooltip, TooltipProvider } from './tooltip/Tooltip';
 export type { TooltipProps, TooltipProviderProps, TooltipSide, TooltipAlign } from './tooltip/Tooltip';
+export { TruncatedText } from './truncated-text/TruncatedText';
+export type { TruncatedTextProps } from './truncated-text/TruncatedText';
 export { Select } from './select/Select';
 export type { SelectProps, SelectOption, SelectSize } from './select/Select';
 export { Combobox } from './combobox/Combobox';

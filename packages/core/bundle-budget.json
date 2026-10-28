@@ -122,6 +122,10 @@
       "baseline": 3533,
       "limit": 3887
     },
+    "TruncatedText": {
+      "baseline": 31102,
+      "limit": 34213
+    },
     "cn": {
       "baseline": 10116,
       "limit": 11128
