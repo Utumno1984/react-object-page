@@ -334,6 +334,8 @@ describe('Combobox', () => {
         emptyLabel="Nulla"
         unknownValueLabel="?"
         clearOnEmpty
+        filter={(options) => options}
+        onValueChange={() => undefined}
       />,
     );
     await user.click(screen.getByRole('combobox'));

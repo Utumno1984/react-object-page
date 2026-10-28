@@ -393,4 +393,54 @@ test.describe('virtual keyboard', () => {
       })
       .toBeLessThanOrEqual(667 - 400);
   });
+
+  test('with room under the input, the list opens below it and uses that room (the keyboard is not counted twice)', async ({
+    page,
+  }) => {
+    await gotoStory(page, STORY('keyboard-safe'));
+    const box = input(page);
+    // The browser brings a focused field up the screen: put it 100px from the top.
+    await box.evaluate((el) => {
+      const top = el.getBoundingClientRect().top;
+      window.scrollBy(0, top - 100);
+    });
+    await box.focus();
+    const keyboard = 300;
+    await page.evaluate(
+      (px) => (window as unknown as { __setKeyboard: (n: number) => void }).__setKeyboard(px),
+      keyboard,
+    );
+    await page.keyboard.type('c');
+    await expect(listbox(page)).toBeVisible();
+    const free = 667 - keyboard - (await box.evaluate((el) => el.getBoundingClientRect().bottom));
+    expect(free).toBeGreaterThan(150);
+    await expect
+      .poll(async () => {
+        const i = (await box.boundingBox())!;
+        const l = (await listbox(page).boundingBox())!;
+        return l.y >= i.y + i.height && l.height >= free - 30;
+      })
+      .toBe(true);
+  });
+
+  test('reopening with an arrow brings a deep selected option into view', async ({ page }) => {
+    await gotoStory(page, STORY('long-list'));
+    const box = input(page, 'Cliente');
+    await box.click();
+    await page.keyboard.type('150');
+    await page.keyboard.press('Enter');
+    await expect(box).toHaveValue('Cliente 150');
+    await page.keyboard.press('ArrowDown');
+    await expect(listbox(page)).toBeVisible();
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const list = document.querySelector('[role="listbox"]')!.getBoundingClientRect();
+          const id = document.querySelector('[role="combobox"]')!.getAttribute('aria-activedescendant')!;
+          const option = document.getElementById(id)!.getBoundingClientRect();
+          return option.top >= list.top - 1 && option.bottom <= list.bottom + 1;
+        }),
+      )
+      .toBe(true);
+  });
 });

@@ -74,32 +74,31 @@ export interface ComboboxProps extends Omit<
 // blocks interaction. Enter and Escape are left alone (implicit form submit, closing a Dialog).
 const LIST_KEYS = new Set(['ArrowDown', 'ArrowUp']);
 
-const DEFAULT_PADDING = 8;
+const COLLISION_PADDING = 8;
 
 /**
- * Space under the visual viewport taken by the on-screen keyboard (spec §1.10). It does not
- * resize the layout viewport, and the positioning engine only re-measures on window resize and
- * scroll: publishing the covered height as state both reserves the room and triggers the measure.
+ * True while the on-screen keyboard covers part of the layout viewport (spec §1.10). The
+ * positioning engine already measures the room on the visual viewport, but only re-measures on
+ * window resize and scroll, which the keyboard does not fire: the caller switches the popover to
+ * per-frame updates while this is true, so the list follows the keyboard coming, growing and going.
  */
-function useKeyboardInset(active: boolean): number {
-  const [inset, setInset] = useState(0);
+function useKeyboardOpen(active: boolean): boolean {
+  const [open, setOpen] = useState(false);
   useEffect(() => {
     const vv = typeof window === 'undefined' ? null : window.visualViewport;
     if (!active || !vv) return undefined;
-    const update = () => {
-      // Pinch-zoom also resizes the visual viewport: the arithmetic is for scale 1 only.
-      setInset(vv.scale === 1 ? Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)) : 0);
-    };
+    // Pinch-zoom also resizes the visual viewport: the arithmetic is for scale 1 only.
+    const update = () => setOpen(vv.scale === 1 && window.innerHeight - vv.height - vv.offsetTop > 1);
     update();
     vv.addEventListener('resize', update);
     vv.addEventListener('scroll', update);
     return () => {
       vv.removeEventListener('resize', update);
       vv.removeEventListener('scroll', update);
-      setInset(0);
+      setOpen(false);
     };
   }, [active]);
-  return inset;
+  return open;
 }
 
 /**
@@ -130,7 +129,9 @@ export const Combobox = /* @__PURE__ */ forwardRef<HTMLInputElement, ComboboxPro
   const blocked = control?.interactionBlocked ?? false;
   const controlled = 'value' in props;
   const anchorRef = useRef<HTMLDivElement>(null);
-  const listRef = useRef<HTMLDivElement>(null);
+  // State, not a ref: the portal content mounts one render after the list opens, and the scroll
+  // effect must run again once the node exists.
+  const [listEl, setListEl] = useState<HTMLDivElement | null>(null);
 
   const byValue = useMemo(() => {
     const map = new Map<string, ComboboxOption>();
@@ -163,7 +164,7 @@ export const Combobox = /* @__PURE__ */ forwardRef<HTMLInputElement, ComboboxPro
     if (blocked && isOpen) close();
   }, [blocked, isOpen, close]);
   const shown = isOpen && !blocked;
-  const keyboardInset = useKeyboardInset(shown);
+  const keyboardOpen = useKeyboardOpen(shown);
 
   // Keep the active option in view inside the list (the focus stays on the input, so the browser
   // does not scroll it by itself). Measured against the list, never `scrollIntoView`, which would
@@ -171,7 +172,7 @@ export const Combobox = /* @__PURE__ */ forwardRef<HTMLInputElement, ComboboxPro
   const activeOption = shown && combobox.activeIndex >= 0 ? combobox.filteredItems[combobox.activeIndex] : undefined;
   const activeValue = activeOption?.value;
   useEffect(() => {
-    const list = listRef.current;
+    const list = listEl;
     if (!list || activeValue === undefined) return;
     const el = list.querySelector<HTMLElement>('[data-active="true"]');
     if (!el) return;
@@ -179,7 +180,7 @@ export const Combobox = /* @__PURE__ */ forwardRef<HTMLInputElement, ComboboxPro
     const o = el.getBoundingClientRect();
     if (o.top < l.top) list.scrollTop -= l.top - o.top;
     else if (o.bottom > l.bottom) list.scrollTop += o.bottom - l.bottom;
-  }, [activeValue]);
+  }, [activeValue, listEl]);
 
   const describedBy = [control?.['aria-describedby'], rest['aria-describedby']].filter(Boolean).join(' ') || undefined;
   const inputProps = combobox.getInputProps({
@@ -196,7 +197,7 @@ export const Combobox = /* @__PURE__ */ forwardRef<HTMLInputElement, ComboboxPro
     },
   });
 
-  const listbox = combobox.getListboxProps<HTMLDivElement>({ ref: listRef });
+  const listbox = combobox.getListboxProps<HTMLDivElement>({ ref: setListEl });
 
   return (
     <Popover.Root
@@ -230,12 +231,10 @@ export const Combobox = /* @__PURE__ */ forwardRef<HTMLInputElement, ComboboxPro
             side="bottom"
             align="start"
             sideOffset={4}
-            collisionPadding={{
-              top: DEFAULT_PADDING,
-              left: DEFAULT_PADDING,
-              right: DEFAULT_PADDING,
-              bottom: DEFAULT_PADDING + keyboardInset,
-            }}
+            collisionPadding={COLLISION_PADDING}
+            // The room is measured on the visual viewport (already without the keyboard); while the
+            // keyboard is up the measure runs every frame, since nothing else tells the engine.
+            updatePositionStrategy={keyboardOpen ? 'always' : 'optimized'}
             // The focus stays on the input: the popover neither takes it on open nor returns it.
             onOpenAutoFocus={(event) => event.preventDefault()}
             onCloseAutoFocus={(event) => event.preventDefault()}
