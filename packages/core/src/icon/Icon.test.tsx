@@ -217,6 +217,7 @@ describe('internal icons', () => {
       'FieldMessage',
       'Icon',
       'Input',
+      'ListReport',
       'ListReportFilterBar',
       'ListReportTable',
       'MessageStrip',

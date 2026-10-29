@@ -30,6 +30,7 @@ const EXPORTS = [
   'FieldMessage',
   'Icon',
   'Input',
+  'ListReport',
   'ListReportFilterBar',
   'ListReportTable',
   'MessageStrip',

@@ -73,6 +73,8 @@ export { ListReportTable } from './list-report/ListReportTable';
 export type { ListReportTableProps, ListReportTableLabels, ListReportTableStatus } from './list-report/ListReportTable';
 export { ListReportFilterBar } from './list-report/ListReportFilterBar';
 export type { ListReportFilterBarProps } from './list-report/ListReportFilterBar';
+export { ListReport } from './list-report/ListReport';
+export type { ListReportProps, ListReportLabels } from './list-report/ListReport';
 export { useListReport } from './list-report/use-list-report';
 export type {
   ListReportColumn,
