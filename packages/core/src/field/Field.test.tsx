@@ -134,6 +134,20 @@ describe('Field', () => {
     expect(input).not.toHaveAttribute('aria-describedby');
   });
 
+  it('hideLabel: the label is visually hidden but still names the input and is linked by for/id', () => {
+    render(
+      <Field label="Cerca" hideLabel>
+        <Input />
+      </Field>,
+    );
+    const input = screen.getByRole('textbox', { name: 'Cerca' });
+    const label = screen.getByText('Cerca');
+    expect(label.tagName).toBe('LABEL');
+    expect(label).toHaveAttribute('for', input.id);
+    expect(label.className).toContain('sr-only');
+    expect(label.className).not.toContain('mb-1');
+  });
+
   it('required: aria-required, a hidden marker, and the accessible name stays the label', () => {
     const { rerender } = render(
       <Field label="Ragione sociale" required>

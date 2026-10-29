@@ -29,3 +29,5 @@
 @source not '../internal/normalize-text.ts';
 /* The table component holds the logic (a `filter` word, a `table` prop); its classes are in list-report-table-styles.ts. */
 @source not '../list-report/ListReportTable.tsx';
+/* Same for the filter bar (a `filter` word, a `table` prop); its classes are in list-report-filter-bar-styles.ts. */
+@source not '../list-report/ListReportFilterBar.tsx';
