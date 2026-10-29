@@ -59,7 +59,8 @@ const opposite = (direction: ListReportSortDirection): ListReportSortDirection =
  * - `onFilterChange`/`onSearchQueryChange` are called only for gestures, never for outside changes.
  * - Controlled `searchQuery`: the hook assumes the parent applies what `onSearchQueryChange` reports. A
  *   late echo of a reported value (e.g. a router that applies it asynchronously) never overwrites the
- *   draft; a parent that refuses a reported value should not rely on the same text being reported again.
+ *   draft; a parent that refuses a reported value should not rely on the same text being reported again,
+ *   and an outside change equal to a reported, not yet applied value is treated as that echo.
  * - Memoize `getSearchText` (like `columns`): the search is recomputed whenever it changes.
  * - `onSortChange` is called only for a gesture (`toggleSort`/`setSort`), never when a controlled
  *   `sort` changes from outside.
