@@ -23,6 +23,11 @@ export type FieldProps = Omit<HTMLAttributes<HTMLDivElement>, 'children' | 'id'>
     /** Non-empty: the control gets `aria-invalid`. Empty is the same as absent. */
     error?: ReactNode;
     required?: boolean;
+    /**
+     * Hides the label visually (it stays in the DOM as the accessible name, `sr-only`). For controls
+     * that already show what they are, e.g. a search box with a placeholder.
+     */
+    hideLabel?: boolean;
     /** Id of the control (the label's `htmlFor`). Default: generated. */
     id?: string;
     /** A node, or a render-prop to wire any control by hand: `(control) => <X {...control} />`. */
@@ -33,6 +38,7 @@ export type FieldProps = Omit<HTMLAttributes<HTMLDivElement>, 'children' | 'id'>
 // scrollIntoView stop above the virtual keyboard.
 const ROOT = 'flex min-w-0 flex-col font-rop-sans';
 const SCROLL_MARGIN = { scrollMarginTop: '0.5rem', scrollMarginBottom: 'calc(var(--rop-keyboard-inset, 0px) + 0.5rem)' };
+const LABEL_HIDDEN = 'sr-only';
 const LABEL = 'mb-1 text-rop-label text-rop-text [overflow-wrap:anywhere]';
 const KEYBOARD_INSET = '--rop-keyboard-inset';
 
@@ -90,6 +96,7 @@ export function Field(props: FieldProps) {
     help,
     error,
     required,
+    hideLabel,
     id: idProp,
     state = 'default',
     stateReason,
@@ -151,7 +158,7 @@ export function Field(props: FieldProps) {
           onBlur?.(event);
         }}
       >
-        <label id={labelId} htmlFor={id} className={LABEL}>
+        <label id={labelId} htmlFor={id} className={hideLabel ? LABEL_HIDDEN : LABEL}>
           {label}
           {required ? (
             <span aria-hidden="true" className="ms-0.5 text-rop-error">
