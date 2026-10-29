@@ -32,14 +32,27 @@ type HostProps = Partial<Omit<ListReportProps<DemoInvoice>, 'table'>> & {
   defaultFilter?: string;
   searchCommitDelay?: number | null;
   reportRef?: Ref<HTMLDivElement>;
+  filters?: ListReportFilter<DemoInvoice>[];
+  onFilterChange?: (filter: string) => void;
 };
 
-function Host({ rows = ROWS, withFilters = true, defaultFilter, searchCommitDelay = null, title = 'Fatture', reportRef, ...props }: HostProps) {
+function Host({
+  rows = ROWS,
+  withFilters = true,
+  filters = FILTERS,
+  onFilterChange,
+  defaultFilter,
+  searchCommitDelay = null,
+  title = 'Fatture',
+  reportRef,
+  ...props
+}: HostProps) {
   const table = useListReport<DemoInvoice>({
     rows,
     columns: COLUMNS,
     getRowId: (r) => r.id,
-    filters: withFilters ? FILTERS : undefined,
+    filters: withFilters ? filters : undefined,
+    onFilterChange,
     defaultFilter,
     searchCommitDelay,
   });
@@ -191,6 +204,32 @@ describe('<ListReport> clear filters', () => {
     expect(screen.getByRole('radio', { name: 'Tutte' })).toBeChecked();
     expect(screen.queryByRole('button', { name: 'Azzera filtri' })).toBeNull();
     expect(heading()).toHaveTextContent(`Fatture (${ROWS.filter((r) => r.status !== 'pending').length})`);
+  });
+
+  it('goes back to the default pill (one filter change) when it has results, not to the unfiltered one', async () => {
+    const user = userEvent.setup();
+    const onFilterChange = vi.fn();
+    const rows = ROWS.filter((r) => r.status !== 'rejected');
+    const filters: ListReportFilter<DemoInvoice>[] = [
+      ...FILTERS,
+      { id: 'rejected', label: 'Respinte', predicate: (r) => r.status === 'rejected' },
+    ];
+    render(<Host rows={rows} filters={filters} defaultFilter="pending" onFilterChange={onFilterChange} />);
+    await user.click(screen.getByRole('radio', { name: 'Respinte' }));
+    onFilterChange.mockClear();
+    await user.click(screen.getByRole('button', { name: 'Azzera filtri' }));
+    expect(screen.getByRole('radio', { name: 'Da approvare' })).toBeChecked();
+    expect(onFilterChange.mock.calls).toEqual([['pending']]);
+  });
+
+  it('with a search and an empty default pill: the first click clears the search, then the unfiltered pill', async () => {
+    const user = userEvent.setup();
+    render(<Host showSearch defaultFilter="pending" rows={ROWS.filter((r) => r.status !== 'pending')} />);
+    await user.type(screen.getByRole('searchbox', { name: 'Cerca' }), 'Ferrari{Enter}');
+    await user.click(screen.getByRole('button', { name: 'Azzera filtri' }));
+    expect(screen.getByRole('searchbox', { name: 'Cerca' })).toHaveValue('');
+    expect(screen.getByRole('radio', { name: 'Tutte' })).toBeChecked();
+    expect(screen.queryByRole('button', { name: 'Azzera filtri' })).toBeNull();
   });
 
   it('the focus goes to the search box of the bar, not to an input in the actions slot', async () => {
