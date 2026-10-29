@@ -148,7 +148,7 @@ function ListReportImpl<Row>(props: ListReportProps<Row>, ref: Ref<HTMLDivElemen
  *   region. The only live region is the table's: it announces its changes of state (loading, empty, no
  *   results, error, data back), not a change of the number of results while the data stays on screen.
  * - "Azzera filtri" works without wiring (`table.clearFilters()`; when the default pill itself leaves no
- *   result it the hook goes to the unfiltered pill), then the focus goes to the search box or the first pill of the bar.
+ *   result the hook goes to the unfiltered pill), then the focus goes to the search box or the first pill of the bar.
  * - The count is part of the heading's name ("Fatture (12 di 40)"); the table's name stays "Fatture".
  * - `status`, `errorMessage`, `onRetry`, `loadingRowCount` and `labels` reach `ListReportTable` unchanged;
  *   `filtersLabel`, `searchLabel` and `showSearch` reach `ListReportFilterBar`. The other props go on the root.

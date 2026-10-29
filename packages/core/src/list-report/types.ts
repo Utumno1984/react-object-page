@@ -121,7 +121,12 @@ export interface UseListReportReturn<Row> {
   setSearchDraft: (draft: string) => void;
   /** Commits the draft now and cancels the pending timer. No-op when equal to the committed query. */
   commitSearch: () => void;
-  /** Back to the default filter and an empty search; notifies only the values that actually change. */
+  /**
+   * Back to the default filter and an empty search, notifying only the values that actually
+   * change. When the default filter would leave nothing to see (rows exist, none matches its
+   * predicate), goes to the unfiltered pill instead — one decision, taken from the current
+   * `rows`/`filters`, never from a later render.
+   */
   clearFilters: () => void;
   /** Rows in input. */
   totalCount: number;
