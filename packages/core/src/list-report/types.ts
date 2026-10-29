@@ -88,6 +88,8 @@ export interface UseListReportReturn<Row> {
   /** The sorted rows (the input array itself when no sort is active; the input is never mutated). */
   rows: readonly Row[];
   columns: readonly ListReportColumn<Row>[];
+  /** The `getRowId` option, handed back so a table can key its rows. */
+  getRowId: (row: Row) => string;
   /** The effective sort: `null` when the requested column is missing or not sortable. */
   sort: ListReportSort;
   /** Next step of the cycle for a column; no-op for an unknown or non-sortable column. */

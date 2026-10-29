@@ -23,3 +23,9 @@ export const overlayLayer = {
 } as const;
 
 export type OverlayLayer = keyof typeof overlayLayer;
+
+/**
+ * The level of in-flow sticky content (a table header, a sticky bar): above the page content and
+ * below every overlay. Kept apart from `overlayLayer` because it is not an overlay.
+ */
+export const stickyLayer = 'z-rop-sticky';

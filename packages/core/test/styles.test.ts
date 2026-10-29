@@ -83,11 +83,13 @@ describe('styles.css (compiled)', () => {
     const outside = [...customProperties(stylesCss).keys()].filter(
       // `--tw-*` are Tailwind's own inert internals (same policy as findGlobalLeaks): any font-weight
       // utility declares `--tw-font-weight`. `--rop-vv-*` are the Dialog's own visual-viewport
-      // variables (#11), in the rop namespace. Any other non-rop property is still a failure.
+      // variables (#11), in the rop namespace. `--rop-list-report-*` is the List Report table's own
+      // row-height variable (#49), also in the rop namespace. Any other non-rop property still fails.
       (name) =>
         !/^--(color|text|font|radius|z-index|icon)-rop-/.test(name) &&
         !name.startsWith('--tw-') &&
-        !name.startsWith('--rop-vv-'),
+        !name.startsWith('--rop-vv-') &&
+        !name.startsWith('--rop-list-report-'),
     );
     expect(outside).toEqual([]);
     // Tailwind's default spacing is inlined into the utilities, not referenced as a variable.
@@ -152,9 +154,8 @@ describe('styles.css (compiled)', () => {
 
   it('does NOT contain utilities no source uses (no safelist)', () => {
     expect(stylesCss).not.toContain('skew-x-12');
-    // A token that exists as a variable but has no utility in use (was `.z-rop-tooltip` until the
-    // overlay layer map, #10, started using every level).
-    expect(stylesCss).not.toContain('.z-rop-sticky');
+    // (was `.z-rop-sticky` until the List Report table header, #49, started using it)
+    // (was `.z-rop-tooltip` until the overlay layer map, #10, started using every level)
     // (was `.text-rop-title-lg` until Title started using it, #6)
     // (was `.rounded-rop-lg` until the Dialog started using it, #11)
     expect(stylesCss).not.toContain('.rounded-rop-sm');

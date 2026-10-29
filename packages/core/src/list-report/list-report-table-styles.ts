@@ -1,0 +1,53 @@
+// Class names of ListReportTable, kept apart from its logic. Full literals on purpose: the CSS build
+// scans the sources (comments included) for utilities, so no bare utility name appears in a comment.
+// Logical properties (`text-start`, `justify-start`) so that `dir="rtl"` mirrors the layout.
+import { stickyLayer } from '../overlay/layers';
+
+// The row height is a component-owned CSS variable (`--rop-list-report-row-height`), declared on the
+// scroll container so that everything inside it (the loading/empty states of the List Report, which
+// must have the same footprint) reads the same value; a consumer overrides it with `style` or
+// `className` on that container. Cells carry a 1px border on top of it, with the default
+// content-box sizing: the row pitch is constant.
+export const ROW_HEIGHT_CLASS = 'h-(--rop-list-report-row-height)';
+const ROW_HEIGHT = ROW_HEIGHT_CLASS;
+
+// The one scroller: the consumer sizes it (flex parent or `maxHeight`). Focusable so that a
+// keyboard user can scroll it; `min-h-0` lets it shrink inside a flex column.
+export const containerClass =
+  '[--rop-list-report-row-height:2.75rem] relative min-h-0 max-w-full overflow-auto font-rop-sans text-rop-body text-rop-text ' +
+  'focus-visible:[outline:2px_solid_var(--color-rop-primary)] focus-visible:-outline-offset-2';
+
+// Separate borders (not merged ones): cell borders and sticky cells behave with them.
+export const tableClass = 'table-fixed border-separate border-spacing-0 text-start';
+
+export const captionClass = 'sr-only';
+
+export const headerCellClass =
+  `sticky top-0 ${stickyLayer} ${ROW_HEIGHT} overflow-hidden whitespace-nowrap border-b border-rop-border ` +
+  'bg-rop-surface-subtle px-3 align-middle font-semibold text-rop-text';
+
+export const bodyCellClass = `${ROW_HEIGHT} overflow-hidden border-b border-rop-border px-3 align-middle`;
+
+// Content that is not plain text: its layout is up to the consumer, the cell only contains it.
+export const nodeWrapperClass = 'min-w-0 overflow-hidden';
+
+export const sortButtonClass =
+  'flex w-full min-w-0 cursor-pointer items-center gap-1 border-0 bg-transparent p-0 text-start [font:inherit] ' +
+  'text-inherit focus-visible:[outline:2px_solid_var(--color-rop-primary)] focus-visible:outline-offset-2';
+
+// The arrow always takes its space (no shift when a column becomes sorted): unsorted it is invisible.
+export const sortIconClass = 'text-rop-text-muted';
+export const sortIconIdleClass = 'opacity-0';
+export const sortIconAscendingClass = 'rotate-180';
+
+export const ALIGN_TEXT = {
+  start: 'text-start',
+  center: 'text-center',
+  end: 'text-end',
+} as const;
+
+export const ALIGN_JUSTIFY = {
+  start: 'justify-start',
+  center: 'justify-center',
+  end: 'justify-end',
+} as const;
