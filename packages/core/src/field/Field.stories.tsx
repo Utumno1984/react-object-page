@@ -14,6 +14,7 @@ interface PlaygroundArgs {
   help: string;
   error: string;
   required: boolean;
+  hideLabel: boolean;
   state: FieldState;
   stateReason: string;
   placeholder: string;
@@ -28,6 +29,7 @@ const meta: Meta<PlaygroundArgs> = {
     help: { control: 'text' },
     error: { control: 'text' },
     required: { control: 'boolean' },
+    hideLabel: { control: 'boolean', description: 'Etichetta nascosta alla vista, ma nome accessibile del campo' },
     // forced = value decided by a business rule; locked = not editable (permissions / record status).
     // Same interaction: focusable, read-only, reason read by the screen reader.
     state: { control: 'radio', options: STATES },
@@ -40,6 +42,7 @@ const meta: Meta<PlaygroundArgs> = {
     help: '',
     error: '',
     required: false,
+    hideLabel: false,
     state: 'default',
     stateReason: '',
     placeholder: 'Es. Rossi S.r.l.',
@@ -62,9 +65,9 @@ const stateProps = (state: FieldState, stateReason: string) => ({ state, stateRe
  */
 export const Playground: Story = {
   args: { help: 'Come appare in fattura.' },
-  render: ({ label, help, error, required, state, stateReason, placeholder, onChange }) => (
+  render: ({ label, help, error, required, hideLabel, state, stateReason, placeholder, onChange }) => (
     <div style={column}>
-      <Field label={label} help={help} error={error} required={required} {...stateProps(state, stateReason)}>
+      <Field label={label} help={help} error={error} required={required} hideLabel={hideLabel} {...stateProps(state, stateReason)}>
         <Input placeholder={placeholder} onChange={onChange} />
       </Field>
     </div>

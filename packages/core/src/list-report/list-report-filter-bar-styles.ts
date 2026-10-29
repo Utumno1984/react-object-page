@@ -7,13 +7,15 @@ export const barClass = 'flex min-w-0 max-w-full flex-wrap items-end gap-x-3 gap
 
 export const groupClass = 'flex min-w-0 max-w-full flex-wrap gap-2';
 
-// A pill is as wide as its label up to the width of the bar; a longer label is truncated inside it.
-// The checked one is solid. `min-w-0` + `max-w-full` are the real constraint for `TruncatedText`.
+// A pill is as wide as its label up to the width of the bar; a longer label wraps inside it.
+// The checked one is solid.
 export const pillClass =
   'inline-flex min-w-0 max-w-full cursor-pointer select-none items-center rounded-full border border-rop-border bg-rop-surface ' +
   'px-3 py-[5px] font-rop-sans text-rop-label text-rop-text not-aria-checked:hover:bg-rop-surface-subtle ' +
   'aria-checked:border-rop-primary aria-checked:bg-rop-primary aria-checked:text-rop-primary-contrast ' +
   'focus-visible:[outline:2px_solid_var(--color-rop-primary)] focus-visible:outline-offset-2';
+
+export const pillLabelClass = 'min-w-0 text-start [overflow-wrap:anywhere]';
 
 export const searchFieldClass = 'w-full min-w-0 sm:w-72';
 

@@ -246,13 +246,19 @@ test.describe('responsive', () => {
     expect(Math.abs(field!.width - bar!.width)).toBeLessThanOrEqual(1);
     // under the pills, not beside them
     expect(field!.y).toBeGreaterThanOrEqual(lastPill!.y + lastPill!.height - 1);
-    // long labels: every pill stays inside the bar and the text is cut with an ellipsis
+    // long labels: every pill stays inside the bar and the text wraps, so the whole label is
+    // visible (no tooltip needed, also from the keyboard and on touch)
     for (const radio of await page.getByRole('radio').all()) {
       const box = (await radio.boundingBox())!;
       expect(box.x + box.width).toBeLessThanOrEqual(bar!.x + bar!.width + 1);
     }
     const label = pill(page, /Da approvare entro/).locator('> *').first();
-    expect(await label.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
+    expect(await label.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+    const long = (await pill(page, /Da approvare entro/).boundingBox())!;
+    const short = (await pill(page, 'Approvate').boundingBox())!;
+    expect(long.height).toBeGreaterThan(short.height * 1.5);
+    await pill(page, /Da approvare entro/).focus();
+    await expect(pill(page, /Da approvare entro/)).toContainText('amministrazione');
   });
 
   test('pills wrap onto more lines on a narrow screen', async ({ page }) => {

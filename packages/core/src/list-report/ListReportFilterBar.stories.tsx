@@ -195,7 +195,7 @@ export const SearchWithText: Story = {
   },
 };
 
-/** Labels longer than the bar: the pills stay inside it and truncate (the full text on hover/focus). */
+/** Labels longer than the bar: the pills stay inside it and the text wraps (nothing is cut). */
 export const LongLabels: Story = {
   tags: ['visual'],
   parameters: NO_CONTROLS,
@@ -212,7 +212,9 @@ export const LongLabels: Story = {
     const bar = canvas.getByRole('search');
     await expect(pill.getBoundingClientRect().right).toBeLessThanOrEqual(bar.getBoundingClientRect().right + 1);
     const label = pill.firstElementChild as HTMLElement;
-    await expect(label.scrollWidth).toBeGreaterThan(label.clientWidth);
+    await expect(label.scrollWidth).toBeLessThanOrEqual(label.clientWidth);
+    // wrapped: taller than a one-line pill
+    await expect(pill.getBoundingClientRect().height).toBeGreaterThan(canvas.getByRole('radio', { name: 'Approvate' }).getBoundingClientRect().height * 1.5);
     await expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(document.documentElement.clientWidth);
   },
 };

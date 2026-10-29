@@ -13,13 +13,13 @@ import { Button } from '../button/Button';
 import { Field } from '../field/Field';
 import { Input } from '../input/Input';
 import { internalIcons } from '../internal/icons';
-import { TruncatedText } from '../truncated-text/TruncatedText';
 import { cn } from '../utils/cn';
 import {
   barClass,
   clearButtonClass,
   groupClass,
   pillClass,
+  pillLabelClass,
   searchBoxClass,
   searchFieldClass,
   searchInputClass,
@@ -144,7 +144,11 @@ function ListReportFilterBarImpl<Row>(props: ListReportFilterBarProps<Row>, ref:
     if (!/[\r\n]/.test(text)) return;
     event.preventDefault();
     const input = event.currentTarget;
-    input.setRangeText(text.replace(/\s*[\r\n]+\s*/g, ' '), input.selectionStart ?? input.value.length, input.selectionEnd ?? input.value.length, 'end');
+    const normalized = text.replace(/\s*[\r\n]+\s*/g, ' ');
+    // `insertText` keeps the browser's undo history (and fires `input`, so `onChange` does the rest);
+    // where it is missing or refuses, the range is replaced by hand.
+    if (typeof document.execCommand === 'function' && document.execCommand('insertText', false, normalized)) return;
+    input.setRangeText(normalized, input.selectionStart ?? input.value.length, input.selectionEnd ?? input.value.length, 'end');
     setSearchDraft(input.value);
   };
 
@@ -170,7 +174,7 @@ function ListReportFilterBarImpl<Row>(props: ListReportFilterBarProps<Row>, ref:
               onClick={() => setFilter(f.id)}
               onKeyDown={onPillKeyDown}
             >
-              <TruncatedText>{f.label}</TruncatedText>
+              <span className={pillLabelClass}>{f.label}</span>
             </button>
           ))}
         </div>
@@ -214,7 +218,7 @@ function ListReportFilterBarImpl<Row>(props: ListReportFilterBarProps<Row>, ref:
  *
  * - Pills are a `radiogroup` of `role="radio"` buttons with a roving tab stop (the checked pill).
  *   Arrows move the focus **and** select (wrapping), Home/End jump to the ends; Right/Left swap in
- *   `dir="rtl"`. Long labels are truncated with an ellipsis (full text in a tooltip on hover/focus).
+ *   `dir="rtl"`. Long labels wrap onto more lines inside the pill (never cut: the full text is always visible, also on touch and from the keyboard).
  *   No `filters`: no group at all.
  * - The search box edits `searchDraft`; Enter commits at once (it never submits an enclosing form,
  *   and is ignored while an IME is composing), otherwise `searchCommitDelay` of the hook does. The
