@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { compareKeys, createCollator, toSortKey } from './compare';
+import { matchesSearch, parseSearchTerms } from './search';
 import type {
   ListReportColumn,
+  ListReportFilter,
   ListReportHeaderProps,
   ListReportSort,
   ListReportSortButtonProps,
@@ -18,6 +20,9 @@ const isDev = (): boolean => {
     return true;
   }
 };
+
+const NO_FILTERS: readonly never[] = [];
+const DEFAULT_COMMIT_DELAY = 300;
 
 const isSortable = <Row,>(column: ListReportColumn<Row>): boolean =>
   column.sortable !== false && (column.accessor !== undefined || column.compare !== undefined);
@@ -42,11 +47,31 @@ const opposite = (direction: ListReportSortDirection): ListReportSortDirection =
  *   a column that was active is removed. A `sortable: true` column with neither `accessor` nor
  *   `compare` is treated as not sortable.
  * - The sort is stable and never mutates `rows`.
+ * - Pipeline: single-choice filter -> text search -> sort. `rows` is the result of all three.
+ * - Filter: the active one is `filter` / the uncontrolled choice / `defaultFilter` / the first. An id
+ *   that matches no filter applies no filter (all rows), is returned as `filter` and warns in
+ *   development; `setFilter` with an unknown id is a no-op that warns in development.
+ * - Search: `setSearchDraft` stores what the user typed; the rows follow the committed `searchQuery`,
+ *   set by `commitSearch()` or `searchCommitDelay` ms after the last draft edit. The committed query is
+ *   trimmed and split on whitespace; every term must be a case/diacritics-insensitive substring of a
+ *   searchable column (or of `getSearchText`). A committed query changed from outside never overwrites
+ *   a draft the user is editing.
+ * - `onFilterChange`/`onSearchQueryChange` are called only for gestures, never for outside changes.
+ * - Controlled `searchQuery`: the hook assumes the parent applies what `onSearchQueryChange` reports. A
+ *   late echo of a reported value (e.g. a router that applies it asynchronously) never overwrites the
+ *   draft; a parent that refuses a reported value should not rely on the same text being reported again,
+ *   and an outside change equal to a reported, not yet applied value is treated as that echo.
+ * - Memoize `getSearchText` (like `columns`): the search is recomputed whenever it changes.
  * - `onSortChange` is called only for a gesture (`toggleSort`/`setSort`), never when a controlled
  *   `sort` changes from outside.
  */
 export function useListReport<Row>(options: UseListReportOptions<Row>): UseListReportReturn<Row> {
-  const { rows, columns, getRowId, sort: controlledSort, defaultSort, onSortChange, locale } = options;
+  const {
+    rows, columns, getRowId, sort: controlledSort, defaultSort, onSortChange, locale,
+    filters: filtersOption, filter: controlledFilter, defaultFilter, onFilterChange,
+    searchQuery: controlledQuery, defaultSearchQuery, onSearchQueryChange,
+    searchCommitDelay, getSearchText,
+  } = options;
   const controlled = controlledSort !== undefined;
 
   const [internalSort, setInternalSort] = useState<ListReportSort>(defaultSort ?? null);
@@ -72,6 +97,141 @@ export function useListReport<Row>(options: UseListReportOptions<Row>): UseListR
     }
   }
 
+  // --- Filter (single choice) ---
+  const filters: readonly ListReportFilter<Row>[] = filtersOption ?? NO_FILTERS;
+  const filterControlled = controlledFilter !== undefined;
+  const [internalFilter, setInternalFilter] = useState<string | undefined>(defaultFilter);
+  const defaultFilterId = defaultFilter ?? filters[0]?.id ?? null;
+  const requestedFilter = (filterControlled ? controlledFilter : internalFilter) ?? defaultFilterId;
+  const activeFilter = useMemo(
+    () => (requestedFilter === null ? undefined : filters.find((f) => f.id === requestedFilter)),
+    [filters, requestedFilter],
+  );
+  const predicate = activeFilter?.predicate;
+
+  const filteredRows = useMemo<readonly Row[]>(
+    () => (predicate ? rows.filter((row) => predicate(row)) : rows),
+    [rows, predicate],
+  );
+
+  // --- Search: a draft (what the user typed) and a committed query (what filters the rows) ---
+  const searchControlled = controlledQuery !== undefined;
+  const [internalQuery, setInternalQuery] = useState(defaultSearchQuery ?? '');
+  const committed = (searchControlled ? controlledQuery : internalQuery) ?? '';
+  const [draft, setDraft] = useState(committed);
+  const [seenCommitted, setSeenCommitted] = useState(committed);
+  // Controlled mode: queries this hook emitted that the parent has not applied yet, oldest first.
+  const inflight = useRef<string[]>([]);
+  // The committed query changed. A value we emitted coming back (a late echo) never touches the draft:
+  // the user may have kept typing, or cleared the field, in the meantime. An outside change makes the
+  // draft follow it if the user was not editing (draft equal to the previous committed query); if they
+  // typed something else, their text stays: no "going back".
+  if (committed !== seenCommitted) {
+    setSeenCommitted(committed);
+    const echo = inflight.current.indexOf(committed);
+    if (echo >= 0) inflight.current.splice(0, echo + 1);
+    else {
+      inflight.current = [];
+      if (draft === seenCommitted) setDraft(committed);
+    }
+  }
+
+  const terms = useMemo(() => parseSearchTerms(committed), [committed]);
+  const searchedRows = useMemo<readonly Row[]>(
+    () =>
+      terms.length === 0 ? filteredRows : filteredRows.filter((row) => matchesSearch(row, terms, columns, getSearchText)),
+    [filteredRows, terms, columns, getSearchText],
+  );
+
+  // Latest values for the handlers (assigned during render so they never see a stale value).
+  const fs = useRef({
+    filterControlled, filters, filter: requestedFilter, defaultFilterId, onFilterChange,
+    searchControlled, committed, draft, delay: searchCommitDelay, onSearchQueryChange,
+  });
+  fs.current = {
+    filterControlled, filters, filter: requestedFilter, defaultFilterId, onFilterChange,
+    searchControlled, committed, draft, delay: searchCommitDelay, onSearchQueryChange,
+  };
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearTimer = useCallback(() => {
+    if (timer.current !== null) clearTimeout(timer.current);
+    timer.current = null;
+  }, []);
+  useEffect(() => clearTimer, [clearTimer]);
+
+  const commitQuery = useCallback((next: string) => {
+    const current = fs.current;
+    if (!current.searchControlled) {
+      setInternalQuery(next);
+      current.committed = next;
+    } else inflight.current.push(next);
+    current.onSearchQueryChange?.(next);
+  }, []);
+
+  /** The last query committed or emitted, whether or not the parent has applied it yet. */
+  const lastCommitted = useCallback((): string => inflight.current.at(-1) ?? fs.current.committed, []);
+  // The committed query moved under a draft that now equals it: nothing left to commit.
+  useEffect(() => {
+    if (fs.current.draft === lastCommitted()) clearTimer();
+  }, [committed, draft, clearTimer, lastCommitted]);
+
+  const commitSearch = useCallback(() => {
+    clearTimer();
+    const text = fs.current.draft;
+    if (text !== lastCommitted()) commitQuery(text);
+  }, [clearTimer, commitQuery, lastCommitted]);
+
+  const setSearchDraft = useCallback(
+    (next: string) => {
+      clearTimer();
+      setDraft(next);
+      const current = fs.current;
+      current.draft = next;
+      if (current.delay !== null && next !== lastCommitted()) {
+        timer.current = setTimeout(() => {
+          timer.current = null;
+          commitSearch();
+        }, current.delay ?? DEFAULT_COMMIT_DELAY);
+      }
+    },
+    [clearTimer, commitSearch, lastCommitted],
+  );
+
+  const changeFilter = useCallback((id: string) => {
+    const current = fs.current;
+    if (!current.filterControlled) {
+      setInternalFilter(id);
+      current.filter = id;
+    }
+    current.onFilterChange?.(id);
+  }, []);
+
+  const setFilter = useCallback(
+    (id: string) => {
+      const current = fs.current;
+      if (id === current.filter) return;
+      if (!current.filters.some((f) => f.id === id)) {
+        if (isDev()) {
+          console.warn(`[react-object-page] useListReport: setFilter("${id}") ignored, no such filter.`);
+        }
+        return;
+      }
+      changeFilter(id);
+    },
+    [changeFilter],
+  );
+
+  const clearFilters = useCallback(() => {
+    clearTimer();
+    const current = fs.current;
+    if (current.defaultFilterId !== null && current.defaultFilterId !== current.filter) {
+      changeFilter(current.defaultFilterId);
+    }
+    setDraft('');
+    current.draft = '';
+    if (lastCommitted() !== '') commitQuery('');
+  }, [clearTimer, changeFilter, commitQuery, lastCommitted]);
+
   const direction = sort?.direction;
   const hasActive = activeColumn !== undefined;
   const accessor = activeColumn?.accessor;
@@ -79,20 +239,20 @@ export function useListReport<Row>(options: UseListReportOptions<Row>): UseListR
   const collator = useMemo(() => createCollator(locale), [locale]);
 
   const sortedRows = useMemo<readonly Row[]>(() => {
-    if (!direction || !hasActive) return rows;
+    if (!direction || !hasActive) return searchedRows;
     const sign = direction === 'asc' ? 1 : -1;
     if (compare) {
-      return rows
+      return searchedRows
         .map((row, index) => ({ row, index }))
         .sort((a, b) => compare(a.row, b.row) * sign || a.index - b.index)
         .map((entry) => entry.row);
     }
-    const entries = rows.map((row, index) => ({ row, index, key: toSortKey(accessor?.(row)) }));
+    const entries = searchedRows.map((row, index) => ({ row, index, key: toSortKey(accessor?.(row)) }));
     const filled = entries.filter((e) => !e.key.empty);
     const empty = entries.filter((e) => e.key.empty);
     filled.sort((a, b) => compareKeys(a.key, b.key, collator) * sign || a.index - b.index);
     return [...filled, ...empty].map((entry) => entry.row);
-  }, [rows, direction, hasActive, accessor, compare, collator]);
+  }, [searchedRows, direction, hasActive, accessor, compare, collator]);
 
   // Latest values for the handlers, so their identity does not depend on inline callbacks.
   // Assigned during render (not in an effect) so handlers never see a stale value.
@@ -145,6 +305,8 @@ export function useListReport<Row>(options: UseListReportOptions<Row>): UseListR
   // Development warnings, once per distinct problem.
   const warned = useRef(new Set<string>());
   const invalidId = requested && !activeColumn ? requested.columnId : null;
+  // Like columns: no filters yet (asynchronous loading) is expected, not a mistake.
+  const unknownFilter = requestedFilter !== null && !activeFilter && filters.length > 0 ? requestedFilter : null;
   useEffect(() => {
     if (!isDev()) return;
     const warnOnce = (key: string, message: string) => {
@@ -158,6 +320,9 @@ export function useListReport<Row>(options: UseListReportOptions<Row>): UseListR
         `sort:${invalidId}`,
         `the sort points at "${invalidId}", which is missing or not sortable; rows keep the input order.`,
       );
+    }
+    if (unknownFilter !== null) {
+      warnOnce(`filter:${unknownFilter}`, `the filter "${unknownFilter}" does not exist; no filter is applied.`);
     }
     const columnIds = new Set<string>();
     for (const column of columns) {
@@ -176,7 +341,25 @@ export function useListReport<Row>(options: UseListReportOptions<Row>): UseListR
       if (rowIds.has(id)) warnOnce(`row:${id}`, `\`getRowId\` returned the duplicate id "${id}".`);
       rowIds.add(id);
     }
-  }, [invalidId, columns, rows, getRowId]);
+  }, [invalidId, unknownFilter, columns, rows, getRowId]);
 
-  return { rows: sortedRows, columns, sort, toggleSort, setSort, getHeaderProps, getSortButtonProps };
+  return {
+    rows: sortedRows,
+    columns,
+    sort,
+    toggleSort,
+    setSort,
+    getHeaderProps,
+    getSortButtonProps,
+    filters,
+    filter: requestedFilter,
+    setFilter,
+    searchQuery: committed,
+    searchDraft: draft,
+    setSearchDraft,
+    commitSearch,
+    clearFilters,
+    totalCount: rows.length,
+    resultCount: searchedRows.length,
+  };
 }

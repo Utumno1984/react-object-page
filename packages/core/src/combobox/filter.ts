@@ -1,7 +1,4 @@
-/** Lower-cases and strips diacritics: "Città" and "CITTA" compare equal. */
-function normalize(text: string): string {
-  return text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
-}
+import { normalizeText as normalize } from '../internal/normalize-text';
 
 /**
  * Default `useCombobox` filter: case- and diacritics-insensitive substring match on

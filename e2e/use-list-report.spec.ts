@@ -90,3 +90,62 @@ test.describe('useListReport fixture: controlled', () => {
     await expect(log(page).first()).toHaveText('{"columnId":"amount","direction":"asc"}');
   });
 });
+
+test.describe('useListReport fixture: filter and search', () => {
+  const rowIds = (page: Page) => column(page, 0);
+
+  test('typing filters only after the commit delay; the Commit button filters right away', async ({ page }) => {
+    await page.clock.install();
+    await gotoStory(page, STORY('uncontrolled'));
+    await page.clock.pauseAt(new Date(Date.now() + 60_000));
+    const input = page.getByLabel('Cerca');
+    await input.fill('rossi');
+    // the draft is in the input, the rows are still all there (the 300 ms timer runs on the fake clock)
+    await expect(input).toHaveValue('rossi');
+    await page.clock.runFor(299);
+    expect(await rowIds(page)).toHaveLength(8);
+    await page.clock.runFor(1);
+    await expect.poll(() => rowIds(page)).toEqual(['i1', 'i5']);
+    await expect(page.getByTestId('counts')).toHaveText('2/8');
+
+    await input.fill('verdi');
+    await page.getByRole('button', { name: 'Commit' }).click();
+    expect(await rowIds(page)).toEqual(['i3']);
+  });
+
+  test('search ignores case and diacritics and matches every word', async ({ page }) => {
+    await gotoStory(page, STORY('uncontrolled'));
+    await page.getByLabel('Cerca').fill('CITTA 100');
+    await page.getByRole('button', { name: 'Commit' }).click();
+    expect(await rowIds(page)).toEqual(['i4']);
+  });
+
+  test('filter pill, then sort: the sort applies to the filtered rows; Azzera restores everything', async ({ page }) => {
+    await gotoStory(page, STORY('uncontrolled'));
+    await page.getByRole('button', { name: 'Da approvare' }).click();
+    await expect(page.getByRole('button', { name: 'Da approvare' })).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByRole('button', { name: 'Tutte' })).toHaveAttribute('aria-pressed', 'false');
+    await click(page, 'Importo');
+    expect(await rowIds(page)).toEqual(['i1', 'i7', 'i6', 'i4']);
+    await expect(page.getByTestId('counts')).toHaveText('4/8');
+
+    await page.getByRole('button', { name: 'Azzera' }).click();
+    await expect(page.getByRole('button', { name: 'Tutte' })).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByLabel('Cerca')).toHaveValue('');
+    await expect(page.getByTestId('counts')).toHaveText('8/8');
+  });
+
+  test('controlled: an outside search change does not overwrite the typed text and does not echo', async ({ page }) => {
+    await gotoStory(page, STORY('controlled'));
+    const input = page.getByLabel('Cerca');
+    await input.fill('rossi');
+    await page.getByRole('button', { name: 'Imposta ricerca: bianchi' }).click();
+    await expect(input).toHaveValue('rossi');
+    await expect.poll(() => rowIds(page)).toEqual(['i2']);
+    await expect(log(page).filter({ hasText: 'search:bianchi' })).toHaveCount(0);
+    // the typed text is still only a draft; committing it is an explicit gesture
+    await page.getByRole('button', { name: 'Commit' }).click();
+    await expect.poll(() => rowIds(page)).toEqual(['i1', 'i5']);
+    await expect(log(page).filter({ hasText: 'search:rossi' })).toHaveCount(1);
+  });
+});

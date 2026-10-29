@@ -40,6 +40,37 @@ function Demo() {
   );
 }
 
+function SearchDemo() {
+  const report = useListReport<Row>({
+    rows: ROWS,
+    columns: [{ id: 'amount', header: 'Amount', accessor: (r) => r.amount }],
+    getRowId: (r) => r.id,
+    filters: [
+      { id: 'all', label: 'All' },
+      { id: 'big', label: 'Big', predicate: (r) => (r.amount ?? 0) > 5 },
+    ],
+    defaultFilter: 'big',
+    defaultSearchQuery: '10',
+  });
+  return (
+    <p>
+      {`${report.filter}|${report.searchDraft}|${report.resultCount}/${report.totalCount}|${report.rows.map((r) => r.id).join(',')}`}
+    </p>
+  );
+}
+
+describe('useListReport search on the server', () => {
+  it('renders the filtered and searched rows with no timer, no error and no warning', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const html = renderToString(<SearchDemo />);
+    expect(html).toContain('big|10|1/3|a');
+    expect(error).not.toHaveBeenCalled();
+    expect(warn).not.toHaveBeenCalled();
+    vi.restoreAllMocks();
+  });
+});
+
 describe('useListReport on the server (node environment, no DOM globals)', () => {
   it('renders sorted rows without errors and without a `document`', () => {
     expect(typeof document).toBe('undefined');

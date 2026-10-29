@@ -72,6 +72,7 @@ export { defaultComboboxFilter } from './combobox/filter';
 export { useListReport } from './list-report/use-list-report';
 export type {
   ListReportColumn,
+  ListReportFilter,
   ListReportSort,
   ListReportSortDirection,
   ListReportHeaderProps,
