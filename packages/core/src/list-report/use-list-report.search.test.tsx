@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { act, cleanup, render, renderHook, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -449,6 +450,58 @@ describe('useListReport: clearFilters and identities', () => {
     expect(result.current.searchDraft).toBe('');
     expect(onFilterChange).not.toHaveBeenCalled();
     expect(onSearchQueryChange).not.toHaveBeenCalled();
+  });
+
+  describe('default pill with no results, controlled filter and search applied asynchronously', () => {
+    const NONE_OPEN = ROWS.map((r) => ({ ...r, open: false }));
+    const PILLS: ListReportFilter<Row>[] = [
+      { id: 'open', label: 'Open', predicate: (r) => r.open === true },
+      { id: 'all', label: 'All' },
+      { id: 'closed', label: 'Closed', predicate: (r) => r.open === false },
+    ];
+
+    function setupAsync(initialFilter: string) {
+      const onFilterChange = vi.fn();
+      const onSearchQueryChange = vi.fn();
+      const hook = renderHook(() => {
+        const [filter, setFilter] = useState(initialFilter);
+        const [query, setQuery] = useState('rossi');
+        return useListReport<Row>({
+          rows: NONE_OPEN, columns: COLUMNS, getRowId, filters: PILLS, defaultFilter: 'open',
+          filter, searchQuery: query,
+          // The parent applies what is reported one macrotask later, never in the same tick.
+          onFilterChange: (id) => { onFilterChange(id); setTimeout(() => setFilter(id), 0); },
+          onSearchQueryChange: (q) => { onSearchQueryChange(q); setTimeout(() => setQuery(q), 0); },
+          searchCommitDelay: null,
+        });
+      });
+      return { ...hook, onFilterChange, onSearchQueryChange };
+    }
+
+    it('reports the unfiltered pill once, even though the parent has not applied anything yet', async () => {
+      vi.useFakeTimers();
+      const { result, onFilterChange, onSearchQueryChange } = setupAsync('closed');
+      act(() => result.current.clearFilters());
+      expect(onFilterChange).toHaveBeenCalledTimes(1);
+      expect(onFilterChange).toHaveBeenCalledWith('all');
+      expect(onSearchQueryChange).toHaveBeenCalledWith('');
+      expect(result.current.filter).toBe('closed');
+      await act(async () => void vi.advanceTimersByTime(50));
+      expect(result.current.filter).toBe('all');
+      expect(result.current.searchQuery).toBe('');
+      expect(result.current.resultCount).toBe(4);
+      expect(onFilterChange).toHaveBeenCalledTimes(1);
+    });
+
+    it('already on the unfiltered pill: no filter change at all, before or after the parent applies the search', async () => {
+      vi.useFakeTimers();
+      const { result, onFilterChange } = setupAsync('all');
+      act(() => result.current.clearFilters());
+      await act(async () => void vi.advanceTimersByTime(50));
+      expect(result.current.searchQuery).toBe('');
+      expect(result.current.filter).toBe('all');
+      expect(onFilterChange).not.toHaveBeenCalled();
+    });
   });
 
   it('the returned functions keep their identity across renders and state changes', () => {

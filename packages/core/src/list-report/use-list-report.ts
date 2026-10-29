@@ -145,11 +145,11 @@ export function useListReport<Row>(options: UseListReportOptions<Row>): UseListR
 
   // Latest values for the handlers (assigned during render so they never see a stale value).
   const fs = useRef({
-    filterControlled, filters, filter: requestedFilter, defaultFilterId, onFilterChange,
+    rows, filterControlled, filters, filter: requestedFilter, defaultFilterId, onFilterChange,
     searchControlled, committed, draft, delay: searchCommitDelay, onSearchQueryChange,
   });
   fs.current = {
-    filterControlled, filters, filter: requestedFilter, defaultFilterId, onFilterChange,
+    rows, filterControlled, filters, filter: requestedFilter, defaultFilterId, onFilterChange,
     searchControlled, committed, draft, delay: searchCommitDelay, onSearchQueryChange,
   };
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -224,9 +224,15 @@ export function useListReport<Row>(options: UseListReportOptions<Row>): UseListR
   const clearFilters = useCallback(() => {
     clearTimer();
     const current = fs.current;
-    if (current.defaultFilterId !== null && current.defaultFilterId !== current.filter) {
-      changeFilter(current.defaultFilterId);
+    // The search is cleared too, so only the pill decides what is left. When the default pill leaves
+    // nothing to see (rows exist, none matches) go to the unfiltered pill instead: one decision, one
+    // `onFilterChange`, taken from the current inputs and not from a later render.
+    let target = current.defaultFilterId;
+    const defaultFilter = current.filters.find((f) => f.id === target);
+    if (defaultFilter?.predicate && current.rows.length > 0 && !current.rows.some((row) => defaultFilter.predicate?.(row))) {
+      target = (current.filters.find((f) => f.predicate === undefined) ?? current.filters[0])?.id ?? target;
     }
+    if (target !== null && target !== current.filter) changeFilter(target);
     setDraft('');
     current.draft = '';
     if (lastCommitted() !== '') commitQuery('');

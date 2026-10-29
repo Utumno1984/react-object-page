@@ -84,8 +84,9 @@ function TableDemo({
   onRetry,
   onClearFilters,
 }: TableDemoProps) {
-  // The demo starts on `defaultFilter` and clearing the filters goes back to "all" (the hook's own
-  // `clearFilters` would go back to `defaultFilter`, which is what excludes everything here).
+  // The demo starts on `defaultFilter` and clearing the filters goes back to "all". `filter` is
+  // controlled here with no `onFilterChange` wired to the hook, so the hook's own `clearFilters`
+  // would not move this local state at all; the reset has to happen in this demo's own handler.
   const [filter, setFilter] = useState<string>(defaultFilter ?? 'all');
   // A new `defaultFilter` (another dataset picked in Controls) restarts from it, without re-mounting.
   const [seenDefault, setSeenDefault] = useState(defaultFilter);
