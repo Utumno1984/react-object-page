@@ -26,8 +26,11 @@ export const headerCellClass =
   'sticky top-0 z-rop-sticky h-(--rop-list-report-row-height) overflow-hidden whitespace-nowrap border-b ' +
   'border-rop-border bg-rop-surface-subtle px-3 align-middle font-semibold text-rop-text';
 
+// `py-px` is the user-agent padding of a cell, made explicit: a row is `height + 2px + 1px` tall
+// (ROW_PITCH_EXTRA), and the state/filler cells of the loading, empty and error body are sized with it.
 export const bodyCellClass =
-  'h-(--rop-list-report-row-height) overflow-hidden border-b border-rop-border px-3 align-middle';
+  'h-(--rop-list-report-row-height) overflow-hidden border-b border-rop-border px-3 py-px align-middle';
+export const ROW_PITCH_EXTRA_PX = 3;
 
 // Content that is not plain text: its layout is up to the consumer, the cell only contains it.
 export const nodeWrapperClass = 'min-w-0 overflow-hidden';
@@ -52,3 +55,15 @@ export const ALIGN_JUSTIFY = {
   center: 'justify-center',
   end: 'justify-end',
 } as const;
+
+// Stable states (loading / empty / no results / error). The body of every state is at least
+// `rows x row height` tall. The message cell has no overflow clipping (a sticky child would then stick
+// to the cell instead of the scroller) and no padding; its content is a sticky box as wide as the
+// visible part of the scroller, so that in a wide, horizontally scrolled table the message stays
+// in view instead of sitting in the middle of the whole table.
+export const stateCellClass = 'border-b border-rop-border px-0 py-px align-middle';
+export const fillerCellClass = 'px-0 py-px';
+export const stateBoxClass =
+  'sticky start-0 flex max-w-full flex-col items-center justify-center gap-3 p-4 text-center text-rop-text-muted';
+export const stateStripClass = 'w-full max-w-prose text-start text-rop-text';
+export const skeletonBarClass = 'block h-3 w-3/4 max-w-48 rounded-rop-md bg-rop-border';

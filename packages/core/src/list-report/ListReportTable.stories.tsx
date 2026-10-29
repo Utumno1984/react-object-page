@@ -1,8 +1,9 @@
-import type { CSSProperties } from 'react';
+import { useState, type CSSProperties, type ReactNode } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, fn, userEvent, within } from 'storybook/test';
+import { addons } from 'storybook/preview-api';
+import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import { ListReportTable } from './ListReportTable';
-import type { ListReportColumn, ListReportSort, ListReportSortDirection } from './types';
+import type { ListReportColumn, ListReportFilter, ListReportSort, ListReportSortDirection } from './types';
 import { useListReport } from './use-list-report';
 
 interface Invoice {
@@ -44,6 +45,12 @@ function columns(firstDateDirection: ListReportSortDirection = 'desc'): ListRepo
   ];
 }
 
+// The "none" filter excludes every row: it makes the "no results" state (rows exist, none shown).
+const DEMO_FILTERS: ListReportFilter<Invoice>[] = [
+  { id: 'all', label: 'Tutte' },
+  { id: 'none', label: 'Nessuna', predicate: () => false },
+];
+
 interface TableDemoProps {
   rows: Invoice[];
   columns: ListReportColumn<Invoice>[];
@@ -52,19 +59,85 @@ interface TableDemoProps {
   defaultSort?: ListReportSort;
   dir?: 'ltr' | 'rtl';
   label?: string;
+  /** Initial filter: `'none'` excludes every row. */
+  defaultFilter?: 'all' | 'none';
+  status?: 'ready' | 'loading' | 'error';
+  loadingRowCount?: number;
+  errorMessage?: ReactNode;
+  onRetry?: () => void;
+  /** Called, and then the filters are really cleared. */
+  onClearFilters?: () => void;
 }
 
-function TableDemo({ rows, columns: cols, maxHeight, onSortChange, defaultSort, dir, label = 'Fatture' }: TableDemoProps) {
-  const table = useListReport<Invoice>({ rows, columns: cols, getRowId: (r) => r.id, onSortChange, defaultSort });
-  return <ListReportTable table={table} aria-label={label} maxHeight={maxHeight} dir={dir} data-testid="scroller" />;
+function TableDemo({
+  rows,
+  columns: cols,
+  maxHeight,
+  onSortChange,
+  defaultSort,
+  dir,
+  label = 'Fatture',
+  defaultFilter,
+  status,
+  loadingRowCount,
+  errorMessage,
+  onRetry,
+  onClearFilters,
+}: TableDemoProps) {
+  // The demo starts on `defaultFilter` and clearing the filters goes back to "all" (the hook's own
+  // `clearFilters` would go back to `defaultFilter`, which is what excludes everything here).
+  const [filter, setFilter] = useState<string>(defaultFilter ?? 'all');
+  // A new `defaultFilter` (another dataset picked in Controls) restarts from it, without re-mounting.
+  const [seenDefault, setSeenDefault] = useState(defaultFilter);
+  if (seenDefault !== defaultFilter) {
+    setSeenDefault(defaultFilter);
+    setFilter(defaultFilter ?? 'all');
+  }
+  const table = useListReport<Invoice>({
+    rows,
+    columns: cols,
+    getRowId: (r) => r.id,
+    onSortChange,
+    defaultSort,
+    filters: DEMO_FILTERS,
+    filter,
+  });
+  return (
+    <ListReportTable
+      table={table}
+      aria-label={label}
+      maxHeight={maxHeight}
+      dir={dir}
+      data-testid="scroller"
+      status={status}
+      loadingRowCount={loadingRowCount}
+      errorMessage={errorMessage}
+      onRetry={onRetry}
+      onClearFilters={
+        onClearFilters
+          ? () => {
+              onClearFilters();
+              setFilter('all');
+            }
+          : undefined
+      }
+    />
+  );
 }
+
+type Dataset = 'vuoto' | '3 righe' | '40 righe' | '200 righe' | 'filtro che esclude tutto';
 
 interface PlaygroundArgs {
   maxHeight: number;
   containerWidth: number;
   dir: 'ltr' | 'rtl';
   dateFirstSort: ListReportSortDirection;
+  status: 'ready' | 'loading' | 'error';
+  loadingRowCount: number;
+  dataset: Dataset;
   onSortChange: (sort: ListReportSort) => void;
+  onRetry: () => void;
+  onClearFilters: () => void;
 }
 
 const meta: Meta<PlaygroundArgs> = {
@@ -79,9 +152,43 @@ const meta: Meta<PlaygroundArgs> = {
       options: ['asc', 'desc'],
       description: '`firstSortDirection` della colonna "Data"',
     },
+    status: {
+      control: 'radio',
+      options: ['ready', 'loading', 'error'],
+      description: '`loading` tiene le righe che ci sono (o mostra gli scheletri); `error` sostituisce il corpo',
+    },
+    loadingRowCount: {
+      control: { type: 'number', min: 0, max: 20, step: 1 },
+      description: 'Righe scheletro e altezza minima del corpo (righe)',
+    },
+    dataset: {
+      control: 'select',
+      options: ['vuoto', '3 righe', '40 righe', '200 righe', 'filtro che esclude tutto'],
+      description: 'Le righe date alla tabella; "filtro che esclude tutto" parte con un filtro che nasconde ogni riga',
+    },
     onSortChange: { control: false },
+    onRetry: { control: false },
+    onClearFilters: { control: false },
   },
-  args: { maxHeight: 360, containerWidth: 900, dir: 'ltr', dateFirstSort: 'desc', onSortChange: fn() },
+  args: {
+    maxHeight: 360,
+    containerWidth: 900,
+    dir: 'ltr',
+    dateFirstSort: 'desc',
+    status: 'ready',
+    loadingRowCount: 5,
+    dataset: '40 righe',
+    onSortChange: fn(),
+    onRetry: fn(),
+    onClearFilters: fn(),
+  },
+};
+
+const DATASETS: Record<Exclude<Dataset, 'filtro che esclude tutto'>, Invoice[]> = {
+  vuoto: [],
+  '3 righe': makeInvoices(3),
+  '40 righe': makeInvoices(40),
+  '200 righe': makeInvoices(200),
 };
 
 export default meta;
@@ -93,22 +200,40 @@ const INVOICES = makeInvoices(40);
 
 /**
  * Controls: `maxHeight` of the scroll container, `containerWidth` of the demo box (narrow it to see the
- * horizontal scroll stay inside the box), `dir`, and `firstSortDirection` of the "Data" column;
- * `onSortChange` shows up in Actions. The play function clicks "Importo" twice and checks that the
- * rows are in descending order, that the header says so and that exactly two sort changes were notified.
+ * horizontal scroll stay inside the box), `dir`, `firstSortDirection` of the "Data" column, `status`
+ * (`ready` / `loading` / `error`), `loadingRowCount` and the `dataset` (empty, 3, 40 or 200 rows, or a
+ * filter that excludes everything); switch them and the header and the minimum body do not move.
+ * `onSortChange`, `onRetry` and `onClearFilters` show up in Actions. The play function clicks "Importo"
+ * twice and checks that the rows are in descending order, that the header says so and that exactly
+ * two sort changes were notified.
  */
 export const Playground: Story = {
-  render: ({ maxHeight, containerWidth, dir, dateFirstSort, onSortChange }) => {
+  render: ({ maxHeight, containerWidth, dir, dateFirstSort, status, loadingRowCount, dataset, onSortChange, onRetry, onClearFilters }) => {
     const cols = columns(dateFirstSort);
+    const excludeAll = dataset === 'filtro che esclude tutto';
     return (
       <div style={PAGE}>
         <div style={{ width: containerWidth, maxWidth: '100%' }} data-testid="box">
-          <TableDemo rows={INVOICES} columns={cols} maxHeight={maxHeight} onSortChange={onSortChange} dir={dir} />
+          <TableDemo
+            rows={excludeAll ? INVOICES : DATASETS[dataset]}
+            defaultFilter={excludeAll ? 'none' : 'all'}
+            columns={cols}
+            maxHeight={maxHeight}
+            onSortChange={onSortChange}
+            dir={dir}
+            status={status}
+            loadingRowCount={loadingRowCount}
+            onRetry={onRetry}
+            onClearFilters={onClearFilters}
+          />
         </div>
       </div>
     );
   },
   play: async ({ args, canvasElement }) => {
+    // The sort scenario is written for the default configuration (40 rows, ready): with another
+    // `status` or `dataset` (picked in Controls or by a test) there is nothing to sort.
+    if (args.status !== 'ready' || args.dataset !== '40 righe') return;
     const canvas = within(canvasElement);
     const header = canvas.getByRole('columnheader', { name: 'Importo' });
     const button = within(header).getByRole('button');
@@ -293,5 +418,165 @@ export const Rtl: Story = {
     const cells = within(canvas.getAllByRole('row')[1]!).getAllByRole('cell');
     await expect(cells[3]!.getBoundingClientRect().left).toBeLessThan(cells[1]!.getBoundingClientRect().left);
     await expect(getComputedStyle(scroller).direction).toBe('rtl');
+  },
+};
+
+const STATE_BOX: CSSProperties = { width: 900, maxWidth: '100%' };
+
+/**
+ * A table in one fixed state, for the screenshots (one per state and viewport). Each export below
+ * writes its own `tags: ['visual']`: Storybook reads tags statically, not through a helper.
+ */
+const stateRender =
+  (props: Omit<TableDemoProps, 'columns'>): Story['render'] =>
+  () => (
+    <div style={PAGE}>
+      <div style={STATE_BOX}>
+        <TableDemo columns={columns()} {...props} />
+      </div>
+    </div>
+  );
+const stateParameters = (description: string) => ({ ...NO_CONTROLS, docs: { description: { story: description } } });
+
+const rowsOf = (canvas: { getAllByRole: (role: string) => HTMLElement[] }): HTMLElement[] => canvas.getAllByRole('row').slice(1);
+
+/** Loading without rows: five skeleton rows under the same header, `aria-busy` on the scroller. */
+export const Loading: Story = {
+  tags: ['visual'],
+  parameters: stateParameters('`status="loading"` senza righe.'),
+  render: stateRender({ rows: [], status: 'loading' }),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByTestId('scroller')).toHaveAttribute('aria-busy', 'true');
+    await expect(canvasElement.querySelectorAll('[data-rop-skeleton]')).toHaveLength(5);
+    await expect(canvas.getAllByRole('columnheader')).toHaveLength(5);
+  },
+};
+
+/** Empty: the message in one cell across the columns. */
+export const Empty: Story = {
+  tags: ['visual'],
+  parameters: stateParameters('Nessuna riga in input.'),
+  render: stateRender({ rows: [] }),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(rowsOf(canvas)).toHaveLength(1);
+    await expect(canvas.getByRole('table').querySelector('td')).toHaveAttribute('colspan', '5');
+    await expect(within(canvas.getByRole('table')).getByText('Nessun dato')).toBeVisible();
+  },
+};
+
+/**
+ * No results: rows exist but the filter hides them. The play only checks the state (the screenshot is
+ * taken after it): clicking "Azzera filtri" is tried in the Playground and in the e2e suite.
+ */
+export const NoResults: Story = {
+  tags: ['visual'],
+  parameters: stateParameters('Il filtro esclude tutte le righe: compare "Azzera filtri".'),
+  render: stateRender({ rows: INVOICES.slice(0, 8), defaultFilter: 'none', onClearFilters: fn() }),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(within(canvas.getByRole('table')).getByText('Nessun risultato per i filtri correnti')).toBeVisible();
+    await expect(canvas.getByRole('button', { name: 'Azzera filtri' })).toBeVisible();
+    await expect(canvasElement.querySelectorAll('tbody tr:not([data-rop-state])')).toHaveLength(0);
+  },
+};
+
+/** Error: a Message Strip with "Riprova" in place of the body; the header stays. */
+export const ErrorState: Story = {
+  tags: ['visual'],
+  parameters: stateParameters('Errore di caricamento con `onRetry`.'),
+  render: stateRender({ rows: [], status: 'error', onRetry: fn() }),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(within(canvas.getByRole('table')).getByText('Impossibile caricare i dati')).toBeVisible();
+    await userEvent.click(canvas.getByRole('button', { name: 'Riprova' }));
+    await expect(canvas.getByTestId('scroller')).toHaveFocus();
+  },
+};
+
+/** A long error text on a narrow screen wraps inside the strip: the page does not scroll sideways. */
+export const ErrorLongMessage: Story = {
+  tags: ['visual'],
+  parameters: NO_CONTROLS,
+  render: () => (
+    <div style={PAGE}>
+      <div style={{ width: 340, maxWidth: '100%' }}>
+        <TableDemo
+          columns={columns()}
+          rows={[]}
+          status="error"
+          onRetry={fn()}
+          errorMessage={`Impossibile caricare le fatture: ${'il server non risponde '.repeat(8)}https://example.com/${'a'.repeat(60)}`}
+        />
+      </div>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    await expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(document.documentElement.clientWidth);
+    const strip = canvasElement.querySelector('tbody [class*="rounded-rop-md"]') as HTMLElement;
+    await expect(strip.scrollWidth).toBeLessThanOrEqual(strip.clientWidth);
+  },
+};
+
+/** Reload with data: the rows stay, nothing changes height, the scroller is busy. */
+export const Reloading: Story = {
+  tags: ['visual'],
+  parameters: stateParameters('`status="loading"` con righe già presenti: restano visibili, niente scheletri.'),
+  render: stateRender({ rows: INVOICES.slice(0, 8), status: 'loading' }),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByTestId('scroller')).toHaveAttribute('aria-busy', 'true');
+    await expect(canvasElement.querySelectorAll('[data-rop-skeleton]')).toHaveLength(0);
+    await expect(rowsOf(canvas)).toHaveLength(8);
+    // sortable headers still work
+    await userEvent.click(canvas.getByRole('button', { name: 'Importo' }));
+    await expect(canvas.getByRole('columnheader', { name: 'Importo' })).toHaveAttribute('aria-sort', 'ascending');
+  },
+};
+
+// Changes the args of the running story, as the Controls panel does (the story is not re-mounted).
+function setArgs(storyId: string, updatedArgs: Partial<PlaygroundArgs>): void {
+  addons.getChannel().emit('updateStoryArgs', { storyId, updatedArgs });
+}
+
+/**
+ * Starts loading (no rows), goes to error, clicks "Riprova" (Actions gets the call) and ends on three
+ * rows. In every step the header does not move and the body is never shorter than `loadingRowCount` rows.
+ */
+export const StatusTransitions: Story = {
+  parameters: NO_CONTROLS,
+  args: { status: 'loading', dataset: 'vuoto', loadingRowCount: 5 },
+  render: ({ status, dataset, loadingRowCount, onRetry }) => (
+    <div style={PAGE}>
+      <div style={STATE_BOX}>
+        <TableDemo columns={columns()} rows={dataset === 'vuoto' ? [] : DATASETS[dataset as '3 righe']} status={status} loadingRowCount={loadingRowCount} onRetry={onRetry} />
+      </div>
+    </div>
+  ),
+  play: async ({ args, canvasElement, id }) => {
+    const canvas = within(canvasElement);
+    const scroller = canvas.getByTestId('scroller');
+    const headerTop = () => canvas.getAllByRole('columnheader')[0]!.getBoundingClientRect().top;
+    const tableWidth = () => canvas.getByRole('table').getBoundingClientRect().width;
+    const top = headerTop();
+    const width = tableWidth();
+
+    await expect(scroller).toHaveAttribute('aria-busy', 'true');
+    await expect(canvasElement.querySelectorAll('[data-rop-skeleton]')).toHaveLength(5);
+
+    setArgs(id, { status: 'error' });
+    const retry = await canvas.findByRole('button', { name: 'Riprova' });
+    await expect(scroller).not.toHaveAttribute('aria-busy');
+    await expect(headerTop()).toBe(top);
+    await expect(tableWidth()).toBe(width);
+
+    await userEvent.click(retry);
+    await expect(args.onRetry).toHaveBeenCalledTimes(1);
+
+    setArgs(id, { status: 'ready', dataset: '3 righe' });
+    await waitFor(() => expect(canvas.getAllByRole('row').filter((r) => r.querySelector('td') && !r.hasAttribute('aria-hidden'))).toHaveLength(3));
+    await expect(headerTop()).toBe(top);
+    await expect(tableWidth()).toBe(width);
   },
 };
