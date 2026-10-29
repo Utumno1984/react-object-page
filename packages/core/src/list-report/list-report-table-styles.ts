@@ -1,15 +1,12 @@
 // Class names of ListReportTable, kept apart from its logic. Full literals on purpose: the CSS build
 // scans the sources (comments included) for utilities, so no bare utility name appears in a comment.
 // Logical properties (`text-start`, `justify-start`) so that `dir="rtl"` mirrors the layout.
-import { stickyLayer } from '../overlay/layers';
-
 // The row height is a component-owned CSS variable (`--rop-list-report-row-height`), declared on the
 // scroll container so that everything inside it (the loading/empty states of the List Report, which
 // must have the same footprint) reads the same value; a consumer overrides it with `style` or
 // `className` on that container. Cells carry a 1px border on top of it, with the default
 // content-box sizing: the row pitch is constant.
 export const ROW_HEIGHT_CLASS = 'h-(--rop-list-report-row-height)';
-const ROW_HEIGHT = ROW_HEIGHT_CLASS;
 
 // The one scroller: the consumer sizes it (flex parent or `maxHeight`). Focusable so that a
 // keyboard user can scroll it; `min-h-0` lets it shrink inside a flex column.
@@ -22,11 +19,15 @@ export const tableClass = 'table-fixed border-separate border-spacing-0 text-sta
 
 export const captionClass = 'sr-only';
 
+// Plain literals, no template interpolation: a bundler cannot prove an interpolation pure, so it
+// would keep these strings in the bundle of every export. The sticky level is the `stickyLayer` of
+// the overlay scale (a unit test pins the two together).
 export const headerCellClass =
-  `sticky top-0 ${stickyLayer} ${ROW_HEIGHT} overflow-hidden whitespace-nowrap border-b border-rop-border ` +
-  'bg-rop-surface-subtle px-3 align-middle font-semibold text-rop-text';
+  'sticky top-0 z-rop-sticky h-(--rop-list-report-row-height) overflow-hidden whitespace-nowrap border-b ' +
+  'border-rop-border bg-rop-surface-subtle px-3 align-middle font-semibold text-rop-text';
 
-export const bodyCellClass = `${ROW_HEIGHT} overflow-hidden border-b border-rop-border px-3 align-middle`;
+export const bodyCellClass =
+  'h-(--rop-list-report-row-height) overflow-hidden border-b border-rop-border px-3 align-middle';
 
 // Content that is not plain text: its layout is up to the consumer, the cell only contains it.
 export const nodeWrapperClass = 'min-w-0 overflow-hidden';

@@ -2,7 +2,9 @@ import { createRef } from 'react';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { stickyLayer } from '../overlay/layers';
 import { ListReportTable } from './ListReportTable';
+import { bodyCellClass, headerCellClass, ROW_HEIGHT_CLASS } from './list-report-table-styles';
 import type { ListReportColumn, ListReportSort } from './types';
 import { useListReport } from './use-list-report';
 
@@ -218,7 +220,9 @@ describe('ListReportTable layout', () => {
     for (const cell of screen.getAllByRole('cell')) expect(cell.className).toContain('h-(--rop-list-report-row-height)');
     const th = screen.getByRole('columnheader', { name: 'Cliente' });
     expect(th.className).toContain('sticky');
-    expect(th.className).toContain('z-rop-sticky');
+    expect(th.className).toContain(stickyLayer);
+    expect(headerCellClass).toContain(ROW_HEIGHT_CLASS);
+    expect(bodyCellClass).toContain(ROW_HEIGHT_CLASS);
   });
 
   it('is a single scroll container that is a tab stop; maxHeight is applied to it', () => {
