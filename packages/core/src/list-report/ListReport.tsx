@@ -1,9 +1,7 @@
 import {
   forwardRef,
-  useEffect,
   useId,
   useRef,
-  useState,
   type HTMLAttributes,
   type ReactElement,
   type ReactNode,
@@ -87,18 +85,6 @@ function ListReportImpl<Row>(props: ListReportProps<Row>, ref: Ref<HTMLDivElemen
   } = props;
   const nameId = `${useId()}-name`;
   const barRef = useRef<HTMLDivElement | null>(null);
-  const verifyClear = useRef(false);
-  const [, recheck] = useState(0);
-  // After "Azzera filtri" has been applied: if there is still nothing to see (the default pill itself leaves
-  // no result), go to the unfiltered pill (the first without a predicate, else the first): one more
-  // change, only in that case.
-  useEffect(() => {
-    if (!verifyClear.current) return;
-    verifyClear.current = false;
-    if (table.resultCount > 0 || table.totalCount === 0) return;
-    const open = table.filters.find((f) => f.predicate === undefined) ?? table.filters[0];
-    if (open && open.id !== table.filter) table.setFilter(open.id);
-  });
   const count = labels?.count ?? DEFAULT_COUNT;
 
   const showBar = showSearch || table.filters.length > 0;
@@ -109,10 +95,6 @@ function ListReportImpl<Row>(props: ListReportProps<Row>, ref: Ref<HTMLDivElemen
   // when there is none), where the user goes on filtering, never to the body.
   const clearFilters = () => {
     table.clearFilters();
-    // `clearFilters` goes back to the *default* pill: when that one leaves no result the button would be
-    // dead. The check runs after the render that follows (the forced one covers a no-op `clearFilters`).
-    verifyClear.current = true;
-    recheck((n) => n + 1);
     // Only the bar is searched (an `actions` slot may hold its own inputs).
     const bar = barRef.current;
     const target = bar?.querySelector<HTMLElement>('input[type="search"]') ?? bar?.querySelector<HTMLElement>('[role="radio"]');
@@ -166,7 +148,7 @@ function ListReportImpl<Row>(props: ListReportProps<Row>, ref: Ref<HTMLDivElemen
  *   region. The only live region is the table's: it announces its changes of state (loading, empty, no
  *   results, error, data back), not a change of the number of results while the data stays on screen.
  * - "Azzera filtri" works without wiring (`table.clearFilters()`; when the default pill itself leaves no
- *   result it then goes to the unfiltered pill), then the focus goes to the search box or the first pill of the bar.
+ *   result it the hook goes to the unfiltered pill), then the focus goes to the search box or the first pill of the bar.
  * - The count is part of the heading's name ("Fatture (12 di 40)"); the table's name stays "Fatture".
  * - `status`, `errorMessage`, `onRetry`, `loadingRowCount` and `labels` reach `ListReportTable` unchanged;
  *   `filtersLabel`, `searchLabel` and `showSearch` reach `ListReportFilterBar`. The other props go on the root.
