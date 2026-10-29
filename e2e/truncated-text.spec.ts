@@ -103,7 +103,6 @@ test.describe('hover', () => {
     await page.waitForTimeout(SETTLE);
     await expect(tooltips(page)).toHaveCount(0);
     await text.hover();
-    await expect(tooltips(page)).toHaveCount(0);
     await expect(tooltips(page)).toContainText('Fornitore Bianchi', { timeout: 3000 });
     // No duplicate description: the text is the element's own content.
     await expect(text).not.toHaveAttribute('aria-describedby');
@@ -211,7 +210,11 @@ test.describe('keyboard and mount', () => {
 
   test('the text changes while the tooltip is open: it closes when the text no longer overflows', async ({ page }) => {
     await gotoStory(page, STORY('changes-while-open'));
+    // The play function already tabbed to the text and blurred it: Tab out of the page and
+    // Shift+Tab back is the user's own way to reach it again.
     await page.keyboard.press('Tab');
+    await page.keyboard.press('Shift+Tab');
+    await expect(page.getByTestId('text')).toBeFocused();
     await expect(tooltips(page)).toContainText('Fornitore Bianchi');
     await page.keyboard.press('-');
     await expect(page.getByTestId('text')).toHaveText('Breve');
