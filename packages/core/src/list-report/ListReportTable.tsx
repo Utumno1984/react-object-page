@@ -24,7 +24,7 @@ import type { ListReportColumn, UseListReportReturn } from './types';
 type TableName =
   | { 'aria-label': string; 'aria-labelledby'?: string; caption?: ReactNode }
   | { 'aria-labelledby': string; 'aria-label'?: string; caption?: ReactNode }
-  | { caption: ReactNode; 'aria-label'?: string; 'aria-labelledby'?: string };
+  | { caption: NonNullable<ReactNode>; 'aria-label'?: string; 'aria-labelledby'?: string };
 
 export type ListReportTableProps<Row> = Omit<HTMLAttributes<HTMLDivElement>, 'children' | 'aria-label' | 'aria-labelledby'> & {
   /** What `useListReport` returned: the table only renders it. */
@@ -59,9 +59,10 @@ function pixels(value: number | string | undefined): number | null {
 
 /**
  * `min-width` of the table: the sum of the `width` (or, for columns without one or with a
- * percentage, the `minWidth`) of every column. When every column has a pixel `width` there is no
- * flexible column to absorb extra space, so the table is exactly that wide too: each column keeps
- * the width it declared in a container wider than the sum. Otherwise the table fills the container.
+ * percentage, the `minWidth`) of every column. When every column declares a `width` there is no
+ * flexible column to absorb extra space, so the table is exactly as wide as its columns (px, rem,
+ * and percentages as shares of the table): each column keeps the width it declared in a container
+ * wider than the sum. Otherwise the table fills the container.
  */
 function tableSize<Row>(columns: readonly ListReportColumn<Row>[]): { width: string; minWidth: string } {
   let px = 0;
@@ -72,9 +73,25 @@ function tableSize<Row>(columns: readonly ListReportColumn<Row>[]): { width: str
     if (known === null) other.push(toCss(base));
     else px += known;
   }
-  const minWidth = other.length === 0 ? `${px}px` : `calc(${[`${px}px`, ...other].join(' + ')})`;
-  const rigid = columns.length > 0 && columns.every((column) => pixels(column.width) !== null);
-  return { minWidth, width: rigid ? minWidth : '100%' };
+  const sum = (px0: number, rest: string[]): string => (rest.length === 0 ? `${px0}px` : `calc(${[`${px0}px`, ...rest].join(' + ')})`);
+  const minWidth = sum(px, other);
+  if (columns.length === 0 || columns.some((column) => column.width === undefined)) return { minWidth, width: '100%' };
+
+  // Every column declares a width: there is no flexible column to absorb extra space, so the table
+  // is exactly as wide as its columns (else `table-layout: fixed` would stretch all of them).
+  // Percentages are shares of the table itself: the absolute widths are (1 - shares) of it.
+  let fixedPx = 0;
+  const fixedOther: string[] = [];
+  let share = 0;
+  for (const column of columns) {
+    if (isPercent(column.width)) share += Number.parseFloat(column.width as string) / 100;
+    else if (pixels(column.width) !== null) fixedPx += pixels(column.width) as number;
+    else fixedOther.push(toCss(column.width as string));
+  }
+  if (share >= 1 || (fixedPx === 0 && fixedOther.length === 0)) return { minWidth, width: '100%' };
+  const absolute = sum(fixedPx, fixedOther);
+  const total = share === 0 ? absolute : `calc(${absolute} / ${1 - share})`;
+  return { minWidth: total, width: total };
 }
 
 type CellValue = { kind: 'empty' } | { kind: 'text'; text: string } | { kind: 'node'; node: ReactNode };

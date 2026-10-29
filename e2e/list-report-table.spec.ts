@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { expectNoA11yViolations } from './helpers/a11y';
-import { expectNoHorizontalOverflow, expectSingleScroller } from './helpers/geometry';
+import { expectFocusRingVisible, expectNoHorizontalOverflow, expectSingleScroller } from './helpers/geometry';
 import { expectPlayToPass } from './helpers/story';
 
 const STORY = (name: string) => `data-listreporttable--${name}`;
@@ -21,7 +21,7 @@ const rect = (locator: Locator) =>
   });
 
 test.describe('Data/ListReportTable: stories play', () => {
-  for (const name of ['playground', 'plain', 'long-texts', 'narrow-container', 'sticky-after-scroll', 'twenty-columns', 'rtl']) {
+  for (const name of ['playground', 'plain', 'mixed-widths', 'rem-widths', 'long-texts', 'narrow-container', 'sticky-after-scroll', 'twenty-columns', 'rtl']) {
     test(`${name}: the play function passes`, async ({ page }) => {
       await expectPlayToPass(page, STORY(name));
     });
@@ -97,6 +97,27 @@ test.describe('geometry', () => {
     expect(Math.abs(total - (container.width - 0))).toBeLessThanOrEqual(1);
     // the two flexible columns split what is left evenly
     expect(Math.abs(widths[1]! - widths[2]!)).toBeLessThanOrEqual(1);
+  });
+
+  test('every column with a width, in a wider container: px stays exact, % is a share of the table, rem is exact', async ({ page }) => {
+    await expectPlayToPass(page, STORY('mixed-widths'));
+    const widths = await page.getByRole('columnheader').evaluateAll((ths) => ths.map((th) => th.getBoundingClientRect().width));
+    expect(Math.abs(widths[0]! - 200)).toBeLessThanOrEqual(1);
+    expect(Math.abs(widths[1]! - 0.3 * (200 / 0.7))).toBeLessThanOrEqual(1);
+    expect((await rect(page.locator('#storybook-root table'))).width).toBeLessThan(300);
+
+    await expectPlayToPass(page, STORY('rem-widths'));
+    const rem = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize));
+    const remWidths = await page.getByRole('columnheader').evaluateAll((ths) => ths.map((th) => th.getBoundingClientRect().width));
+    remWidths.forEach((w) => expect(Math.abs(w - 10 * rem)).toBeLessThanOrEqual(1));
+  });
+
+  test('the focus ring of the scroll container is drawn outside it, not under the sticky header', async ({ page }) => {
+    await expectPlayToPass(page, STORY('plain'));
+    await page.keyboard.press('Tab');
+    await expect(scroller(page)).toBeFocused();
+    expect(await scroller(page).evaluate((el) => parseFloat(getComputedStyle(el).outlineOffset))).toBeGreaterThanOrEqual(0);
+    await expectFocusRingVisible(scroller(page));
   });
 
   test('a very long text does not widen its column', async ({ page }) => {

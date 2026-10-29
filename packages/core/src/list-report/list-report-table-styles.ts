@@ -12,7 +12,7 @@ export const ROW_HEIGHT_CLASS = 'h-(--rop-list-report-row-height)';
 // keyboard user can scroll it; `min-h-0` lets it shrink inside a flex column.
 export const containerClass =
   '[--rop-list-report-row-height:2.75rem] relative min-h-0 max-w-full overflow-auto font-rop-sans text-rop-body text-rop-text ' +
-  'focus-visible:[outline:2px_solid_var(--color-rop-primary)] focus-visible:-outline-offset-2';
+  'focus-visible:[outline:2px_solid_var(--color-rop-primary)] focus-visible:outline-offset-2';
 
 // Separate borders (not merged ones): cell borders and sticky cells behave with them.
 export const tableClass = 'table-fixed border-separate border-spacing-0 text-start';

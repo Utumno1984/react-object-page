@@ -207,6 +207,17 @@ describe('ListReportTable layout', () => {
     expect(container.querySelector('table')!.style.width).toBe('250px');
   });
 
+  it('every column with a width: the table is as wide as them, whatever the units', () => {
+    const { container } = render(<Host columns={[{ id: 'a', header: 'A', width: 200 }, { id: 'b', header: 'B', width: '30%' }]} />);
+    const table = container.querySelector('table')!;
+    // (the CSS parser folds 200px / 0.7 into one number)
+    expect(table.style.width).toBe('calc(285.714px)');
+    expect(table.style.minWidth).toBe('calc(285.714px)');
+    cleanup();
+    const rem = render(<Host columns={[{ id: 'a', header: 'A', width: '10rem' }, { id: 'b', header: 'B', width: '10rem' }]} />);
+    expect(rem.container.querySelector('table')!.style.width).toBe('calc(0px + 10rem + 10rem)');
+  });
+
   it('aligns end with logical classes on header, sort button and cells', () => {
     render(<Host />);
     const th = screen.getByRole('columnheader', { name: 'Importo' });
@@ -296,6 +307,7 @@ describe('ListReportTable DOM props', () => {
     const scroller = container.firstElementChild as HTMLElement;
     expect(scroller.className).toContain('overflow-hidden');
     expect(scroller.className).not.toContain('overflow-auto');
+    expect(scroller.className).not.toContain('min-h-0');
     expect(scroller.className).toContain('min-h-8');
   });
 

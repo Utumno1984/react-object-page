@@ -145,6 +145,55 @@ export const Plain: Story = {
   },
 };
 
+const WIDE_BOX: CSSProperties = { width: 1000 };
+
+/** Every column declares a width (px and %): each keeps it, the table is as wide as the columns together. */
+export const MixedWidths: Story = {
+  parameters: NO_CONTROLS,
+  render: () => (
+    <div style={PAGE}>
+      <div style={WIDE_BOX}>
+        <TableDemo
+          rows={INVOICES.slice(0, 4)}
+          columns={[
+            { id: 'id', header: 'N.', accessor: (r) => r.id, width: 200 },
+            { id: 'customer', header: 'Cliente', accessor: (r) => r.customer, width: '30%' },
+          ]}
+        />
+      </div>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const [first, second] = within(canvasElement).getAllByRole('columnheader');
+    await expect(Math.round(first!.getBoundingClientRect().width)).toBe(200);
+    // 30% is a share of the table itself, which is 200px / 0.7 wide
+    await expect(Math.abs(second!.getBoundingClientRect().width - 0.3 * (200 / 0.7))).toBeLessThanOrEqual(1);
+  },
+};
+
+/** Every column in rem: no stretching to the container either. */
+export const RemWidths: Story = {
+  parameters: NO_CONTROLS,
+  render: () => (
+    <div style={PAGE}>
+      <div style={WIDE_BOX}>
+        <TableDemo
+          rows={INVOICES.slice(0, 4)}
+          columns={[
+            { id: 'id', header: 'N.', accessor: (r) => r.id, width: '10rem' },
+            { id: 'customer', header: 'Cliente', accessor: (r) => r.customer, width: '10rem' },
+          ]}
+        />
+      </div>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const [first] = within(canvasElement).getAllByRole('columnheader');
+    const rem = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
+    await expect(Math.abs(first!.getBoundingClientRect().width - 10 * rem)).toBeLessThanOrEqual(1);
+  },
+};
+
 /** Long texts truncated, right-aligned amounts, a sorted column (the arrow marks the direction). */
 export const LongTexts: Story = {
   tags: ['visual'],
