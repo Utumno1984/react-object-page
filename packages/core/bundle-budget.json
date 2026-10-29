@@ -62,6 +62,10 @@
       "baseline": 10627,
       "limit": 11690
     },
+    "ListReportTable": {
+      "baseline": 33166,
+      "limit": 36483
+    },
     "MessageStrip": {
       "baseline": 13786,
       "limit": 15165

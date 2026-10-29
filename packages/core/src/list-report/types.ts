@@ -30,8 +30,18 @@ export interface ListReportColumn<Row> {
   firstSortDirection?: ListReportSortDirection;
   // Layout fields: only declared here, consumed by the table component.
   align?: 'start' | 'center' | 'end';
+  /** Column width: a number (px) or a CSS length/percentage. Columns without one share the remaining space equally. */
   width?: number | string;
+  /**
+   * Counted in the minimum width of the whole table (default 120px) so that a narrow container
+   * scrolls instead of squeezing the columns. It does not reserve space for this column alone:
+   * columns without a `width` share what is left equally.
+   */
   minWidth?: number | string;
+  /**
+   * Truncate text cells with an ellipsis (default `true`). With `false` the text wraps and the row
+   * grows beyond `--rop-list-report-row-height`.
+   */
   truncate?: boolean;
 }
 
@@ -88,6 +98,8 @@ export interface UseListReportReturn<Row> {
   /** The sorted rows (the input array itself when no sort is active; the input is never mutated). */
   rows: readonly Row[];
   columns: readonly ListReportColumn<Row>[];
+  /** The `getRowId` option, handed back so a table can key its rows. */
+  getRowId: (row: Row) => string;
   /** The effective sort: `null` when the requested column is missing or not sortable. */
   sort: ListReportSort;
   /** Next step of the cycle for a column; no-op for an unknown or non-sortable column. */

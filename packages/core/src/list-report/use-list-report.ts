@@ -346,6 +346,7 @@ export function useListReport<Row>(options: UseListReportOptions<Row>): UseListR
   return {
     rows: sortedRows,
     columns,
+    getRowId,
     sort,
     toggleSort,
     setSort,
