@@ -47,7 +47,8 @@ function Host({
 }
 
 const container = (): HTMLElement => screen.getByRole('table', { name: 'Fatture' }).parentElement as HTMLElement;
-const liveRegion = (): HTMLElement => container().querySelector('[aria-live]') as HTMLElement;
+// A sibling of the container, not inside the `aria-busy` element.
+const liveRegion = (): HTMLElement => container().nextElementSibling as HTMLElement;
 const bodyRows = (): HTMLElement[] => Array.from(container().querySelectorAll('tbody > tr'));
 
 describe('ListReportTable loading', () => {
@@ -213,7 +214,7 @@ describe('ListReportTable live region', () => {
     const region = liveRegion();
     expect(region).toHaveAttribute('aria-live', 'polite');
     expect(region.textContent).toBe('');
-    expect(container().contains(region)).toBe(true);
+    expect(container().contains(region)).toBe(false);
     expect(region.closest('table')).toBeNull();
   });
 

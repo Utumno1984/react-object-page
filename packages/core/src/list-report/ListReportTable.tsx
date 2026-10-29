@@ -1,6 +1,7 @@
 import {
   forwardRef,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -213,9 +214,10 @@ function ListReportTableImpl<Row>(props: ListReportTableProps<Row>, ref: Ref<HTM
 
   // The message of a state sits in the visible part of the scroller: its width goes in a CSS variable
   // set on the element itself (no re-render of the table on every resize).
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = containerRef.current;
     if (!messageShown || !el || typeof ResizeObserver === 'undefined') return undefined;
+    el.style.setProperty('--rop-list-report-view-width', `${el.clientWidth}px`);
     const observer = new ResizeObserver(() => el.style.setProperty('--rop-list-report-view-width', `${el.clientWidth}px`));
     observer.observe(el);
     return () => {
@@ -244,6 +246,7 @@ function ListReportTableImpl<Row>(props: ListReportTableProps<Row>, ref: Ref<HTM
   const containerStyle: CSSProperties = { ...(maxHeight !== undefined ? { maxHeight } : null), ...style };
 
   return (
+    <>
     <div
       // A scrollable region must be reachable by keyboard (axe `scrollable-region-focusable`).
       // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
@@ -254,10 +257,6 @@ function ListReportTableImpl<Row>(props: ListReportTableProps<Row>, ref: Ref<HTM
       className={cn(containerClass, className)}
       style={containerStyle}
     >
-      {/* Always mounted (a live region inserted already filled is not announced), empty until a state changes. */}
-      <div aria-live="polite" aria-atomic="true" className="sr-only">
-        {announced.text}
-      </div>
       <table
         aria-label={ariaLabel}
         aria-labelledby={ariaLabelledby}
@@ -346,6 +345,12 @@ function ListReportTableImpl<Row>(props: ListReportTableProps<Row>, ref: Ref<HTM
         </tbody>
       </table>
     </div>
+    {/* Always mounted (a live region inserted already filled is not announced), empty until a state changes.
+        A sibling after the container, not a child: inside the `aria-busy` element its changes may be withheld. */}
+    <div aria-live="polite" aria-atomic="true" className="sr-only">
+      {announced.text}
+    </div>
+    </>
   );
 }
 
