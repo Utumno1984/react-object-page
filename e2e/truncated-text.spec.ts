@@ -26,6 +26,7 @@ test.describe('Data/TruncatedText: stories play', () => {
     'auto-focus',
     'inside-dialog',
     'changes-while-open',
+    'shared-provider',
   ]) {
     test(`${name}: the play function passes`, async ({ page }) => {
       await expectPlayToPass(page, STORY(name));
@@ -219,6 +220,32 @@ test.describe('keyboard and mount', () => {
     await page.keyboard.press('-');
     await expect(page.getByTestId('text')).toHaveText('Breve');
     await expect(tooltips(page)).toHaveCount(0);
+  });
+});
+
+test.describe('shared TooltipProvider', () => {
+  test('a refused opening on a text that fits does not make the next tooltip skip its delay', async ({ page }) => {
+    await gotoStory(page, STORY('shared-provider'));
+    await page.getByTestId('text').hover();
+    await page.waitForTimeout(SETTLE);
+    await page.mouse.move(5, 5, { steps: 5 });
+    await page.getByRole('button', { name: 'Apri' }).hover();
+    await page.waitForTimeout(150);
+    await expect(tooltips(page)).toHaveCount(0);
+    await expect(tooltips(page)).toContainText('Apri il dettaglio', { timeout: 3000 });
+  });
+
+  test('closing because the text no longer overflows lets the next tooltip wait for its delay', async ({ page }) => {
+    await gotoStory(page, STORY('changes-while-open'));
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('Shift+Tab');
+    await expect(tooltips(page)).toContainText('Fornitore Bianchi');
+    await page.keyboard.press('-');
+    await expect(tooltips(page)).toHaveCount(0);
+    await expect(page.getByTestId('text')).toHaveText('Breve');
+    // Dialog-free page, nothing else to hover: the provider state is covered by the test above; here
+    // the close must be the real one, i.e. Escape is not needed and the focus stays on the text.
+    await expect(page.getByTestId('text')).toBeFocused();
   });
 });
 

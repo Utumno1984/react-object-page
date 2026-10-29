@@ -2,6 +2,7 @@ import { useState, type CSSProperties, type ReactNode } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import { Button } from '../button/Button';
+import { Tooltip, TooltipProvider } from '../tooltip/Tooltip';
 import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../dialog/Dialog';
 import { TruncatedText } from './TruncatedText';
 
@@ -336,5 +337,42 @@ export const ChangesWhileOpen: Story = {
     await userEvent.keyboard('+');
     await expect(text).toHaveTextContent('Fornitore Bianchi');
     await settle(text);
+  },
+};
+
+/**
+ * Under one shared `TooltipProvider`: a refused opening (text that fits) must not make the other
+ * tooltips skip their delay. Hover the short text for a while, then the button: its tooltip still
+ * waits for the delay.
+ */
+export const SharedProvider: Story = {
+  parameters: NO_CONTROLS,
+  render: () => (
+    <Page>
+      <TooltipProvider>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, width: 320, border: BORDER }}>
+          <TruncatedText data-testid="text">Breve</TruncatedText>
+          <Tooltip content="Apri il dettaglio">
+            <Button size="sm">Apri</Button>
+          </Tooltip>
+        </div>
+      </TooltipProvider>
+    </Page>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const text = canvas.getByTestId('text');
+    const button = canvas.getByRole('button', { name: 'Apri' });
+    await expect(text.scrollWidth).toBeLessThanOrEqual(text.clientWidth);
+    await userEvent.hover(text);
+    await wait(800);
+    await expect(tooltip()).toBeNull();
+    await userEvent.unhover(text);
+    await userEvent.hover(button);
+    await expect(tooltip()).toBeNull();
+    await expect(await within(document.body).findByRole('tooltip', undefined, { timeout: 3000 })).toHaveTextContent(
+      'Apri il dettaglio',
+    );
+    await settle(button);
   },
 };

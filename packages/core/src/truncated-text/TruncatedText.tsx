@@ -1,6 +1,5 @@
 import {
   forwardRef,
-  useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -10,7 +9,7 @@ import {
   type Ref,
 } from 'react';
 import { textOf } from '../internal/react-nodes';
-import { Tooltip } from '../tooltip/Tooltip';
+import { TooltipInternal } from '../tooltip/Tooltip';
 import { cn } from '../utils/cn';
 import { composeRefs } from '../utils/compose-refs';
 
@@ -51,12 +50,13 @@ export const TruncatedText = /* @__PURE__ */ forwardRef<HTMLElement, TruncatedTe
   const [open, setOpen] = useState(false);
   const composedRef = useMemo(() => composeRefs<HTMLElement>(element, ref), [ref]);
 
-  // Text that changes while the tooltip is open: if it no longer overflows the tooltip has nothing
-  // to add, so it closes. (The tooltip text itself follows the props.)
-  useEffect(() => {
+  // Asked by the tooltip at the gesture, before it starts opening (a refusal never reaches the
+  // shared provider), and while open after every render: text that changes under an open tooltip so
+  // that it no longer overflows closes it.
+  const isTruncated = () => {
     const node = element.current;
-    if (open && node && node.scrollWidth <= node.clientWidth) setOpen(false);
-  }, [open, children]);
+    return !!node && node.scrollWidth > node.clientWidth;
+  };
 
   // `Tooltip` describes its trigger with `aria-describedby` while open; here the trigger's own
   // content is that text. Drop the tooltip's id before paint, keeping any value the consumer set.
@@ -71,17 +71,10 @@ export const TruncatedText = /* @__PURE__ */ forwardRef<HTMLElement, TruncatedTe
   const content = tooltipContent !== undefined ? tooltipContent : textOf(children);
 
   return (
-    <Tooltip
-      content={content}
-      open={open}
-      onOpenChange={(next) => {
-        const node = element.current;
-        setOpen(next && !!node && node.scrollWidth > node.clientWidth);
-      }}
-    >
+    <TooltipInternal content={content} open={open} onOpenChange={setOpen} canOpen={isTruncated}>
       <Tag {...(rest as HTMLAttributes<HTMLElement>)} ref={composedRef as Ref<HTMLSpanElement>} className={cn(BASE, className)}>
         {children}
       </Tag>
-    </Tooltip>
+    </TooltipInternal>
   );
 });

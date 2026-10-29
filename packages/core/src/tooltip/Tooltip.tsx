@@ -109,6 +109,17 @@ function isEmptyContent(content: ReactNode): boolean {
   return typeof content === 'string' && content.trim() === '';
 }
 
+/** Not exported from the package: options for the library's own components. */
+export interface TooltipInternalProps extends TooltipProps {
+  /**
+   * Asked on the pointer move / focus that would start an opening, before Radix hears of it. When it
+   * returns `false` the gesture is ignored (default prevented): Radix never notifies the shared
+   * provider, so a refusal does not switch the other tooltips to "no delay". While open, it is asked
+   * again after every render and the tooltip closes through Radix as soon as it returns `false`.
+   */
+  canOpen?: () => boolean;
+}
+
 /**
  * Tooltip (wraps `@radix-ui/react-tooltip`). Opens on **real gestures only**: the pointer resting on
  * the trigger for `delayDuration`, or the focus arriving by keyboard (Tab, Shift+Tab, arrows). A
@@ -121,7 +132,12 @@ function isEmptyContent(content: ReactNode): boolean {
  * The trigger is described by the tooltip through `aria-describedby`, only while it is open. A
  * `Tooltip` outside a `TooltipProvider` works (it supplies its own provider).
  */
-export function Tooltip({
+export function Tooltip(props: TooltipProps) {
+  return <TooltipInternal {...props} />;
+}
+
+export function TooltipInternal({
+  canOpen,
   content,
   side = 'top',
   align = 'center',
@@ -131,7 +147,7 @@ export function Tooltip({
   onOpenChange,
   disabledTriggerFocusable = false,
   children,
-}: TooltipProps) {
+}: TooltipInternalProps) {
   const hasProvider = useContext(ProviderPresent);
   useEffect(() => trackKeyboardNavigation(), []);
   // When this tooltip (and so its trigger) was first rendered: a focus that reaches a trigger mounted
@@ -160,11 +176,20 @@ export function Tooltip({
   // handler is skipped by Radix's composed one, which also keeps a blocked tooltip from touching the
   // provider's shared "a tooltip is open" state (it would skip the delay of the next tooltip).
   const gateFocus = (event: FocusEvent<HTMLElement>) => {
-    if (blocked || !isKeyboardNavigating(mountedAt.current ?? 0)) event.preventDefault();
+    if (blocked || !isKeyboardNavigating(mountedAt.current ?? 0) || (canOpen && !canOpen())) event.preventDefault();
   };
   const gatePointer = (event: PointerEvent<HTMLElement>) => {
-    if (blocked) event.preventDefault();
+    if (blocked || (canOpen && !canOpen())) event.preventDefault();
   };
+
+  // An open tooltip that may no longer be open (its trigger changed): close it the way Radix's own
+  // Escape handling does, so the provider hears the close too (a controlled `open` going `false`
+  // by itself would leave it believing a tooltip is still up). Only the tooltip is the top layer.
+  useEffect(() => {
+    if (open && canOpen && !canOpen()) {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    }
+  });
 
   if (!child) return <>{children}</>;
 
