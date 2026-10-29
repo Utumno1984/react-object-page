@@ -187,6 +187,18 @@ describe('<ListReport> clear filters', () => {
     render(<Host showSearch={false} defaultFilter="pending" rows={ROWS.filter((r) => r.status !== 'pending')} />);
     await user.click(screen.getByRole('button', { name: 'Azzera filtri' }));
     expect(screen.getByRole('radio', { name: 'Tutte' })).toHaveFocus();
+    // the default pill was what left no result: the button is not dead, the rows are back
+    expect(screen.getByRole('radio', { name: 'Tutte' })).toBeChecked();
+    expect(screen.queryByRole('button', { name: 'Azzera filtri' })).toBeNull();
+    expect(heading()).toHaveTextContent(`Fatture (${ROWS.filter((r) => r.status !== 'pending').length})`);
+  });
+
+  it('the focus goes to the search box of the bar, not to an input in the actions slot', async () => {
+    const user = userEvent.setup();
+    render(<Host actions={<input type="search" aria-label="Altro" />} />);
+    await user.type(screen.getByRole('searchbox', { name: 'Cerca' }), 'zzz{Enter}');
+    await user.click(screen.getByRole('button', { name: 'Azzera filtri' }));
+    expect(screen.getByRole('searchbox', { name: 'Cerca' })).toHaveFocus();
   });
 
   it('a custom onClearFilters replaces the default', async () => {

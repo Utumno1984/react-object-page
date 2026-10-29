@@ -1,7 +1,6 @@
 import {
   forwardRef,
   useId,
-  useMemo,
   useRef,
   type HTMLAttributes,
   type ReactElement,
@@ -10,7 +9,6 @@ import {
 } from 'react';
 import { Title, type TitleLevel } from '../typography/Title';
 import { cn } from '../utils/cn';
-import { composeRefs } from '../utils/compose-refs';
 import { ListReportFilterBar } from './ListReportFilterBar';
 import { ListReportTable, type ListReportTableStatus } from './ListReportTable';
 import type { ListReportTableLabels } from './ListReportTableStates';
@@ -86,8 +84,7 @@ function ListReportImpl<Row>(props: ListReportProps<Row>, ref: Ref<HTMLDivElemen
     ...rest
   } = props;
   const nameId = `${useId()}-name`;
-  const rootRef = useRef<HTMLDivElement | null>(null);
-  const mergedRef = useMemo(() => composeRefs(ref, rootRef), [ref]);
+  const barRef = useRef<HTMLDivElement | null>(null);
   const count = labels?.count ?? DEFAULT_COUNT;
 
   const showBar = showSearch || table.filters.length > 0;
@@ -97,15 +94,23 @@ function ListReportImpl<Row>(props: ListReportProps<Row>, ref: Ref<HTMLDivElemen
   // The button that was clicked leaves with the state: the focus goes to the search box (the first pill
   // when there is none), where the user goes on filtering, never to the body.
   const clearFilters = () => {
+    const searching = table.searchQuery !== '' || table.searchDraft !== '';
     table.clearFilters();
-    const root = rootRef.current;
-    const target =
-      root?.querySelector<HTMLElement>('input[type="search"]') ?? root?.querySelector<HTMLElement>('[role="radio"]');
+    // `clearFilters` goes back to the *default* pill: when that one is what leaves no result (and there
+    // is no search to clear) the button would be dead. Then the unfiltered pill (the first without a
+    // predicate, else the first) is picked as well.
+    if (!searching) {
+      const open = table.filters.find((f) => f.predicate === undefined) ?? table.filters[0];
+      if (open && open.id !== table.filter) table.setFilter(open.id);
+    }
+    // Only the bar is searched (an `actions` slot may hold its own inputs).
+    const bar = barRef.current;
+    const target = bar?.querySelector<HTMLElement>('input[type="search"]') ?? bar?.querySelector<HTMLElement>('[role="radio"]');
     target?.focus();
   };
 
   return (
-    <div {...rest} ref={mergedRef} className={cn(rootClass, className)}>
+    <div {...rest} ref={ref} className={cn(rootClass, className)}>
       <div className={headerClass}>
         <Title level={titleLevel} className={titleClass}>
           <span id={nameId}>{title}</span>{' '}
@@ -115,6 +120,7 @@ function ListReportImpl<Row>(props: ListReportProps<Row>, ref: Ref<HTMLDivElemen
       </div>
       {showBar ? (
         <ListReportFilterBar
+          ref={barRef}
           table={table}
           filtersLabel={filtersLabel}
           searchLabel={searchLabel}
@@ -147,9 +153,11 @@ function ListReportImpl<Row>(props: ListReportProps<Row>, ref: Ref<HTMLDivElemen
  *   with its rows and the page scrolls. Either way there is one scroller.
  * - The table is named by the title text (`aria-labelledby`, no duplicated text; a title with an icon
  *   still names it by its text). The count `(n)` / `(n di m)` is part of the heading and **not** a live
- *   region: the change of results is announced once, by the live region of the table.
- * - "Azzera filtri" works without wiring (`table.clearFilters()`), then the focus goes to the search box
- *   or the first pill.
+ *   region. The only live region is the table's: it announces its changes of state (loading, empty, no
+ *   results, error, data back), not a change of the number of results while the data stays on screen.
+ * - "Azzera filtri" works without wiring (`table.clearFilters()`; when the default pill itself leaves no
+ *   result it picks the unfiltered pill), then the focus goes to the search box or the first pill of the bar.
+ * - The count is part of the heading's name ("Fatture (12 di 40)"); the table's name stays "Fatture".
  * - `status`, `errorMessage`, `onRetry`, `loadingRowCount` and `labels` reach `ListReportTable` unchanged;
  *   `filtersLabel`, `searchLabel` and `showSearch` reach `ListReportFilterBar`. The other props go on the root.
  *
