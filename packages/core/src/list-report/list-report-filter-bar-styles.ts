@@ -1,6 +1,6 @@
-// Class names of ListReportFilterBar, kept apart from its logic (the component has a `filter` prop
-// and a `table` prop, which the CSS build would read as utilities). Full literals on purpose, and no
-// bare utility name in a comment. Logical properties (`ps`, `pe`, `end`) so that `dir="rtl"` mirrors it.
+// Class names of ListReportFilterBar, kept apart from its logic (some words in the component would be
+// taken for utilities by the CSS build). Full literals on purpose, and no bare utility name in a
+// comment. Logical properties so that the right-to-left direction mirrors the bar.
 
 // Pills and search on one row from 640px up; below, the search takes the whole row and the pills wrap.
 export const barClass = 'flex min-w-0 max-w-full flex-wrap items-end gap-x-3 gap-y-2 font-rop-sans text-rop-body text-rop-text';

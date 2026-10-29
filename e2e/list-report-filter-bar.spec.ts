@@ -4,7 +4,7 @@ import { expectNoHorizontalOverflow } from './helpers/geometry';
 import { expectPlayToPass, gotoStory } from './helpers/story';
 
 const STORY = (name: string) => `data-listreportfilterbar--${name}`;
-const pill = (page: Page, name: string): Locator => page.getByRole('radio', { name });
+const pill = (page: Page, name: string | RegExp): Locator => page.getByRole('radio', { name });
 const search = (page: Page): Locator => page.getByRole('searchbox', { name: 'Cerca' });
 const rows = (page: Page): Locator => page.getByTestId('rows').getByRole('listitem');
 const checked = (page: Page): Promise<string[]> =>
