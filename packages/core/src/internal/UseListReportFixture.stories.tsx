@@ -4,7 +4,7 @@ import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { fn } from 'storybook/test';
 import { useListReport } from '../list-report/use-list-report';
-import type { ListReportColumn, ListReportSort } from '../list-report/types';
+import type { ListReportColumn, ListReportFilter, ListReportSort } from '../list-report/types';
 
 interface Invoice {
   id: string;
@@ -31,7 +31,13 @@ const COLUMNS: ListReportColumn<Invoice>[] = [
   { id: 'date', header: 'Data', accessor: (r) => r.date, firstSortDirection: 'desc' },
 ];
 
-const fmt = (row: Invoice, id: string): string => {
+const FILTERS: ListReportFilter<Invoice>[] = [
+  { id: 'all', label: 'Tutte' },
+  { id: 'open', label: 'Da approvare', predicate: (r) => r.amount !== null && r.amount >= 10 },
+  { id: 'dated', label: 'Con data', predicate: (r) => r.date !== null },
+];
+
+const fmt =(row: Invoice, id: string): string => {
   const value = row[id as keyof Invoice];
   if (value instanceof Date) return value.toISOString().slice(0, 10);
   return value === null ? '' : String(value);
@@ -45,10 +51,18 @@ interface DemoArgs {
 function ListReportDemo({ controlled, onSortChange }: DemoArgs) {
   const [sort, setSort] = useState<ListReportSort>(null);
   const [log, setLog] = useState<string[]>([]);
+  // Controlled mode also controls the committed search query (the external button sets it).
+  const [query, setQuery] = useState('');
   const report = useListReport<Invoice>({
     rows: INVOICES,
     columns: COLUMNS,
     getRowId: (r) => r.id,
+    filters: FILTERS,
+    searchQuery: controlled ? query : undefined,
+    onSearchQueryChange: (next) => {
+      if (controlled) setQuery(next);
+      setLog((entries) => [...entries, `search:${next}`]);
+    },
     sort: controlled ? sort : undefined,
     onSortChange: (next) => {
       if (controlled) setSort(next);
@@ -60,6 +74,32 @@ function ListReportDemo({ controlled, onSortChange }: DemoArgs) {
 
   return (
     <div style={{ fontFamily: 'sans-serif', display: 'grid', gap: 8, justifyItems: 'start' }}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <input
+          aria-label="Cerca"
+          value={report.searchDraft}
+          onChange={(e) => report.setSearchDraft(e.target.value)}
+        />
+        <button type="button" onClick={report.commitSearch}>
+          Commit
+        </button>
+        {report.filters.map((f) => (
+          <button key={f.id} type="button" aria-pressed={report.filter === f.id} onClick={() => report.setFilter(f.id)}>
+            {f.label}
+          </button>
+        ))}
+        <button type="button" onClick={report.clearFilters}>
+          Azzera
+        </button>
+        {controlled && (
+          <button type="button" onClick={() => setQuery('bianchi')}>
+            Imposta ricerca: bianchi
+          </button>
+        )}
+      </div>
+      <p data-testid="counts" style={{ margin: 0 }}>
+        {report.resultCount}/{report.totalCount}
+      </p>
       <table>
         <thead>
           <tr>
