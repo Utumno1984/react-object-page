@@ -109,6 +109,17 @@ function isEmptyContent(content: ReactNode): boolean {
   return typeof content === 'string' && content.trim() === '';
 }
 
+/** Not exported from the package: options for the library's own components. */
+export interface TooltipInternalProps extends TooltipProps {
+  /**
+   * Asked on the pointer move / focus that would start an opening, before Radix hears of it. When it
+   * returns `false` the gesture is ignored (default prevented): Radix never notifies the shared
+   * provider, so a refusal does not switch the other tooltips to "no delay". While open, it is asked
+   * again after every render and the tooltip closes through Radix as soon as it returns `false`.
+   */
+  canOpen?: () => boolean;
+}
+
 /**
  * Tooltip (wraps `@radix-ui/react-tooltip`). Opens on **real gestures only**: the pointer resting on
  * the trigger for `delayDuration`, or the focus arriving by keyboard (Tab, Shift+Tab, arrows). A
@@ -121,7 +132,12 @@ function isEmptyContent(content: ReactNode): boolean {
  * The trigger is described by the tooltip through `aria-describedby`, only while it is open. A
  * `Tooltip` outside a `TooltipProvider` works (it supplies its own provider).
  */
-export function Tooltip({
+export function Tooltip(props: TooltipProps) {
+  return <TooltipInternal {...props} />;
+}
+
+export function TooltipInternal({
+  canOpen,
   content,
   side = 'top',
   align = 'center',
@@ -131,7 +147,7 @@ export function Tooltip({
   onOpenChange,
   disabledTriggerFocusable = false,
   children,
-}: TooltipProps) {
+}: TooltipInternalProps) {
   const hasProvider = useContext(ProviderPresent);
   useEffect(() => trackKeyboardNavigation(), []);
   // When this tooltip (and so its trigger) was first rendered: a focus that reaches a trigger mounted
@@ -160,10 +176,35 @@ export function Tooltip({
   // handler is skipped by Radix's composed one, which also keeps a blocked tooltip from touching the
   // provider's shared "a tooltip is open" state (it would skip the delay of the next tooltip).
   const gateFocus = (event: FocusEvent<HTMLElement>) => {
-    if (blocked || !isKeyboardNavigating(mountedAt.current ?? 0)) event.preventDefault();
+    if (blocked || !isKeyboardNavigating(mountedAt.current ?? 0) || (canOpen && !canOpen())) event.preventDefault();
   };
   const gatePointer = (event: PointerEvent<HTMLElement>) => {
-    if (blocked) event.preventDefault();
+    if (blocked || (canOpen && !canOpen())) event.preventDefault();
+  };
+
+  // An open tooltip that may no longer be open (its trigger changed): close it through Radix, so the
+  // provider hears the close too (a controlled `open` going `false` by itself would leave it
+  // believing a tooltip is still up and the next one would skip its delay). Radix's own trigger
+  // closes when the trigger loses the focus (`composeEventHandlers(props.onBlur, context.onClose)`,
+  // same DOM node): a `focusout` dispatched on the trigger reaches that composed handler without the
+  // focus actually moving. `stopPropagation` in our own `onBlur` - composed *before* Radix's - keeps
+  // React from also calling `onBlur` on the trigger's ancestors (a `Field`, a consumer that saves on
+  // focus loss),
+  // while Radix's own handler on that same node still runs right after (same target, same phase:
+  // `stopPropagation` only stops the climb to the next one up, not sibling handlers already queued
+  // on this one). The synthetic event never reaches `document`, so it cannot dismiss a Dialog above
+  // or reach the app's own `keydown` listeners either.
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const forcedCloseRef = useRef(false);
+  useEffect(() => {
+    if (open && canOpen && !canOpen()) {
+      forcedCloseRef.current = true;
+      triggerRef.current?.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+      forcedCloseRef.current = false;
+    }
+  });
+  const handleTriggerBlur = (event: FocusEvent<HTMLElement>) => {
+    if (forcedCloseRef.current) event.stopPropagation();
   };
 
   if (!child) return <>{children}</>;
@@ -181,7 +222,7 @@ export function Tooltip({
 
   const tree = (
     <RadixTooltip.Root open={open} onOpenChange={handleOpenChange} delayDuration={delayDuration}>
-      <RadixTooltip.Trigger asChild onFocus={gateFocus} onPointerMove={gatePointer}>
+      <RadixTooltip.Trigger asChild ref={triggerRef} onFocus={gateFocus} onPointerMove={gatePointer} onBlur={handleTriggerBlur}>
         {trigger}
       </RadixTooltip.Trigger>
       {empty ? null : (

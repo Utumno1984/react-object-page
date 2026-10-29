@@ -45,6 +45,7 @@ const EXPORTS = [
   'Title',
   'Tooltip',
   'TooltipProvider',
+  'TruncatedText',
   'cn',
   'composeRefs',
   'defaultComboboxFilter',
