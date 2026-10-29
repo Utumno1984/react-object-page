@@ -8,7 +8,7 @@ const log = (page: Page): Locator => page.getByTestId('log').getByRole('listitem
 
 /** Text of one column of the body, in display order. */
 async function column(page: Page, index: number): Promise<string[]> {
-  return page.locator('tbody tr').evaluateAll((rows, i) => rows.map((r) => r.children[i]!.textContent ?? ''), index);
+  return page.locator('#storybook-root tbody tr').evaluateAll((rows, i) => rows.map((r) => r.children[i]!.textContent ?? ''), index);
 }
 
 test.describe('useListReport fixture: uncontrolled', () => {
