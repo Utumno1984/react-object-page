@@ -182,14 +182,30 @@ export function TooltipInternal({
     if (blocked || (canOpen && !canOpen())) event.preventDefault();
   };
 
-  // An open tooltip that may no longer be open (its trigger changed): close it the way Radix's own
-  // Escape handling does, so the provider hears the close too (a controlled `open` going `false`
-  // by itself would leave it believing a tooltip is still up). Only the tooltip is the top layer.
+  // An open tooltip that may no longer be open (its trigger changed): close it through Radix, so the
+  // provider hears the close too (a controlled `open` going `false` by itself would leave it
+  // believing a tooltip is still up and the next one would skip its delay). Radix's own trigger
+  // closes when the trigger loses the focus (`composeEventHandlers(props.onBlur, context.onClose)`,
+  // same DOM node): a `focusout` dispatched on the trigger reaches that composed handler without the
+  // focus actually moving. `stopPropagation` in our own `onBlur` - composed *before* Radix's - keeps
+  // React from also calling `onBlur` on the trigger's ancestors (a `Field`, a consumer that saves on
+  // focus loss),
+  // while Radix's own handler on that same node still runs right after (same target, same phase:
+  // `stopPropagation` only stops the climb to the next one up, not sibling handlers already queued
+  // on this one). The synthetic event never reaches `document`, so it cannot dismiss a Dialog above
+  // or reach the app's own `keydown` listeners either.
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const forcedCloseRef = useRef(false);
   useEffect(() => {
     if (open && canOpen && !canOpen()) {
-      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      forcedCloseRef.current = true;
+      triggerRef.current?.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+      forcedCloseRef.current = false;
     }
   });
+  const handleTriggerBlur = (event: FocusEvent<HTMLElement>) => {
+    if (forcedCloseRef.current) event.stopPropagation();
+  };
 
   if (!child) return <>{children}</>;
 
@@ -206,7 +222,7 @@ export function TooltipInternal({
 
   const tree = (
     <RadixTooltip.Root open={open} onOpenChange={handleOpenChange} delayDuration={delayDuration}>
-      <RadixTooltip.Trigger asChild onFocus={gateFocus} onPointerMove={gatePointer}>
+      <RadixTooltip.Trigger asChild ref={triggerRef} onFocus={gateFocus} onPointerMove={gatePointer} onBlur={handleTriggerBlur}>
         {trigger}
       </RadixTooltip.Trigger>
       {empty ? null : (

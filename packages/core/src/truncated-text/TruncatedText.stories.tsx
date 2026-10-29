@@ -341,6 +341,113 @@ export const ChangesWhileOpen: Story = {
 };
 
 /**
+ * The text stops overflowing under its open tooltip inside an open Dialog: only the tooltip closes,
+ * the Dialog stays open and the focus stays on the text (no Escape reaches the Dialog).
+ */
+export const ChangesWhileOpenInDialog: Story = {
+  parameters: NO_CONTROLS,
+  render: () => {
+    function Host() {
+      const [short, setShort] = useState(false);
+      return (
+        <Page>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button>Apri</Button>
+            </DialogTrigger>
+            <DialogContent size="sm">
+              <DialogHeader>
+                <DialogTitle>Dettaglio</DialogTitle>
+              </DialogHeader>
+              <DialogBody>
+                <Button size="sm" data-testid="before">
+                  Prima
+                </Button>
+                <div style={{ width: 160, border: BORDER }}>
+                  <TruncatedText
+                    data-testid="text"
+                    tabIndex={0}
+                    onKeyDown={(event) => (event.key === '+' || event.key === '-') && setShort(event.key === '-')}
+                  >
+                    {short ? 'Breve' : LONG}
+                  </TruncatedText>
+                </div>
+              </DialogBody>
+            </DialogContent>
+          </Dialog>
+        </Page>
+      );
+    }
+    return <Host />;
+  },
+  play: async ({ canvasElement }) => {
+    await userEvent.click(within(canvasElement).getByRole('button', { name: 'Apri' }));
+    await within(document.body).findByTestId('text');
+    await wait(800);
+    // The dialog's own focus move is programmatic: no tooltip. The keyboard sequence that opens it
+    // and then shortens the text is driven with the real keyboard in the e2e.
+    await expect(tooltip()).toBeNull();
+    await expect(within(document.body).getByRole('dialog')).toBeInTheDocument();
+  },
+};
+
+/**
+ * Under one shared `TooltipProvider`: the text changes under its open tooltip and stops overflowing.
+ * Only that tooltip closes, the provider hears it (the next tooltip waits for its delay again), the
+ * independent tooltip on the button keeps working, and no Escape is sent to the document.
+ */
+export const ChangesWhileOpenSharedProvider: Story = {
+  parameters: NO_CONTROLS,
+  render: () => {
+    function Host() {
+      const [short, setShort] = useState(false);
+      return (
+        <Page>
+          <TooltipProvider>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, width: 360, border: BORDER }}>
+              <div style={{ width: 160 }}>
+                <TruncatedText
+                  data-testid="text"
+                  tabIndex={0}
+                  onKeyDown={(event) => (event.key === '+' || event.key === '-') && setShort(event.key === '-')}
+                >
+                  {short ? 'Breve' : LONG}
+                </TruncatedText>
+              </div>
+              <Tooltip content="Apri il dettaglio">
+                <Button size="sm">Apri</Button>
+              </Tooltip>
+            </div>
+          </TooltipProvider>
+        </Page>
+      );
+    }
+    return <Host />;
+  },
+  play: async ({ canvasElement }) => {
+    const text = within(canvasElement).getByTestId('text');
+    let escapes = 0;
+    const count = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') escapes++;
+    };
+    window.addEventListener('keydown', count);
+    try {
+      await userEvent.tab();
+      await expect(text).toHaveFocus();
+      await expect(await within(document.body).findByRole('tooltip')).toHaveTextContent('Fornitore Bianchi');
+      await userEvent.keyboard('-');
+      await waitFor(() => expect(tooltip()).toBeNull());
+      await expect(escapes).toBe(0);
+      await userEvent.keyboard('+');
+      await expect(text).toHaveTextContent('Fornitore Bianchi');
+    } finally {
+      window.removeEventListener('keydown', count);
+    }
+    await settle(text);
+  },
+};
+
+/**
  * Under one shared `TooltipProvider`: a refused opening (text that fits) must not make the other
  * tooltips skip their delay. Hover the short text for a while, then the button: its tooltip still
  * waits for the delay.

@@ -27,6 +27,8 @@ test.describe('Data/TruncatedText: stories play', () => {
     'inside-dialog',
     'changes-while-open',
     'shared-provider',
+    'changes-while-open-shared-provider',
+    'changes-while-open-in-dialog',
   ]) {
     test(`${name}: the play function passes`, async ({ page }) => {
       await expectPlayToPass(page, STORY(name));
@@ -235,17 +237,52 @@ test.describe('shared TooltipProvider', () => {
     await expect(tooltips(page)).toContainText('Apri il dettaglio', { timeout: 3000 });
   });
 
-  test('closing because the text no longer overflows lets the next tooltip wait for its delay', async ({ page }) => {
-    await gotoStory(page, STORY('changes-while-open'));
+  test('closing because the text no longer overflows: only that tooltip closes, the provider hears it, no Escape is sent', async ({ page }) => {
+    await gotoStory(page, STORY('changes-while-open-shared-provider'));
+    await page.evaluate(() => {
+      const w = window as unknown as { __escapes: number };
+      w.__escapes = 0;
+      window.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') w.__escapes++;
+      });
+    });
     await page.keyboard.press('Tab');
     await page.keyboard.press('Shift+Tab');
+    await expect(page.getByTestId('text')).toBeFocused();
     await expect(tooltips(page)).toContainText('Fornitore Bianchi');
     await page.keyboard.press('-');
-    await expect(tooltips(page)).toHaveCount(0);
     await expect(page.getByTestId('text')).toHaveText('Breve');
-    // Dialog-free page, nothing else to hover: the provider state is covered by the test above; here
-    // the close must be the real one, i.e. Escape is not needed and the focus stays on the text.
+    await expect(tooltips(page)).toHaveCount(0);
     await expect(page.getByTestId('text')).toBeFocused();
+    expect(await page.evaluate(() => (window as unknown as { __escapes: number }).__escapes)).toBe(0);
+    // Past the provider's skip window: had the provider not heard the close, the next tooltip
+    // would still open with no delay.
+    await page.waitForTimeout(600);
+    await page.getByRole('button', { name: 'Apri' }).hover();
+    await page.waitForTimeout(150);
+    await expect(tooltips(page)).toHaveCount(0);
+    // The independent tooltip still works.
+    await expect(tooltips(page)).toContainText('Apri il dettaglio', { timeout: 3000 });
+  });
+});
+
+test.describe('inside a Dialog', () => {
+  test('the text stops overflowing under its open tooltip: the Dialog stays open, the focus stays, a later Escape still closes the Dialog', async ({ page }) => {
+    await gotoStory(page, STORY('changes-while-open-in-dialog'));
+    // The play function leaves the Dialog open.
+    await expect(page.getByRole('dialog')).toBeVisible();
+    const text = page.getByTestId('text');
+    await page.getByTestId('before').focus();
+    await page.keyboard.press('Tab');
+    await expect(text).toBeFocused();
+    await expect(tooltips(page)).toContainText('Fornitore Bianchi');
+    await page.keyboard.press('-');
+    await expect(text).toHaveText('Breve');
+    await expect(tooltips(page)).toHaveCount(0);
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await expect(text).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
   });
 });
 
