@@ -1,9 +1,22 @@
-import { forwardRef, useEffect, type CSSProperties, type HTMLAttributes, type ReactElement, type ReactNode, type Ref } from 'react';
+import {
+  forwardRef,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type HTMLAttributes,
+  type ReactElement,
+  type ReactNode,
+  type Ref,
+} from 'react';
 import { Icon } from '../icon/Icon';
 import { internalIcons } from '../internal/icons';
-import { hasContent } from '../internal/react-nodes';
+import { hasContent, textOf } from '../internal/react-nodes';
 import { TruncatedText } from '../truncated-text/TruncatedText';
 import { cn } from '../utils/cn';
+import { composeRefs } from '../utils/compose-refs';
 import {
   ALIGN_JUSTIFY,
   ALIGN_TEXT,
@@ -18,7 +31,22 @@ import {
   sortIconIdleClass,
   tableClass,
 } from './list-report-table-styles';
+import {
+  DEFAULT_LABELS,
+  DEFAULT_LOADING_ROW_COUNT,
+  ErrorContent,
+  Filler,
+  NoResultsContent,
+  SkeletonRows,
+  StateRow,
+  wholeRows,
+  type ListReportTableLabels,
+} from './ListReportTableStates';
 import type { ListReportColumn, UseListReportReturn } from './types';
+
+export type { ListReportTableLabels } from './ListReportTableStates';
+
+export type ListReportTableStatus = 'ready' | 'loading' | 'error';
 
 /** The table must have an accessible name: at least one of the three. */
 type TableName =
@@ -34,7 +62,28 @@ export type ListReportTableProps<Row> = Omit<HTMLAttributes<HTMLDivElement>, 'ch
    * the height its parent gives it (e.g. a flex child with `min-height: 0`).
    */
   maxHeight?: number | string;
+  /**
+   * `loading` keeps the rows it has (or shows `loadingRowCount` skeleton rows when there are none);
+   * `error` replaces the body with an error strip. Default `ready`.
+   */
+  status?: ListReportTableStatus;
+  /**
+   * Skeleton rows while loading without rows, and the minimum height of the body in every state
+   * (`loadingRowCount x row height`), so that loading, empty, error and data share one footprint.
+   * Default 5; with 0 the body is one row tall.
+   */
+  loadingRowCount?: number;
+  /** Content of the error strip. Default: `labels.error`. */
+  errorMessage?: ReactNode;
+  /** Adds a retry button to the error strip. The focus then moves to the table container. */
+  onRetry?: () => void;
+  /** Adds a "clear filters" button to the "no results" state. The focus then moves to the table container. */
+  onClearFilters?: () => void;
+  /** Overrides the texts (partial: the rest keeps the Italian defaults). */
+  labels?: Partial<ListReportTableLabels>;
 } & TableName;
+
+type BodyKind = 'loading' | 'error' | 'empty' | 'noResults' | 'data';
 
 // Bundlers replace `process.env.NODE_ENV` in consumer builds; without `process` assume development.
 const isDev = (): boolean => {
@@ -116,8 +165,75 @@ function renderCell<Row>(column: ListReportColumn<Row>, row: Row): ReactNode {
 }
 
 function ListReportTableImpl<Row>(props: ListReportTableProps<Row>, ref: Ref<HTMLDivElement>) {
-  const { table, maxHeight, caption, className, style, 'aria-label': ariaLabel, 'aria-labelledby': ariaLabelledby, ...rest } = props;
+  const {
+    table,
+    maxHeight,
+    status = 'ready',
+    loadingRowCount = DEFAULT_LOADING_ROW_COUNT,
+    errorMessage,
+    onRetry,
+    onClearFilters,
+    labels: labelOverrides,
+    caption,
+    className,
+    style,
+    'aria-label': ariaLabel,
+    'aria-labelledby': ariaLabelledby,
+    ...rest
+  } = props;
   const { columns } = table;
+  const labels = { ...DEFAULT_LABELS, ...labelOverrides };
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const mergedRef = useMemo(() => composeRefs(ref, containerRef), [ref]);
+
+  const minRows = wholeRows(loadingRowCount);
+  const hasRows = table.rows.length > 0;
+  // What the body shows. `loading` with rows keeps them; `error` replaces them (declared behaviour).
+  const view: 'error' | 'rows' | 'skeleton' | 'empty' | 'noResults' =
+    status === 'error' ? 'error' : hasRows ? 'rows' : status === 'loading' ? 'skeleton' : table.totalCount === 0 ? 'empty' : 'noResults';
+  // What is announced: the status wins over the rows (a reload with rows is still "loading").
+  const kind: BodyKind = status === 'error' ? 'error' : status === 'loading' ? 'loading' : view === 'rows' ? 'data' : view === 'skeleton' ? 'loading' : view;
+  const messageShown = view === 'error' || view === 'empty' || view === 'noResults';
+
+  // The announcement of a change of state, derived while rendering (no effect, no announcement at
+  // mount). The last change wins: the text is replaced, never queued.
+  const [announced, setAnnounced] = useState<{ kind: BodyKind; text: string }>({ kind, text: '' });
+  if (announced.kind !== kind) {
+    const text =
+      kind === 'loading'
+        ? labels.loading
+        : kind === 'error'
+          ? textOf(errorMessage).trim() || labels.error
+          : kind === 'empty'
+            ? labels.empty
+            : kind === 'noResults'
+              ? labels.noResults
+              : labels.resultCount(table.resultCount);
+    setAnnounced({ kind, text });
+  }
+
+  // The message of a state sits in the visible part of the scroller: its width goes in a CSS variable
+  // set on the element itself (no re-render of the table on every resize).
+  useLayoutEffect(() => {
+    const el = containerRef.current;
+    if (!messageShown || !el || typeof ResizeObserver === 'undefined') return undefined;
+    el.style.setProperty('--rop-list-report-view-width', `${el.clientWidth}px`);
+    const observer = new ResizeObserver(() => el.style.setProperty('--rop-list-report-view-width', `${el.clientWidth}px`));
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      el.style.removeProperty('--rop-list-report-view-width');
+    };
+  }, [messageShown]);
+
+  // The button that was clicked disappears with the state: the focus must not fall on the body.
+  const thenFocusContainer = (action: (() => void) | undefined) =>
+    action
+      ? () => {
+          containerRef.current?.focus();
+          action();
+        }
+      : undefined;
 
   const named = !!ariaLabel?.trim() || !!ariaLabelledby?.trim() || hasContent(caption);
   useEffect(() => {
@@ -130,9 +246,17 @@ function ListReportTableImpl<Row>(props: ListReportTableProps<Row>, ref: Ref<HTM
   const containerStyle: CSSProperties = { ...(maxHeight !== undefined ? { maxHeight } : null), ...style };
 
   return (
-    // A scrollable region must be reachable by keyboard (axe `scrollable-region-focusable`).
-    // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
-    <div tabIndex={0} {...rest} ref={ref} className={cn(containerClass, className)} style={containerStyle}>
+    <>
+    <div
+      // A scrollable region must be reachable by keyboard (axe `scrollable-region-focusable`).
+      // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+      tabIndex={0}
+      {...rest}
+      ref={mergedRef}
+      aria-busy={status === 'loading' ? true : undefined}
+      className={cn(containerClass, className)}
+      style={containerStyle}
+    >
       <table
         aria-label={ariaLabel}
         aria-labelledby={ariaLabelledby}
@@ -174,18 +298,59 @@ function ListReportTableImpl<Row>(props: ListReportTableProps<Row>, ref: Ref<HTM
           </tr>
         </thead>
         <tbody>
-          {table.rows.map((row) => (
-            <tr key={table.getRowId(row)}>
-              {columns.map((column) => (
-                <td key={column.id} className={cn(bodyCellClass, ALIGN_TEXT[column.align ?? 'start'])}>
-                  {renderCell(column, row)}
-                </td>
+          {view === 'rows' ? (
+            <>
+              {table.rows.map((row) => (
+                <tr key={table.getRowId(row)}>
+                  {columns.map((column) => (
+                    <td key={column.id} className={cn(bodyCellClass, ALIGN_TEXT[column.align ?? 'start'])}>
+                      {renderCell(column, row)}
+                    </td>
+                  ))}
+                </tr>
               ))}
-            </tr>
-          ))}
+              <Filler columnCount={columns.length} rows={minRows - table.rows.length} />
+            </>
+          ) : null}
+          {view === 'skeleton' ? (
+            <>
+              <SkeletonRows columns={columns} count={minRows} />
+              {/* loadingRowCount={0}: no skeleton, but the body keeps the height of one row */}
+              <Filler columnCount={columns.length} rows={1 - minRows} />
+            </>
+          ) : null}
+          {view === 'empty' ? (
+            <StateRow columnCount={columns.length} rows={Math.max(1, minRows)}>
+              <p className="m-0">{labels.empty}</p>
+            </StateRow>
+          ) : null}
+          {view === 'noResults' ? (
+            <StateRow columnCount={columns.length} rows={Math.max(1, minRows)}>
+              <NoResultsContent
+                message={labels.noResults}
+                clearLabel={labels.clearFilters}
+                onClearFilters={thenFocusContainer(onClearFilters)}
+              />
+            </StateRow>
+          ) : null}
+          {view === 'error' ? (
+            <StateRow columnCount={columns.length} rows={Math.max(1, minRows)}>
+              <ErrorContent
+                message={hasContent(errorMessage) ? errorMessage : labels.error}
+                retryLabel={labels.retry}
+                onRetry={thenFocusContainer(onRetry)}
+              />
+            </StateRow>
+          ) : null}
         </tbody>
       </table>
     </div>
+    {/* Always mounted (a live region inserted already filled is not announced), empty until a state changes.
+        A sibling after the container, not a child: inside the `aria-busy` element its changes may be withheld. */}
+    <div aria-live="polite" aria-atomic="true" className="sr-only">
+      {announced.text}
+    </div>
+    </>
   );
 }
 
@@ -203,6 +368,11 @@ function ListReportTableImpl<Row>(props: ListReportTableProps<Row>, ref: Ref<HTM
  * - One scroller: the container (`forwardRef`) scrolls both ways and the header sticks to its top.
  *   Size it with the parent (flex) or with `maxHeight`. It is a tab stop so the keyboard can scroll.
  * - Every row has the height of `--rop-list-report-row-height`.
+ * - States: `status="loading"` shows `loadingRowCount` skeleton rows (or keeps the rows it has),
+ *   `"error"` replaces the body with an error strip, and a `ready` table without visible rows says
+ *   whether there is no data at all or no result for the current filters. The header, the column
+ *   widths and a body of at least `loadingRowCount` rows are the same in every state. A polite live
+ *   region, always mounted, announces each change of state (never the first render).
  *
  * An accessible name is required: `aria-label`, `aria-labelledby` or a (visually hidden) `caption`.
  */

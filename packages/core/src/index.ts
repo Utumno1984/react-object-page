@@ -70,7 +70,7 @@ export { useCombobox } from './combobox/use-combobox';
 export type { UseComboboxOptions, UseComboboxReturn } from './combobox/use-combobox';
 export { defaultComboboxFilter } from './combobox/filter';
 export { ListReportTable } from './list-report/ListReportTable';
-export type { ListReportTableProps } from './list-report/ListReportTable';
+export type { ListReportTableProps, ListReportTableLabels, ListReportTableStatus } from './list-report/ListReportTable';
 export { useListReport } from './list-report/use-list-report';
 export type {
   ListReportColumn,
