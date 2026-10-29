@@ -277,6 +277,90 @@ describe('ListReportTable live region', () => {
     expect(liveRegion().children).toHaveLength(0);
   });
 
+  it('announces a change of result count that stays inside ready, with the same text as the return from loading', () => {
+    const { rerender } = render(<Host />);
+    const region = liveRegion();
+    expect(region.textContent).toBe('');
+    rerender(<Host rows={ROWS.slice(0, 2)} />);
+    expect(liveRegion()).toBe(region);
+    expect(region.textContent).toBe('2 risultati');
+    rerender(<Host rows={ROWS.slice(0, 1)} />);
+    expect(region.textContent).toBe('1 risultato');
+    expect(document.querySelectorAll('[aria-live]')).toHaveLength(1);
+  });
+
+  it('announces the count after a committed search brings it down inside ready', async () => {
+    const user = userEvent.setup();
+    function Searchable() {
+      const table = useListReport<Invoice>({ rows: ROWS, columns: COLUMNS, getRowId: (r) => r.id, filters: FILTERS });
+      return (
+        <>
+          <button
+            onClick={() => {
+              table.setSearchDraft('ross');
+              table.commitSearch();
+            }}
+          >
+            cerca
+          </button>
+          <ListReportTable table={table} aria-label="Fatture" />
+        </>
+      );
+    }
+    render(<Searchable />);
+    await user.click(screen.getByRole('button', { name: 'cerca' }));
+    expect(liveRegion().textContent).toBe('1 risultato');
+  });
+
+  it('a change that is both a return from loading and a new count announces once', () => {
+    const { rerender } = render(<Host />);
+    rerender(<Host status="loading" />);
+    expect(liveRegion().textContent).toBe(DEFAULT_LABELS.loading);
+    rerender(<Host rows={ROWS.slice(0, 2)} status="ready" />);
+    expect(liveRegion().textContent).toBe('2 risultati');
+    expect(liveRegion().children).toHaveLength(0);
+  });
+
+  it('a cascade of count changes in one batch announces the last value only', async () => {
+    const user = userEvent.setup();
+    function Burst() {
+      const [rows, setRows] = useState(ROWS);
+      return (
+        <>
+          <button
+            onClick={() => {
+              setRows(ROWS.slice(0, 2));
+              setRows(ROWS.slice(0, 1));
+              setRows(ROWS.slice(0, 2));
+            }}
+          >
+            burst
+          </button>
+          <Host rows={rows} />
+        </>
+      );
+    }
+    render(<Burst />);
+    const region = document.querySelector('[aria-live]') as HTMLElement;
+    const seen: string[] = [];
+    const observer = new MutationObserver(() => seen.push(region.textContent ?? ''));
+    observer.observe(region, { childList: true, characterData: true, subtree: true });
+    await user.click(screen.getByRole('button', { name: 'burst' }));
+    await Promise.resolve();
+    expect(region.textContent).toBe('2 risultati');
+    expect(seen).not.toContain('1 risultato');
+    observer.disconnect();
+  });
+
+  it('does not announce again when the count does not change (new rows array, same size)', () => {
+    const { rerender } = render(<Host />);
+    rerender(<Host rows={ROWS.slice(0, 2)} />);
+    const before = liveRegion().firstChild;
+    rerender(<Host rows={[ROWS[1]!, ROWS[2]!]} />);
+    expect(liveRegion().textContent).toBe('2 risultati');
+    expect(liveRegion().firstChild).toBe(before);
+  });
+
   it('uses the overridden labels, resultCount included', () => {
     const labels = { loading: 'Loading…', resultCount: (n: number) => `${n} found` };
     const { rerender } = render(<Host labels={labels} />);

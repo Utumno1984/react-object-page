@@ -185,6 +185,22 @@ test.describe('responsive', () => {
   });
 });
 
+test.describe('live region count', () => {
+  test('a filter and a committed search that stay in ready announce the new count, in the one live region', async ({ page }) => {
+    await gotoStory(page, PLAYGROUND);
+    const region = page.locator('#storybook-root [aria-live="polite"]');
+    await expect(region).toHaveCount(1);
+    await pill(page, 'Tutte').focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(region).toHaveText(`${PENDING.length} risultati`);
+    await search(page).focus();
+    await page.keyboard.type('Ferrari');
+    await page.keyboard.press('Enter');
+    await expect(region).toHaveText(FOUND.length === 1 ? '1 risultato' : `${FOUND.length} risultati`);
+    await expect(region).toHaveCount(1);
+  });
+});
+
 test.describe('real keyboard (no mouse)', () => {
   test('the scenario of the play function: filter, search, sort, no results, clear', async ({ page }) => {
     await gotoStory(page, PLAYGROUND);

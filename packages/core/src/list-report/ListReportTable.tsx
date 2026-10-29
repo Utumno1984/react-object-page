@@ -196,9 +196,15 @@ function ListReportTableImpl<Row>(props: ListReportTableProps<Row>, ref: Ref<HTM
   const messageShown = view === 'error' || view === 'empty' || view === 'noResults';
 
   // The announcement of a change of state, derived while rendering (no effect, no announcement at
-  // mount). The last change wins: the text is replaced, never queued.
-  const [announced, setAnnounced] = useState<{ kind: BodyKind; text: string }>({ kind, text: '' });
-  if (announced.kind !== kind) {
+  // mount). The last change wins: the text is replaced, never queued. Inside `data` a change of the
+  // result count (filter, search) is announced too, with the same text as the return from loading;
+  // one derivation covers both, so a change that is both announces once.
+  const [announced, setAnnounced] = useState<{ kind: BodyKind; count: number; text: string }>({
+    kind,
+    count: table.resultCount,
+    text: '',
+  });
+  if (announced.kind !== kind || (kind === 'data' && announced.count !== table.resultCount)) {
     const text =
       kind === 'loading'
         ? labels.loading
@@ -209,7 +215,7 @@ function ListReportTableImpl<Row>(props: ListReportTableProps<Row>, ref: Ref<HTM
             : kind === 'noResults'
               ? labels.noResults
               : labels.resultCount(table.resultCount);
-    setAnnounced({ kind, text });
+    setAnnounced({ kind, count: table.resultCount, text });
   }
 
   // The message of a state sits in the visible part of the scroller: its width goes in a CSS variable
