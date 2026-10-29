@@ -51,6 +51,7 @@ const EXPORTS = [
   'defaultComboboxFilter',
   'useCombobox',
   'useFieldControl',
+  'useListReport',
 ];
 
 describe('built package consumers (requires a prior `npm run build`)', () => {
