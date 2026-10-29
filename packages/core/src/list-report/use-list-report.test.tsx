@@ -260,6 +260,47 @@ describe('useListReport: controlled / uncontrolled', () => {
     expect(result.current.sort).toBeNull();
     expect(warn).not.toHaveBeenCalled();
   });
+
+  it('uncontrolled defaultSort or setSort on a missing column warns', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    setup({ defaultSort: { columnId: 'ghost', direction: 'asc' } });
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0]![0]).toContain('ghost');
+    const { result } = setup();
+    act(() => result.current.setSort({ columnId: 'phantom', direction: 'asc' }));
+    expect(warn).toHaveBeenCalledTimes(2);
+    expect(warn.mock.calls[1]![0]).toContain('phantom');
+    expect(result.current.rows).toBe(ROWS);
+  });
+
+  it('defaultSort waits for asynchronously loaded columns and then applies', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const { result, rerender } = setup({ columns: [], defaultSort: { columnId: 'amount', direction: 'asc' } });
+    expect(result.current.rows).toBe(ROWS);
+    expect(warn).not.toHaveBeenCalled();
+    rerender({ columns: COLUMNS, defaultSort: { columnId: 'amount', direction: 'asc' } });
+    expect(result.current.sort).toEqual({ columnId: 'amount', direction: 'asc' });
+    expect(ids(result.current.rows)).toEqual(['b', 'd', 'a', 'c']);
+  });
+
+  it('two toggleSort calls in the same batch advance the cycle twice', () => {
+    const { result } = setup();
+    act(() => {
+      result.current.toggleSort('amount');
+      result.current.toggleSort('amount');
+    });
+    expect(result.current.sort).toEqual({ columnId: 'amount', direction: 'desc' });
+  });
+
+  it('sortable: true without accessor or compare is not sortable and warns', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const { result } = setup({ columns: [{ id: 'x', header: 'x', sortable: true }] });
+    expect(result.current.getSortButtonProps('x')).toEqual({});
+    act(() => result.current.toggleSort('x'));
+    expect(result.current.sort).toBeNull();
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0]![0]).toContain('"x"');
+  });
 });
 
 describe('useListReport: header props, identities, warnings', () => {

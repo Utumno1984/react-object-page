@@ -13,7 +13,7 @@ export interface ListReportColumn<Row> {
   accessor?: (row: Row) => unknown;
   /** Cell content for the table that consumes the hook; the hook itself never calls it. */
   cell?: (row: Row) => ReactNode;
-  /** Default: `true` when the column has an `accessor` or a `compare`. */
+  /** Sortable only with an `accessor` or a `compare`; `false` opts out. */
   sortable?: boolean;
   /**
    * Replaces the default comparator. The hook applies the direction (it negates the result for

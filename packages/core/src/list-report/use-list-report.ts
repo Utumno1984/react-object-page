@@ -20,7 +20,7 @@ const isDev = (): boolean => {
 };
 
 const isSortable = <Row,>(column: ListReportColumn<Row>): boolean =>
-  column.sortable ?? (column.accessor !== undefined || column.compare !== undefined);
+  column.sortable !== false && (column.accessor !== undefined || column.compare !== undefined);
 
 const opposite = (direction: ListReportSortDirection): ListReportSortDirection =>
   direction === 'asc' ? 'desc' : 'asc';
@@ -33,6 +33,14 @@ const opposite = (direction: ListReportSortDirection): ListReportSortDirection =
  *   diacritics insensitive), dates by time, booleans `false < true`, mixed types as `String(...)`.
  *   `null`, `undefined`, `''`, `NaN` and invalid dates always go last, in both directions. A
  *   custom `compare` replaces it and does not get that guarantee.
+ *   The mixed-type fallback is not a total order (it is not transitive across types): do not rely
+ *   on a specific order for columns that mix types.
+ * - Memoize `columns` (e.g. `useMemo` or a module constant): a new array each render defeats the
+ *   memoization of the handlers and the sorted rows.
+ * - An uncontrolled `defaultSort`/`setSort` on a column that is not there yet stays pending until the
+ *   column appears (it warns in development if `columns` is not empty); it resets to no sort only if
+ *   a column that was active is removed. A `sortable: true` column with neither `accessor` nor
+ *   `compare` is treated as not sortable.
  * - The sort is stable and never mutates `rows`.
  * - `onSortChange` is called only for a gesture (`toggleSort`/`setSort`), never when a controlled
  *   `sort` changes from outside.
@@ -42,6 +50,8 @@ export function useListReport<Row>(options: UseListReportOptions<Row>): UseListR
   const controlled = controlledSort !== undefined;
 
   const [internalSort, setInternalSort] = useState<ListReportSort>(defaultSort ?? null);
+  // Id of the uncontrolled sort column once it has actually been present and sortable.
+  const [seenColumnId, setSeenColumnId] = useState<string | null>(null);
   const requested = controlled ? controlledSort : internalSort;
 
   const activeColumn = useMemo(() => {
@@ -51,9 +61,16 @@ export function useListReport<Row>(options: UseListReportOptions<Row>): UseListR
   }, [columns, requested]);
   const sort: ListReportSort = requested && activeColumn ? requested : null;
 
-  // The sorted column went away (or stopped being sortable): an uncontrolled state goes back to
-  // "no sort" instead of resurrecting if the column comes back.
-  if (!controlled && internalSort !== null && sort === null) setInternalSort(null);
+  // Uncontrolled: a sort whose column has not appeared yet (e.g. columns loaded asynchronously) stays
+  // pending. Once the column was active and then goes away (or stops being sortable) the state goes
+  // back to "no sort" instead of resurrecting if the column comes back.
+  if (!controlled && internalSort !== null) {
+    if (activeColumn && seenColumnId !== internalSort.columnId) setSeenColumnId(internalSort.columnId);
+    else if (!activeColumn && seenColumnId === internalSort.columnId) {
+      setInternalSort(null);
+      setSeenColumnId(null);
+    }
+  }
 
   const direction = sort?.direction;
   const hasActive = activeColumn !== undefined;
@@ -78,13 +95,17 @@ export function useListReport<Row>(options: UseListReportOptions<Row>): UseListR
   }, [rows, direction, hasActive, accessor, compare, collator]);
 
   // Latest values for the handlers, so their identity does not depend on inline callbacks.
+  // Assigned during render (not in an effect) so handlers never see a stale value.
   const latest = useRef({ columns, sort, controlled, onSortChange });
-  useEffect(() => {
-    latest.current = { columns, sort, controlled, onSortChange };
-  });
+  latest.current = { columns, sort, controlled, onSortChange };
 
   const setSort = useCallback((next: ListReportSort) => {
-    if (!latest.current.controlled) setInternalSort(next);
+    if (!latest.current.controlled) {
+      setInternalSort(next);
+      // Make a second gesture in the same batch start from this one, before the next render.
+      const column = next && latest.current.columns.find((c) => c.id === next.columnId);
+      latest.current.sort = column && isSortable(column) ? next : null;
+    }
     latest.current.onSortChange?.(next);
   }, []);
 
@@ -103,12 +124,13 @@ export function useListReport<Row>(options: UseListReportOptions<Row>): UseListR
     [setSort],
   );
 
+  const sortColumnId = sort?.columnId;
   const getHeaderProps = useCallback(
     (columnId: string): ListReportHeaderProps => {
-      if (!sort || sort.columnId !== columnId) return {};
-      return { 'aria-sort': sort.direction === 'asc' ? 'ascending' : 'descending' };
+      if (sortColumnId !== columnId || !direction) return {};
+      return { 'aria-sort': direction === 'asc' ? 'ascending' : 'descending' };
     },
-    [sort],
+    [sortColumnId, direction],
   );
 
   const getSortButtonProps = useCallback(
@@ -122,7 +144,6 @@ export function useListReport<Row>(options: UseListReportOptions<Row>): UseListR
 
   // Development warnings, once per distinct problem.
   const warned = useRef(new Set<string>());
-  const mounted = useRef(false);
   const invalidId = requested && !activeColumn ? requested.columnId : null;
   useEffect(() => {
     if (!isDev()) return;
@@ -131,15 +152,21 @@ export function useListReport<Row>(options: UseListReportOptions<Row>): UseListR
       warned.current.add(key);
       console.warn(`[react-object-page] useListReport: ${message}`);
     };
-    // An uncontrolled sort that lost its column later is a legitimate columns change, not a mistake.
-    if (invalidId !== null && (controlled || !mounted.current)) {
+    // No columns yet (asynchronous loading): a pending sort is expected, not a mistake.
+    if (invalidId !== null && columns.length > 0) {
       warnOnce(
         `sort:${invalidId}`,
-        `\`sort\` points at "${invalidId}", which is missing or not sortable; rows keep the input order.`,
+        `the sort points at "${invalidId}", which is missing or not sortable; rows keep the input order.`,
       );
     }
     const columnIds = new Set<string>();
     for (const column of columns) {
+      if (column.sortable === true && !column.accessor && !column.compare) {
+        warnOnce(
+          `nosort:${column.id}`,
+          `column "${column.id}" is \`sortable\` but has no \`accessor\` or \`compare\`; it is treated as not sortable.`,
+        );
+      }
       if (columnIds.has(column.id)) warnOnce(`column:${column.id}`, `duplicate column id "${column.id}".`);
       columnIds.add(column.id);
     }
@@ -149,8 +176,7 @@ export function useListReport<Row>(options: UseListReportOptions<Row>): UseListR
       if (rowIds.has(id)) warnOnce(`row:${id}`, `\`getRowId\` returned the duplicate id "${id}".`);
       rowIds.add(id);
     }
-    mounted.current = true;
-  }, [invalidId, controlled, columns, rows, getRowId]);
+  }, [invalidId, columns, rows, getRowId]);
 
   return { rows: sortedRows, columns, sort, toggleSort, setSort, getHeaderProps, getSortButtonProps };
 }
