@@ -238,6 +238,7 @@ describe('internal icons', () => {
       'defaultComboboxFilter',
       'useCombobox',
       'useFieldControl',
+      'useListReport',
     ]);
   });
 });

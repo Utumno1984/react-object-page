@@ -145,6 +145,10 @@
     "useFieldControl": {
       "baseline": 625,
       "limit": 688
+    },
+    "useListReport": {
+      "baseline": 1828,
+      "limit": 2011
     }
   }
 }

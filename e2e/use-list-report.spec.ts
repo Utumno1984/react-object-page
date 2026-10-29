@@ -1,0 +1,92 @@
+import { expect, test, type Locator, type Page } from '@playwright/test';
+import { gotoStory } from './helpers/story';
+
+const STORY = (name: string) => `internal-uselistreportfixture--${name}`;
+const header = (page: Page, name: string): Locator => page.getByRole('columnheader', { name });
+const click = (page: Page, name: string) => header(page, name).getByRole('button').click();
+const log = (page: Page): Locator => page.getByTestId('log').getByRole('listitem');
+
+/** Text of one column of the body, in display order. */
+async function column(page: Page, index: number): Promise<string[]> {
+  return page.locator('#storybook-root tbody tr').evaluateAll((rows, i) => rows.map((r) => r.children[i]!.textContent ?? ''), index);
+}
+
+test.describe('useListReport fixture: uncontrolled', () => {
+  test('Importo: click 1 ascending (2 before 10, empty last), click 2 descending (empty still last), click 3 original', async ({
+    page,
+  }) => {
+    await gotoStory(page, STORY('uncontrolled'));
+    const original = await column(page, 0);
+    expect(original).toEqual(['i1', 'i2', 'i3', 'i4', 'i5', 'i6', 'i7', 'i8']);
+
+    await click(page, 'Importo');
+    await expect(header(page, 'Importo')).toHaveAttribute('aria-sort', 'ascending');
+    expect(await column(page, 2)).toEqual(['1', '2', '2', '10', '10', '33', '100', '']);
+    // stable: i2 before i5 (both 2), i1 before i7 (both 10)
+    expect(await column(page, 0)).toEqual(['i8', 'i2', 'i5', 'i1', 'i7', 'i6', 'i4', 'i3']);
+
+    await click(page, 'Importo');
+    await expect(header(page, 'Importo')).toHaveAttribute('aria-sort', 'descending');
+    expect(await column(page, 2)).toEqual(['100', '33', '10', '10', '2', '2', '1', '']);
+    expect(await column(page, 0)).toEqual(['i4', 'i6', 'i1', 'i7', 'i2', 'i5', 'i8', 'i3']);
+
+    await click(page, 'Importo');
+    await expect(header(page, 'Importo')).not.toHaveAttribute('aria-sort');
+    expect(await column(page, 0)).toEqual(original);
+  });
+
+  test('Data starts from the most recent (firstSortDirection desc), empty last, then ascending', async ({ page }) => {
+    await gotoStory(page, STORY('uncontrolled'));
+    await click(page, 'Data');
+    await expect(header(page, 'Data')).toHaveAttribute('aria-sort', 'descending');
+    expect((await column(page, 3))[0]).toBe('2025-09-09');
+    expect((await column(page, 3)).at(-1)).toBe('');
+    await click(page, 'Data');
+    await expect(header(page, 'Data')).toHaveAttribute('aria-sort', 'ascending');
+    expect((await column(page, 3))[0]).toBe('2024-11-30');
+    expect((await column(page, 3)).at(-1)).toBe('');
+  });
+
+  test('Cliente: case/diacritics insensitive, ties keep the input order, empty last; only one column has aria-sort', async ({
+    page,
+  }) => {
+    await gotoStory(page, STORY('uncontrolled'));
+    await click(page, 'Importo');
+    await click(page, 'Cliente');
+    await expect(header(page, 'Importo')).not.toHaveAttribute('aria-sort');
+    await expect(header(page, 'Cliente')).toHaveAttribute('aria-sort', 'ascending');
+    // "Città" (i4) and "Citta" (i7) are equal: i4 stays before i7
+    expect(await column(page, 0)).toEqual(['i2', 'i4', 'i7', 'i8', 'i1', 'i5', 'i3', 'i6']);
+  });
+
+  test('the non-sortable column has no button and no aria-sort', async ({ page }) => {
+    await gotoStory(page, STORY('uncontrolled'));
+    await expect(header(page, 'N.').getByRole('button')).toHaveCount(0);
+    await expect(header(page, 'N.')).not.toHaveAttribute('aria-sort');
+  });
+
+  test('keyboard: Enter on the focused header button sorts', async ({ page }) => {
+    await gotoStory(page, STORY('uncontrolled'));
+    await header(page, 'Importo').getByRole('button').focus();
+    await page.keyboard.press('Enter');
+    await expect(header(page, 'Importo')).toHaveAttribute('aria-sort', 'ascending');
+  });
+});
+
+test.describe('useListReport fixture: controlled', () => {
+  test('the external button changes the order and onSortChange is not called; a header click is logged', async ({
+    page,
+  }) => {
+    await gotoStory(page, STORY('controlled'));
+    await page.getByRole('button', { name: 'Ordina per Cliente' }).click();
+    await expect(page.getByTestId('sort-state')).toHaveText('customer asc');
+    await expect(header(page, 'Cliente')).toHaveAttribute('aria-sort', 'ascending');
+    expect(await column(page, 0)).toEqual(['i2', 'i4', 'i7', 'i8', 'i1', 'i5', 'i3', 'i6']);
+    await expect(log(page)).toHaveCount(0);
+
+    await click(page, 'Importo');
+    await expect(header(page, 'Importo')).toHaveAttribute('aria-sort', 'ascending');
+    await expect(log(page)).toHaveCount(1);
+    await expect(log(page).first()).toHaveText('{"columnId":"amount","direction":"asc"}');
+  });
+});
