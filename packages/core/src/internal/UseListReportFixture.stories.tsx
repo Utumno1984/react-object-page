@@ -59,6 +59,8 @@ function ListReportDemo({ controlled, onSortChange }: DemoArgs) {
     getRowId: (r) => r.id,
     filters: FILTERS,
     searchQuery: controlled ? query : undefined,
+    // Controlled story: only the Commit button commits, so the e2e does not race a timer.
+    searchCommitDelay: controlled ? null : undefined,
     onSearchQueryChange: (next) => {
       if (controlled) setQuery(next);
       setLog((entries) => [...entries, `search:${next}`]);

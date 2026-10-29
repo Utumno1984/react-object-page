@@ -95,13 +95,17 @@ test.describe('useListReport fixture: filter and search', () => {
   const rowIds = (page: Page) => column(page, 0);
 
   test('typing filters only after the commit delay; the Commit button filters right away', async ({ page }) => {
+    await page.clock.install();
     await gotoStory(page, STORY('uncontrolled'));
+    await page.clock.pauseAt(new Date(Date.now() + 60_000));
     const input = page.getByLabel('Cerca');
     await input.fill('rossi');
-    // the draft is in the input, the rows are still all there
+    // the draft is in the input, the rows are still all there (the 300 ms timer runs on the fake clock)
     await expect(input).toHaveValue('rossi');
+    await page.clock.runFor(299);
     expect(await rowIds(page)).toHaveLength(8);
-    await expect.poll(() => rowIds(page), { timeout: 2000 }).toEqual(['i1', 'i5']);
+    await page.clock.runFor(1);
+    await expect.poll(() => rowIds(page)).toEqual(['i1', 'i5']);
     await expect(page.getByTestId('counts')).toHaveText('2/8');
 
     await input.fill('verdi');
@@ -137,7 +141,11 @@ test.describe('useListReport fixture: filter and search', () => {
     await input.fill('rossi');
     await page.getByRole('button', { name: 'Imposta ricerca: bianchi' }).click();
     await expect(input).toHaveValue('rossi');
-    expect(await rowIds(page)).toEqual(['i2']);
+    await expect.poll(() => rowIds(page)).toEqual(['i2']);
     await expect(log(page).filter({ hasText: 'search:bianchi' })).toHaveCount(0);
+    // the typed text is still only a draft; committing it is an explicit gesture
+    await page.getByRole('button', { name: 'Commit' }).click();
+    await expect.poll(() => rowIds(page)).toEqual(['i1', 'i5']);
+    await expect(log(page).filter({ hasText: 'search:rossi' })).toHaveCount(1);
   });
 });

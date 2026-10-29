@@ -13,7 +13,7 @@ export function parseSearchTerms(query: string): string[] {
 /** Text of a cell for the search: strings and finite numbers (`String(value)`); anything else is skipped. */
 function cellText(value: unknown): string | null {
   if (typeof value === 'string') return value;
-  if (typeof value === 'number' && !Number.isNaN(value)) return String(value);
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value);
   return null;
 }
 

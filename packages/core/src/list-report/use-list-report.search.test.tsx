@@ -133,6 +133,15 @@ describe('useListReport: filter', () => {
     expect(warn.mock.calls[0]![0]).toContain('"nope"');
   });
 
+  it('no warning for a defaultFilter while filters are still empty (asynchronous loading)', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const { result, rerender } = setup({ filters: [], defaultFilter: 'open' });
+    expect(result.current.rows).toHaveLength(4);
+    expect(warn).not.toHaveBeenCalled();
+    rerender({ filters: FILTERS, defaultFilter: 'open' });
+    expect(ids(result.current.rows)).toEqual(['a', 'c', 'd']);
+  });
+
   it('setFilter with an unknown id (or without filters) is a no-op that warns', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const onFilterChange = vi.fn();
@@ -241,7 +250,7 @@ describe('useListReport: search draft and committed', () => {
     expect(result.current.searchDraft).toBe('ross mar');
   });
 
-  it('a draft equal to the previous committed follows the outside change and cancels the pending timer', () => {
+  it('a draft equal to the previous committed (user not editing) follows the outside change, no commit', () => {
     const onSearchQueryChange = vi.fn();
     const { result, rerender } = setup({ searchQuery: 'rossi', onSearchQueryChange });
     act(() => result.current.setSearchDraft('rossi x'));
@@ -252,7 +261,7 @@ describe('useListReport: search draft and committed', () => {
     expect(onSearchQueryChange).not.toHaveBeenCalled();
   });
 
-  it('an outside change that makes the pending draft equal to the committed value cancels the timer', () => {
+  it('an outside change that makes the pending draft equal to the committed value leaves no commit', () => {
     const onSearchQueryChange = vi.fn();
     const { result, rerender } = setup({ searchQuery: '', onSearchQueryChange });
     act(() => result.current.setSearchDraft('verdi'));
@@ -260,6 +269,75 @@ describe('useListReport: search draft and committed', () => {
     act(() => void vi.advanceTimersByTime(1000));
     expect(onSearchQueryChange).not.toHaveBeenCalled();
     expect(result.current.searchDraft).toBe('verdi');
+  });
+
+  describe('controlled parent that applies the reported query late', () => {
+    // A parent that applies `onSearchQueryChange` asynchronously (router, transition).
+    function lateParent(lag: number, delay: number | null = null) {
+      const onSearchQueryChange = vi.fn();
+      const hook = renderHook(
+        ({ query }: { query: string }) =>
+          useListReport<Row>({
+            rows: ROWS,
+            columns: COLUMNS,
+            getRowId,
+            searchQuery: query,
+            searchCommitDelay: delay,
+            onSearchQueryChange: (next) => {
+              onSearchQueryChange(next);
+              setTimeout(() => hook.rerender({ query: next }), lag);
+            },
+          }),
+        { initialProps: { query: '' } },
+      );
+      return { ...hook, onSearchQueryChange };
+    }
+
+    it('manual commit, then the field is cleared before the echo: the clear is committed and the echo does not refill it', () => {
+      const { result, onSearchQueryChange } = lateParent(50);
+      act(() => result.current.setSearchDraft('ross'));
+      act(() => result.current.commitSearch());
+      act(() => result.current.setSearchDraft(''));
+      act(() => result.current.commitSearch());
+      expect(onSearchQueryChange.mock.calls).toEqual([['ross'], ['']]);
+      act(() => void vi.advanceTimersByTime(200));
+      expect(result.current.searchDraft).toBe('');
+      expect(result.current.searchQuery).toBe('');
+      expect(result.current.rows).toHaveLength(4);
+    });
+
+    it('delayed commit (300 ms) with a slower parent (400 ms): clearing the field still wins', () => {
+      const { result, onSearchQueryChange } = lateParent(400, 300);
+      act(() => result.current.setSearchDraft('ross'));
+      act(() => void vi.advanceTimersByTime(300));
+      act(() => result.current.setSearchDraft(''));
+      act(() => void vi.advanceTimersByTime(300));
+      expect(onSearchQueryChange.mock.calls).toEqual([['ross'], ['']]);
+      act(() => void vi.advanceTimersByTime(1000));
+      expect(result.current.searchDraft).toBe('');
+      expect(result.current.searchQuery).toBe('');
+    });
+
+    it('clearFilters before the echo emits the clear and the echo does not refill the field', () => {
+      const { result, onSearchQueryChange } = lateParent(50);
+      act(() => result.current.setSearchDraft('ross'));
+      act(() => result.current.commitSearch());
+      act(() => result.current.clearFilters());
+      expect(onSearchQueryChange.mock.calls).toEqual([['ross'], ['']]);
+      act(() => void vi.advanceTimersByTime(200));
+      expect(result.current.searchDraft).toBe('');
+      expect(result.current.searchQuery).toBe('');
+    });
+
+    it('typing on after a commit: the late echo does not overwrite the newer text', () => {
+      const { result } = lateParent(50);
+      act(() => result.current.setSearchDraft('ross'));
+      act(() => result.current.commitSearch());
+      act(() => result.current.setSearchDraft('rossi'));
+      act(() => void vi.advanceTimersByTime(50));
+      expect(result.current.searchDraft).toBe('rossi');
+      expect(result.current.searchQuery).toBe('ross');
+    });
   });
 
   it('rows changing while a commit is pending: the commit filters the new array', () => {

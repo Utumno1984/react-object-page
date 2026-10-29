@@ -57,6 +57,10 @@ const opposite = (direction: ListReportSortDirection): ListReportSortDirection =
  *   searchable column (or of `getSearchText`). A committed query changed from outside never overwrites
  *   a draft the user is editing.
  * - `onFilterChange`/`onSearchQueryChange` are called only for gestures, never for outside changes.
+ * - Controlled `searchQuery`: the hook assumes the parent applies what `onSearchQueryChange` reports. A
+ *   late echo of a reported value (e.g. a router that applies it asynchronously) never overwrites the
+ *   draft; a parent that refuses a reported value should not rely on the same text being reported again.
+ * - Memoize `getSearchText` (like `columns`): the search is recomputed whenever it changes.
  * - `onSortChange` is called only for a gesture (`toggleSort`/`setSort`), never when a controlled
  *   `sort` changes from outside.
  */
@@ -115,11 +119,20 @@ export function useListReport<Row>(options: UseListReportOptions<Row>): UseListR
   const committed = (searchControlled ? controlledQuery : internalQuery) ?? '';
   const [draft, setDraft] = useState(committed);
   const [seenCommitted, setSeenCommitted] = useState(committed);
-  // The committed query changed. If the user was not editing (draft equal to the previous committed
-  // query) the draft follows it; if they typed something else, their text stays: no "going back".
+  // Controlled mode: queries this hook emitted that the parent has not applied yet, oldest first.
+  const inflight = useRef<string[]>([]);
+  // The committed query changed. A value we emitted coming back (a late echo) never touches the draft:
+  // the user may have kept typing, or cleared the field, in the meantime. An outside change makes the
+  // draft follow it if the user was not editing (draft equal to the previous committed query); if they
+  // typed something else, their text stays: no "going back".
   if (committed !== seenCommitted) {
     setSeenCommitted(committed);
-    if (draft === seenCommitted) setDraft(committed);
+    const echo = inflight.current.indexOf(committed);
+    if (echo >= 0) inflight.current.splice(0, echo + 1);
+    else {
+      inflight.current = [];
+      if (draft === seenCommitted) setDraft(committed);
+    }
   }
 
   const terms = useMemo(() => parseSearchTerms(committed), [committed]);
@@ -144,25 +157,28 @@ export function useListReport<Row>(options: UseListReportOptions<Row>): UseListR
     timer.current = null;
   }, []);
   useEffect(() => clearTimer, [clearTimer]);
-  // The committed query moved under a draft that now equals it: nothing left to commit.
-  useEffect(() => {
-    if (fs.current.draft === committed) clearTimer();
-  }, [committed, draft, clearTimer]);
 
   const commitQuery = useCallback((next: string) => {
     const current = fs.current;
     if (!current.searchControlled) {
       setInternalQuery(next);
       current.committed = next;
-    }
+    } else inflight.current.push(next);
     current.onSearchQueryChange?.(next);
   }, []);
 
+  /** The last query committed or emitted, whether or not the parent has applied it yet. */
+  const lastCommitted = useCallback((): string => inflight.current.at(-1) ?? fs.current.committed, []);
+  // The committed query moved under a draft that now equals it: nothing left to commit.
+  useEffect(() => {
+    if (fs.current.draft === lastCommitted()) clearTimer();
+  }, [committed, draft, clearTimer, lastCommitted]);
+
   const commitSearch = useCallback(() => {
     clearTimer();
-    const { draft: text, committed: query } = fs.current;
-    if (text !== query) commitQuery(text);
-  }, [clearTimer, commitQuery]);
+    const text = fs.current.draft;
+    if (text !== lastCommitted()) commitQuery(text);
+  }, [clearTimer, commitQuery, lastCommitted]);
 
   const setSearchDraft = useCallback(
     (next: string) => {
@@ -170,14 +186,14 @@ export function useListReport<Row>(options: UseListReportOptions<Row>): UseListR
       setDraft(next);
       const current = fs.current;
       current.draft = next;
-      if (current.delay !== null && next !== current.committed) {
+      if (current.delay !== null && next !== lastCommitted()) {
         timer.current = setTimeout(() => {
           timer.current = null;
           commitSearch();
         }, current.delay ?? DEFAULT_COMMIT_DELAY);
       }
     },
-    [clearTimer, commitSearch],
+    [clearTimer, commitSearch, lastCommitted],
   );
 
   const changeFilter = useCallback((id: string) => {
@@ -212,8 +228,8 @@ export function useListReport<Row>(options: UseListReportOptions<Row>): UseListR
     }
     setDraft('');
     current.draft = '';
-    if (current.committed !== '') commitQuery('');
-  }, [clearTimer, changeFilter, commitQuery]);
+    if (lastCommitted() !== '') commitQuery('');
+  }, [clearTimer, changeFilter, commitQuery, lastCommitted]);
 
   const direction = sort?.direction;
   const hasActive = activeColumn !== undefined;
@@ -288,7 +304,8 @@ export function useListReport<Row>(options: UseListReportOptions<Row>): UseListR
   // Development warnings, once per distinct problem.
   const warned = useRef(new Set<string>());
   const invalidId = requested && !activeColumn ? requested.columnId : null;
-  const unknownFilter = requestedFilter !== null && !activeFilter ? requestedFilter : null;
+  // Like columns: no filters yet (asynchronous loading) is expected, not a mistake.
+  const unknownFilter = requestedFilter !== null && !activeFilter && filters.length > 0 ? requestedFilter : null;
   useEffect(() => {
     if (!isDev()) return;
     const warnOnce = (key: string, message: string) => {
