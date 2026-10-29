@@ -37,7 +37,7 @@ const FILTERS: ListReportFilter<Invoice>[] = [
   { id: 'dated', label: 'Con data', predicate: (r) => r.date !== null },
 ];
 
-const fmt =(row: Invoice, id: string): string => {
+const fmt = (row: Invoice, id: string): string => {
   const value = row[id as keyof Invoice];
   if (value instanceof Date) return value.toISOString().slice(0, 10);
   return value === null ? '' : String(value);
