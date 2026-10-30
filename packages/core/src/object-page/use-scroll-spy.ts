@@ -29,6 +29,8 @@ interface Pin {
   /** Where the scroller ends up (clamped to what can be scrolled). */
   landing: number;
   arrived: boolean;
+  /** Distance of the section below the bar once arrived: a section that keeps it has not moved. */
+  gap: number | null;
   /** How to find the landing again, and to scroll to it, when the layout moved. */
   reposition: Reposition;
 }
@@ -75,6 +77,18 @@ export function useScrollSpy({ scrollerRef, barRef, ids, getElement }: UseScroll
     }, STALL_MS);
   }, []);
 
+  // Distance of a section's top below the bar's bottom edge (null when it cannot be read).
+  const gapOf = useCallback(
+    (id: string): number | null => {
+      const scroller = scrollerRef.current;
+      const element = latest.current.getElement(id);
+      if (!scroller || !element) return null;
+      const barHeight = barRef.current?.getBoundingClientRect().height ?? 0;
+      return element.getBoundingClientRect().top - scroller.getBoundingClientRect().top - barHeight;
+    },
+    [scrollerRef, barRef],
+  );
+
   const measure = useCallback(() => {
     frame.current = 0;
     const changed = layoutChanged.current;
@@ -88,17 +102,28 @@ export function useScrollSpy({ scrollerRef, barRef, ids, getElement }: UseScroll
     const pin = pinned.current;
     if (pin) {
       // Content that grew (or a resize) moved the pinned section: where the jump has to land is elsewhere.
-      // On its way, the animation is re-aimed at the new place; once arrived, a scroller that stays put
-      // is no longer on the section, and the pin is dropped just below.
+      // On its way, the animation is re-aimed at the new place. Once arrived, a section that is still where
+      // it was relative to the bar has not moved (content grew inside it, or below it, or the scroller was
+      // already at its end): the pin stays and the landing follows the scroller. Otherwise the scroller that
+      // stays put is no longer on the section, and the pin is dropped just below.
       if (changed) {
-        const fresh = pin.reposition.landing();
-        if (Math.abs(fresh - pin.landing) > TOLERANCE) {
-          pin.landing = fresh;
-          if (!pin.arrived) pin.reposition.scrollTo(fresh);
+        const gap = pin.arrived ? gapOf(pin.id) : null;
+        if (gap !== null && pin.gap !== null && Math.abs(gap - pin.gap) <= TOLERANCE) {
+          pin.landing = scroller.scrollTop;
+          pin.gap = gap;
+        } else {
+          const fresh = pin.reposition.landing();
+          if (Math.abs(fresh - pin.landing) > TOLERANCE) {
+            pin.landing = fresh;
+            if (!pin.arrived) pin.reposition.scrollTo(fresh);
+          }
         }
       }
       const away = Math.abs(scroller.scrollTop - pin.landing) > TOLERANCE;
-      if (!away) pin.arrived = true;
+      if (!away && !pin.arrived) {
+        pin.arrived = true;
+        pin.gap = gapOf(pin.id);
+      }
       if (!(pin.arrived && away)) {
         armStall(pin);
         return;
@@ -118,7 +143,7 @@ export function useScrollSpy({ scrollerRef, barRef, ids, getElement }: UseScroll
       }
     }
     setActiveId(next);
-  }, [scrollerRef, barRef, armStall]);
+  }, [scrollerRef, barRef, armStall, gapOf]);
 
   const schedule = useCallback(() => {
     if (frame.current) return;
@@ -129,12 +154,12 @@ export function useScrollSpy({ scrollerRef, barRef, ids, getElement }: UseScroll
     (id: string, landing: number, reposition: Reposition) => {
       const scroller = scrollerRef.current;
       const arrived = !scroller || Math.abs(scroller.scrollTop - landing) <= TOLERANCE;
-      const next = { id, landing, arrived, reposition };
+      const next: Pin = { id, landing, arrived, gap: arrived ? gapOf(id) : null, reposition };
       pinned.current = next;
       armStall(next);
       setActiveId(id);
     },
-    [scrollerRef, armStall],
+    [scrollerRef, armStall, gapOf],
   );
 
   useEffect(() => {

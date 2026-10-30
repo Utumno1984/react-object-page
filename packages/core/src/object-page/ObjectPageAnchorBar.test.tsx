@@ -346,6 +346,35 @@ describe('Anchor Bar navigation', () => {
     expect(current().map((a) => a.textContent)).toEqual(['Sezione A']);
   });
 
+  it('keeps the pin when the section it landed on grows after arriving, the scroller stopped short at its end', () => {
+    const observers: (() => void)[] = [];
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(callback: () => void) {
+          observers.push(callback);
+        }
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    const { container } = render(<Page />);
+    const scroller = scrollerOf(container);
+    scroller.scrollTo = vi.fn() as unknown as typeof scroller.scrollTo;
+    fireEvent.click(link('Sezione C'));
+    scrollTo(scroller, 900); // C wanted 956 but the scroller ends at 900: C sits 60px below the bar
+    expect(current().map((a) => a.textContent)).toEqual(['Sezione C']);
+    // C grows by 30px (an error message appears): the scroller's end moves, C has not moved at all.
+    layout.scrollHeight = 1530;
+    act(() => observers.forEach((notify) => notify()));
+    flushFrames();
+    expect(current().map((a) => a.textContent)).toEqual(['Sezione C']);
+    // And the pin is still a pin: C now could be scrolled further, yet it stays the active one.
+    scrollTo(scroller, 900);
+    expect(current().map((a) => a.textContent)).toEqual(['Sezione C']);
+  });
+
   it('re-aims an animation under way when the layout moves (content that grew meanwhile)', () => {
     const observers: (() => void)[] = [];
     vi.stubGlobal(

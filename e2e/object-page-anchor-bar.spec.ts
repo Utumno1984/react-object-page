@@ -121,6 +121,32 @@ test.describe('Floorplans/Object Page/Anchor Bar', () => {
     expect(await activeNames(page)).toEqual(['Pagamenti']);
   });
 
+  test('the section jumped to grows after arriving (an error message, a longer textarea): the active link stays', async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 700 });
+    // The last section is short, so the jump to "Pagamenti" stops short of the top: the scroller is at its end.
+    await gotoStory(page, STORY('scrollable'), 'sectionCount:6;lastSectionHeight:40');
+    await page.getByRole('link', { name: 'Pagamenti' }).click();
+    await settle(page);
+    expect(await activeNames(page)).toEqual(['Pagamenti']);
+    await page.evaluate(() => {
+      const extra = document.createElement('div');
+      extra.style.height = '20px';
+      document.getElementById('sezione-5')!.appendChild(extra);
+    });
+    await page.waitForTimeout(400);
+    expect(await activeNames(page)).toEqual(['Pagamenti']);
+    // Several more growths in a row.
+    for (let i = 0; i < 3; i += 1) {
+      await page.evaluate(() => {
+        const extra = document.createElement('div');
+        extra.style.height = '15px';
+        document.getElementById('sezione-5')!.appendChild(extra);
+      });
+      await page.waitForTimeout(100);
+    }
+    expect(await activeNames(page)).toEqual(['Pagamenti']);
+  });
+
   test('content that grows while the jump is animating: it still lands the section below the bar', async ({ page }) => {
     await page.setViewportSize({ width: 1024, height: 600 });
     await gotoStory(page, STORY('scrollable'), 'sectionCount:6');
