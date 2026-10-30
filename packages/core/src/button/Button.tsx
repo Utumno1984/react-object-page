@@ -32,8 +32,9 @@ const BASE =
   'disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:opacity-50';
 
 const VARIANT_CLASS: Record<ButtonVariant, string> = {
-  // Hover only on an enabled control; the primary/danger hover darkens (keeps the white text AA).
-  primary: 'bg-rop-primary text-rop-primary-contrast not-disabled:not-aria-disabled:hover:bg-rop-primary-hover',
+  // Hover/active only on an enabled control; primary/danger darken (keeps the white text AA).
+  primary:
+    'bg-rop-primary text-rop-primary-contrast not-disabled:not-aria-disabled:hover:bg-rop-primary-hover not-disabled:not-aria-disabled:active:bg-rop-primary-active',
   secondary: 'border-rop-border bg-rop-surface text-rop-text not-disabled:not-aria-disabled:hover:bg-rop-surface-subtle',
   ghost: 'bg-transparent text-rop-primary not-disabled:not-aria-disabled:hover:bg-rop-surface-subtle',
   danger: 'bg-rop-error text-rop-primary-contrast not-disabled:not-aria-disabled:hover:bg-rop-error-hover',
@@ -44,9 +45,9 @@ const VARIANT_CLASS: Record<ButtonVariant, string> = {
 // `inline` takes font and line height from the surrounding text and is exactly one line tall
 // (`1lh`), so a button inside a paragraph never widens the line.
 const SIZE_CLASS: Record<ButtonSize, string> = {
-  sm: 'px-2.5 py-[5px] text-rop-label', // 32px
-  md: 'px-3.5 py-[7px] text-rop-label', // 36px
-  lg: 'px-4 py-[11px] text-rop-label', // 44px
+  sm: 'px-2.5 py-[5px]', // 32px
+  md: 'px-3.5 py-[7px]', // 36px
+  lg: 'px-4 py-[11px]', // 44px
   // `justify-start` overrides BASE's `justify-center`: centered content whose width is clamped by
   // `max-w-full` while `whitespace-nowrap` keeps it from wrapping would otherwise overflow
   // symmetrically on both sides, pushing roughly half the label off-screen to the left (invisible,
@@ -56,6 +57,24 @@ const SIZE_CLASS: Record<ButtonSize, string> = {
   'icon-sm': 'size-8 p-0',
   'icon-md': 'size-9 p-0',
 };
+
+// Label typography. A plain-text label (wrapped in `TextLabel`) uses `line-height: 1`; the 20px line
+// box the sizes above are tuned for is restored by the wrapper's `min-h-5`, so heights do not change.
+// Anything else (asChild, element children, mixed content) keeps the `text-rop-label` size + line height.
+const TEXT_SIZES = new Set<ButtonSize>(['sm', 'md', 'lg']);
+const LABEL_PLAIN = 'text-rop-label';
+const LABEL_WRAPPED = 'text-[length:var(--text-rop-label)] leading-none';
+
+const isPlainText = (node: ReactNode): boolean =>
+  typeof node === 'string' ||
+  typeof node === 'number' ||
+  (Array.isArray(node) && node.length > 0 && node.every((n) => typeof n === 'string' || typeof n === 'number'));
+
+// Optical correction: the system font stack sits ~1px low in its line box, so only the text node
+// moves up 1px. Never applied to the button box or to the icons.
+function TextLabel({ children }: { children: ReactNode }) {
+  return <span className="relative -top-px grid min-h-5 min-w-0 content-center">{children}</span>;
+}
 
 const ICON_SIZE: Record<ButtonSize, IconSize> = {
   inline: 'xs',
@@ -147,7 +166,9 @@ export const Button = /* @__PURE__ */ forwardRef<HTMLElement, ButtonProps>(funct
   }, [iconOnly, named, size]);
 
   const iconSize = ICON_SIZE[size];
-  const classes = cn(BASE, VARIANT_CLASS[variant], SIZE_CLASS[size], className);
+  const wrapLabel = !asChild && TEXT_SIZES.has(size) && isPlainText(children);
+  const labelClass = size === 'inline' || iconOnly ? '' : wrapLabel ? LABEL_WRAPPED : LABEL_PLAIN;
+  const classes = cn(BASE, VARIANT_CLASS[variant], SIZE_CLASS[size], labelClass, className);
   const leading = leadingIcon ? <Icon size={iconSize}>{leadingIcon}</Icon> : null;
   const trailing = trailingIcon ? <Icon size={iconSize}>{trailingIcon}</Icon> : null;
 
@@ -201,7 +222,7 @@ export const Button = /* @__PURE__ */ forwardRef<HTMLElement, ButtonProps>(funct
       className={classes}
     >
       {leading}
-      {content}
+      {wrapLabel ? <TextLabel>{content}</TextLabel> : content}
       {trailing}
     </button>
   );

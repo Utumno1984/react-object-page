@@ -344,4 +344,61 @@ describe('Button', () => {
       expect(() => render(<Button asChild>{children}</Button>)).toThrow(/asChild.*exactly one React element/);
     });
   });
+
+  describe('label wrapper', () => {
+    it.each(['sm', 'md', 'lg'] as const)('size=%s wraps a text label in a span, with line-height 1 on the button', (size) => {
+      render(<Button size={size}>Salva</Button>);
+      const button = screen.getByRole('button', { name: 'Salva' });
+      const label = button.querySelector(':scope > span');
+      expect(label).toHaveTextContent('Salva');
+      expect(label).toHaveClass('-top-px');
+      expect(button).toHaveClass('leading-none');
+      expect(button).not.toHaveClass('text-rop-label');
+    });
+
+    it('applies the optical offset to the label only, never to the button or an icon', () => {
+      render(
+        <Button leadingIcon={svg} trailingIcon={<svg data-testid="t" />}>
+          Salva
+        </Button>,
+      );
+      const button = screen.getByRole('button');
+      expect(button.className).not.toMatch(/-?top-px/);
+      expect(screen.getByTestId('i').closest('.-top-px')).toBeNull();
+      expect(screen.getByTestId('t').closest('.-top-px')).toBeNull();
+      expect(button.querySelectorAll('.-top-px')).toHaveLength(1);
+    });
+
+    it('does not wrap inline, icon-only, asChild or element children', () => {
+      render(
+        <>
+          <Button size="inline">inline</Button>
+          <Button size="icon-md" aria-label="x">
+            {svg}
+          </Button>
+          <Button asChild>
+            <a href="#a">link</a>
+          </Button>
+          <Button>
+            <b>bold</b>
+          </Button>
+        </>,
+      );
+      for (const el of [
+        screen.getByRole('button', { name: 'inline' }),
+        screen.getByRole('button', { name: 'x' }),
+        screen.getByRole('link', { name: 'link' }),
+        screen.getByRole('button', { name: 'bold' }),
+      ]) {
+        expect(el.querySelector('.-top-px')).toBeNull();
+        expect(el).not.toHaveClass('leading-none');
+      }
+      expect(screen.getByRole('button', { name: 'bold' })).toHaveClass('text-rop-label');
+    });
+  });
+
+  it('the primary variant darkens on :active only for an enabled control', () => {
+    render(<Button variant="primary">Ok</Button>);
+    expect(screen.getByRole('button')).toHaveClass('not-disabled:not-aria-disabled:active:bg-rop-primary-active');
+  });
 });

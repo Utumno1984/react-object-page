@@ -122,6 +122,111 @@ test.describe('Primitives/Button', () => {
     expect(await hovered('matrix-danger-md')).toEqual([0, 0, 204]);
   });
 
+  test('text sits 1px above the box centre, icons stay on the box centre (real bounding boxes)', async ({ page }) => {
+    await gotoStory(page, OVERVIEW);
+    for (const id of ['matrix-primary-lead', 'matrix-primary-trail', 'matrix-secondary-lead']) {
+      const m = await page.getByTestId(id).evaluate((el) => {
+        const box = el.getBoundingClientRect();
+        const icon = el.querySelector('svg')!.getBoundingClientRect();
+        const span = el.querySelector(':scope > span') as HTMLElement;
+        const textNode = span.firstChild!;
+        const range = document.createRange();
+        range.selectNodeContents(textNode);
+        const text = range.getBoundingClientRect();
+        return {
+          boxCenter: box.top + box.height / 2,
+          iconCenter: icon.top + icon.height / 2,
+          textCenter: text.top + text.height / 2,
+          textHeight: text.height,
+          lineHeight: getComputedStyle(span).lineHeight,
+          fontSize: getComputedStyle(span).fontSize,
+        };
+      });
+      expect(m.fontSize).toBe('14px');
+      expect(Math.abs(m.iconCenter - m.boxCenter)).toBeLessThanOrEqual(0.5); // icon: no offset
+      expect(Math.abs(m.textCenter - (m.boxCenter - 1))).toBeLessThanOrEqual(0.5); // text: 1px up
+      expect(m.textHeight).toBeLessThanOrEqual(m.lineHeight === 'normal' ? 99 : 20);
+    }
+  });
+
+  test('text-only sm/md/lg keep their heights and the text is 1px above centre', async ({ page }) => {
+    await gotoStory(page, OVERVIEW);
+    for (const [size, height] of [['sm', 32], ['md', 36], ['lg', 44]] as const) {
+      const m = await page.getByTestId(`matrix-secondary-${size}`).evaluate((el) => {
+        const box = el.getBoundingClientRect();
+        const span = el.firstElementChild!;
+        const s = getComputedStyle(span);
+        const range = document.createRange();
+        range.selectNodeContents(span.firstChild!);
+        const text = range.getBoundingClientRect();
+        return { h: box.height, top: s.top, line: getComputedStyle(el).lineHeight, off: box.top + box.height / 2 - (text.top + text.height / 2) };
+      });
+      expect(m.h).toBe(height);
+      expect(m.top).toBe('-1px');
+      expect(m.line).toBe('14px'); // line-height: 1 on a 14px font
+      expect(Math.abs(m.off - 1)).toBeLessThanOrEqual(0.5);
+    }
+  });
+
+  test('size="inline" is unchanged: no label wrapper, font and line height inherited', async ({ page }) => {
+    await gotoStory(page, OVERVIEW);
+    const m = await page.getByTestId('inline-button').evaluate((el) => {
+      const parent = getComputedStyle(el.parentElement!);
+      const s = getComputedStyle(el);
+      return {
+        spans: el.querySelectorAll('span').length,
+        lineHeight: s.lineHeight,
+        parentLineHeight: parent.lineHeight,
+        fontSize: s.fontSize,
+        parentFontSize: parent.fontSize,
+        height: el.getBoundingClientRect().height,
+      };
+    });
+    expect(m.spans).toBe(0);
+    expect(m.lineHeight).toBe(m.parentLineHeight);
+    expect(m.fontSize).toBe(m.parentFontSize);
+    expect(m.height).toBe(20);
+  });
+
+  test('primary: hover is blue-700 and a pressed mouse is blue-800; a disabled one never changes', async ({ page }) => {
+    await gotoStory(page, OVERVIEW);
+    // Resolve a token to 8-bit channels through a canvas (whatever serialization the browser uses).
+    const channels = (css: string) =>
+      page.evaluate((value) => {
+        const ctx = document.createElement('canvas').getContext('2d')!;
+        ctx.fillStyle = '#000';
+        ctx.fillStyle = value;
+        ctx.fillRect(0, 0, 1, 1);
+        return Array.from(ctx.getImageData(0, 0, 1, 1).data.slice(0, 3));
+      }, css);
+    const token = (name: string) =>
+      page.evaluate((n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim(), name).then(channels);
+    const bg = (locator: ReturnType<typeof page.locator>) =>
+      locator.evaluate((el) => getComputedStyle(el).backgroundColor).then(channels);
+
+    const target = page.getByTestId('matrix-primary-md');
+    const rest = await bg(target);
+    expect(rest).toEqual(await token('--color-rop-blue-600'));
+    await target.hover();
+    expect(await bg(target)).toEqual(await token('--color-rop-blue-700'));
+    await page.mouse.down();
+    expect(await bg(target)).toEqual(await token('--color-rop-blue-800'));
+    await page.mouse.up();
+
+    const disabled = page.getByRole('button', { name: 'primary disabled' });
+    const before = await bg(disabled);
+    await disabled.hover({ force: true });
+    await page.mouse.down();
+    expect(await bg(disabled)).toEqual(before);
+    await page.mouse.up();
+    const link = page.getByRole('link', { name: 'Link disabled' });
+    const linkBefore = await bg(link);
+    await link.hover({ force: true });
+    await page.mouse.down();
+    expect(await bg(link)).toEqual(linkBefore);
+    await page.mouse.up();
+  });
+
   test('size="inline" in a container narrower than its label: one line tall, overflows instead of wrapping', async ({
     page,
   }) => {

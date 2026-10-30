@@ -116,7 +116,7 @@ export const Overview: Story = {
               <Button variant={variant} leadingIcon={internalIcons.check} data-testid={`matrix-${variant}-lead`}>
                 Con icona
               </Button>
-              <Button variant={variant} trailingIcon={internalIcons['chevron-down']}>
+              <Button variant={variant} trailingIcon={internalIcons['chevron-down']} data-testid={`matrix-${variant}-trail`}>
                 Menu
               </Button>
             </div>
