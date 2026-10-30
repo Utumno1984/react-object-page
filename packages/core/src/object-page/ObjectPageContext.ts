@@ -24,6 +24,8 @@ export interface ObjectPageSectionEntry {
   element: HTMLElement;
   /** Reads the title as the region's accessible name sees it (from the DOM, so a title rendered by a component counts). */
   readTitle: () => string;
+  /** Moves the focus to the section's title without scrolling (the title is `tabIndex=-1`). */
+  focusTitle: () => void;
 }
 
 /** Text of a node as a screen reader names it: `aria-hidden` subtrees skipped, `aria-label` used, spaces normalized. */
@@ -50,6 +52,8 @@ export interface ObjectPageContextValue {
   /** Registers (or updates) a section. `key` is unique per mounted section. */
   registerSection: (key: string, entry: ObjectPageSectionEntry) => void;
   unregisterSection: (key: string) => void;
+  /** The registered section with this DOM id (the first one, if the id is duplicated). */
+  getSection: (id: string) => ObjectPageSectionEntry | undefined;
 }
 
 export const ObjectPageContext = /* @__PURE__ */ createContext<ObjectPageContextValue | null>(null);
