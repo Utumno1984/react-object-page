@@ -1,5 +1,5 @@
-import { act, cleanup, renderHook } from '@testing-library/react';
-import { StrictMode } from 'react';
+import { act, cleanup, render, renderHook } from '@testing-library/react';
+import { StrictMode, useEffect, useLayoutEffect } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { deepEqual } from './equal';
 import { useObjectPageForm, type UseObjectPageFormOptions } from './use-object-page-form';
@@ -300,6 +300,17 @@ describe('useObjectPageForm: baseline option is read once', () => {
     expect(result.current.isDirty).toBe(false);
   });
 
+  it('judges "equal content" with isEqual: an inline Set baseline with a matching isEqual does not warn', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    type Tags = { tags: Set<string> };
+    const isEqual = (a: Tags, b: Tags) => a.tags.size === b.tags.size && [...a.tags].every((t) => b.tags.has(t));
+    const { rerender } = setup<Tags>({ baseline: { tags: new Set(['a']) }, isEqual });
+    rerender({ baseline: { tags: new Set(['a']) }, isEqual });
+    expect(warn).not.toHaveBeenCalled();
+    rerender({ baseline: { tags: new Set(['b']) }, isEqual });
+    expect(warn).toHaveBeenCalledTimes(1);
+  });
+
   it('does not warn in production', () => {
     vi.stubEnv('NODE_ENV', 'production');
     try {
@@ -555,7 +566,7 @@ describe('useObjectPageForm: save', () => {
     expect(result.current.isDirty).toBe(false);
   });
 
-  it('a stale failure after a reset still reports the error and releases isSaving', async () => {
+  it('a stale failure after a reset releases isSaving, returns false and sets no saveError', async () => {
     const { result } = setup();
     const gate = deferred();
     let outcome: Promise<boolean>;
@@ -565,10 +576,10 @@ describe('useObjectPageForm: save', () => {
     act(() => result.current.reset({ name: 'H', amount: 1 }));
     await act(async () => {
       gate.reject(new Error('late'));
-      await outcome;
+      expect(await outcome).toBe(false);
     });
     expect(result.current.isSaving).toBe(false);
-    expect(result.current.saveError).toBeInstanceOf(Error);
+    expect(result.current.saveError).toBeNull();
     expect(result.current.baseline).toEqual({ name: 'H', amount: 1 });
   });
 
@@ -576,15 +587,16 @@ describe('useObjectPageForm: save', () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const { result, unmount } = setup();
-    const gate = deferred();
+    const gate = deferred<string>();
     let outcome: Promise<boolean>;
     act(() => {
-      outcome = result.current.save(() => gate.promise);
+      outcome = result.current.save(() => gate.promise as unknown as Promise<void>);
     });
     unmount();
     let ok = false;
     await act(async () => {
-      gate.resolve();
+      // A non-object result would log a development warning if the success path ran after unmount.
+      gate.resolve('ok');
       ok = await outcome;
     });
     expect(ok).toBe(true);
@@ -606,6 +618,79 @@ describe('useObjectPageForm: save', () => {
       expect(await outcome).toBe(false);
     });
     expect(error).not.toHaveBeenCalled();
+  });
+
+  it('a save that fails synchronously before the mount effects of the hook still settles isSaving and saveError', async () => {
+    const error = new Error('early');
+    const seen: { isSaving: boolean; saveError: unknown } = { isSaving: true, saveError: null };
+    function Parent() {
+      const form = useObjectPageForm<Invoice>({ baseline: BASE });
+      seen.isSaving = form.isSaving;
+      seen.saveError = form.saveError;
+      // A child effect runs before the effects of the component that owns the hook.
+      return <Child save={form.save} />;
+    }
+    function Child({ save }: { save: ReturnType<typeof useObjectPageForm<Invoice>>['save'] }) {
+      useEffect(() => {
+        void save(() => {
+          throw error;
+        });
+      }, [save]);
+      return null;
+    }
+    await act(async () => {
+      render(<Parent />);
+    });
+    expect(seen.isSaving).toBe(false);
+    expect(seen.saveError).toBe(error);
+  });
+
+  it('a layout-effect save that succeeds before the passive mount effects still updates the baseline', async () => {
+    const seen: { baseline: Invoice; isSaving: boolean } = { baseline: BASE, isSaving: true };
+    function Parent() {
+      const form = useObjectPageForm<Invoice>({ baseline: BASE });
+      seen.baseline = form.baseline;
+      seen.isSaving = form.isSaving;
+      useLayoutEffect(() => {
+        void form.save(async () => ({ name: 'Early', amount: 1 }));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, []);
+      return null;
+    }
+    await act(async () => {
+      render(<Parent />);
+    });
+    expect(seen.isSaving).toBe(false);
+    expect(seen.baseline).toEqual({ name: 'Early', amount: 1 });
+  });
+
+  it('a custom isEqual never decides whether the user edited during the save', async () => {
+    const lax = (a: Invoice, b: Invoice) => a.name.toLowerCase() === b.name.toLowerCase() && a.amount === b.amount;
+    const { result } = setup({ isEqual: lax });
+    act(() => result.current.setValue('name', 'acme'));
+    const gate = deferred<Invoice>();
+    let outcome: Promise<boolean>;
+    act(() => {
+      outcome = result.current.save(() => gate.promise);
+    });
+    act(() => result.current.setValue('name', 'ACME'));
+    await act(async () => {
+      gate.resolve({ name: 'acme', amount: 10 });
+      await outcome;
+    });
+    expect(result.current.values.name).toBe('ACME');
+    expect(result.current.baseline.name).toBe('acme');
+  });
+
+  it('an array returned by the handler is not a baseline: warns and uses the sent values', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { result } = setup();
+    act(() => result.current.setValue('name', 'S'));
+    await act(async () => {
+      await result.current.save((async () => []) as unknown as () => Promise<void>);
+    });
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(result.current.baseline).toEqual({ name: 'S', amount: 10 });
   });
 
   it('works under StrictMode (effects mounted twice): saving still updates state', async () => {

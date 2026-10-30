@@ -15,6 +15,9 @@ export interface UseObjectPageFormOptions<Values extends Record<string, unknown>
    * Initial baseline: the last known saved state. It is read **once**, at mount. Passing a different
    * object later does not change `values` or `baseline` (in development a single `console.warn`
    * points to `reset(newBaseline)`); use `reset(newBaseline)` to hydrate data that arrives later.
+   * Content is compared with `isEqual`, so an inline literal never warns. Note that
+   * `baseline: data ?? EMPTY` plus `useEffect(() => data && reset(data), [data])` does warn once
+   * when `data` arrives: keep `EMPTY` stable and call `reset`, and ignore that single warning.
    */
   baseline: Values;
   /**
@@ -56,15 +59,18 @@ export interface UseObjectPageFormReturn<Values extends Record<string, unknown>>
    * what the server stored and is clean). A handler that throws synchronously or rejects sets
    * `saveError`; values and baseline are untouched. Resolves `true` on success, `false` on error or
    * when a save is already in flight (the handler is not called again). A save whose form was
-   * `reset` in the meantime resolves `true` when the handler succeeded but changes no state other
-   * than `isSaving`. Stable identity.
+   * `reset` in the meantime resolves `true` when the handler succeeded and `false` when it failed,
+   * and changes no state other than `isSaving` (neither a baseline nor a `saveError`). Whether the
+   * values were edited meanwhile is decided with the default structural comparison, never with
+   * `isEqual`. Stable identity.
    */
   save: (handler: (values: Values) => Promise<Values | void> | Values | void) => Promise<boolean>;
   /** `true` from the call to `save` until its handler settles. */
   isSaving: boolean;
   /**
    * Error of the last save (a rejection with `undefined`/`null` is reported as an `Error`), `null`
-   * when there is none. Cleared by `setValue`, `setValues`, `reset` and a successful save.
+   * when there is none (a falsy rejection value such as `0` is exposed as is: compare with
+   * `!== null`). Cleared by `setValue`, `setValues`, `reset` and a successful save.
    */
   saveError: unknown;
 }
@@ -94,19 +100,15 @@ export function useObjectPageForm<Values extends Record<string, unknown>>(
   // very latest values without being recreated.
   const stateRef = useRef(state);
   const savingRef = useRef(false);
-  const mountedRef = useRef(false);
+  // Tracks unmounting (not mounting): a save started before the mount effects must still settle.
+  const mountedRef = useRef(true);
   const epochRef = useRef(0);
   const saveErrorRef = useRef(false);
-  const isEqualRef = useRef(isEqual);
   const initialBaselineRef = useRef(baselineOption);
   const warnedRef = useRef(false);
 
   useEffect(() => {
-    isEqualRef.current = isEqual;
-  });
-
-  useEffect(() => {
-    mountedRef.current = true;
+    mountedRef.current = true; // StrictMode runs the cleanup first
     return () => {
       mountedRef.current = false;
     };
@@ -114,7 +116,7 @@ export function useObjectPageForm<Values extends Record<string, unknown>>(
 
   useEffect(() => {
     if (warnedRef.current || baselineOption === initialBaselineRef.current || !isDev()) return;
-    if (deepEqual(baselineOption, initialBaselineRef.current)) return;
+    if (isEqual(baselineOption, initialBaselineRef.current)) return;
     warnedRef.current = true;
     console.warn(
       '[react-object-page] useObjectPageForm: the `baseline` option is only read at mount, a different value was ignored. Call `reset(newBaseline)` to hydrate data that arrives later.',
@@ -178,9 +180,13 @@ export function useObjectPageForm<Values extends Record<string, unknown>>(
       } catch (thrown) {
         savingRef.current = false;
         if (mountedRef.current) {
-          saveErrorRef.current = true;
-          setSaveError({ error: thrown ?? new Error('Save failed') });
           setIsSaving(false);
+          // A reset during the save wins here too: the form was hydrated/discarded after sending,
+          // so a stale failure must not put an error on top of the fresh state.
+          if (epoch === epochRef.current) {
+            saveErrorRef.current = true;
+            setSaveError({ error: thrown ?? new Error('Save failed') });
+          }
         }
         return false;
       }
@@ -193,13 +199,13 @@ export function useObjectPageForm<Values extends Record<string, unknown>>(
 
       let baseline = sent;
       if (result !== undefined) {
-        if (typeof result === 'object' && result !== null) baseline = result;
+        if (typeof result === 'object' && result !== null && !Array.isArray(result)) baseline = result;
         else if (isDev()) {
           console.warn('[react-object-page] useObjectPageForm: the save handler returned a non-object, the sent values are the new baseline.');
         }
       }
       const current = stateRef.current;
-      const untouched = current.values === sent || isEqualRef.current(current.values, sent);
+      const untouched = current.values === sent || deepEqual(current.values, sent);
       commit({ baseline, values: untouched ? baseline : current.values });
       clearSaveError();
       return true;

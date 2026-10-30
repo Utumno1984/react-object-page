@@ -29,7 +29,7 @@ function FormDemo() {
       <p data-testid="dirty">dirty: {form.isDirty ? 'sì' : 'no'}</p>
       <p data-testid="saving">{form.isSaving ? 'saving…' : ''}</p>
       <p role="alert" data-testid="error">
-        {form.saveError ? `Errore: ${String((form.saveError as Error).message)}` : ''}
+        {form.saveError !== null ? `Errore: ${String((form.saveError as Error).message)}` : ''}
       </p>
       <div style={{ display: 'flex', gap: 8 }}>
         <button type="button" onClick={load}>
