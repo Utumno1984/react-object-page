@@ -4,7 +4,7 @@ import { Title, type TitleLevel } from '../typography/Title';
 import { composeRefs } from '../utils/compose-refs';
 import { cn } from '../utils/cn';
 import { accessibleText, useObjectPageContext } from './ObjectPageContext';
-import { sectionBodyClass, sectionClass, sectionStyle, sectionTitleClass } from './object-page-styles';
+import { sectionBodyClass, sectionClass, sectionStyle, sectionTitleClass, sectionTitleFocusClass } from './object-page-styles';
 
 export type ObjectPageSectionProps = Omit<HTMLAttributes<HTMLElement>, 'title' | 'id'> & {
   /**
@@ -36,7 +36,12 @@ export const ObjectPageSection = /* @__PURE__ */ forwardRef<HTMLElement, ObjectP
   useEffect(() => {
     const element = elementRef.current;
     if (!element || !registerSection || !unregisterSection) return undefined;
-    registerSection(key, { id, element, readTitle: () => (titleRef.current ? accessibleText(titleRef.current) : '') });
+    registerSection(key, {
+      id,
+      element,
+      readTitle: () => (titleRef.current ? accessibleText(titleRef.current) : ''),
+      focusTitle: () => titleRef.current?.focus({ preventScroll: true }),
+    });
     return () => unregisterSection(key);
   }, [key, id, titleChange, registerSection, unregisterSection]);
 
@@ -50,7 +55,13 @@ export const ObjectPageSection = /* @__PURE__ */ forwardRef<HTMLElement, ObjectP
       className={cn(sectionClass, className)}
       style={{ ...sectionStyle, ...style }}
     >
-      <Title ref={titleRef} level={level} id={titleId} className={sectionTitleClass}>
+      <Title
+        ref={titleRef}
+        level={level}
+        id={titleId}
+        tabIndex={-1}
+        className={cn(sectionTitleClass, sectionTitleFocusClass)}
+      >
         {title}
       </Title>
       <div className={sectionBodyClass}>{children}</div>

@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from 'react';
 import { cn } from '../utils/cn';
+import { ObjectPageAnchorBar } from './ObjectPageAnchorBar';
 import {
   ObjectPageContext,
   isDev,
@@ -21,6 +22,13 @@ import { footerSlotClass, rootClass, scrollerClass, scrollerStyle } from './obje
 export type ObjectPageProps = HTMLAttributes<HTMLDivElement> & {
   /** Level of the header's title (1-4); the sections' titles get the next one. Default 1. */
   headingLevel?: 1 | 2 | 3 | 4;
+  /**
+   * Navigation between the sections: `anchors` (default) shows an Anchor Bar, sticky at the top of the
+   * scroller, once there are two or more sections; `none` shows nothing.
+   */
+  sectionNavigation?: 'anchors' | 'none';
+  /** Texts for assistive technology. `anchorBar`: the name of the Anchor Bar's `<nav>` (default "Sezioni"). */
+  labels?: { anchorBar?: string };
   children?: ReactNode;
 };
 
@@ -34,7 +42,7 @@ const sameSections = (a: readonly ObjectPageSectionInfo[], b: readonly ObjectPag
  * page grows with its content and the document is the single scroller.
  */
 export const ObjectPage = /* @__PURE__ */ forwardRef<HTMLDivElement, ObjectPageProps>(function ObjectPage(
-  { headingLevel = 1, children, className, ...rest },
+  { headingLevel = 1, sectionNavigation = 'anchors', labels, children, className, ...rest },
   ref,
 ) {
   const scrollerRef = useRef<HTMLDivElement | null>(null);
@@ -90,9 +98,14 @@ export const ObjectPage = /* @__PURE__ */ forwardRef<HTMLDivElement, ObjectPageP
     }
   }, [sections]);
 
+  const getSection = useCallback((id: string) => {
+    for (const entry of entries.current.values()) if (entry.id === id && entry.element.isConnected) return entry;
+    return undefined;
+  }, []);
+
   const context = useMemo<ObjectPageContextValue>(
-    () => ({ headingLevel, scrollerRef, footerSlot, sections, registerSection, unregisterSection }),
-    [headingLevel, footerSlot, sections, registerSection, unregisterSection],
+    () => ({ headingLevel, scrollerRef, footerSlot, sections, registerSection, unregisterSection, getSection }),
+    [headingLevel, footerSlot, sections, registerSection, unregisterSection, getSection],
   );
 
   return (
@@ -102,6 +115,9 @@ export const ObjectPage = /* @__PURE__ */ forwardRef<HTMLDivElement, ObjectPageP
             It has no role or name: it is one extra Tab stop, announced as a bare group by some screen readers. */}
         {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}
         <div ref={scrollerRef} tabIndex={0} data-object-page-scroller="" className={scrollerClass} style={scrollerStyle}>
+          {sectionNavigation === 'anchors' && sections.length >= 2 ? (
+            <ObjectPageAnchorBar label={labels?.anchorBar ?? 'Sezioni'} />
+          ) : null}
           {children}
         </div>
         <div ref={setFooterSlot} data-object-page-footer-slot="" className={footerSlotClass} />

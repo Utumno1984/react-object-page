@@ -30,9 +30,38 @@ export const headerActionsClass = 'flex min-w-0 flex-wrap items-center gap-2';
 
 // Sections stop below whatever the Anchor Bar will pin at the top (it sets the variable).
 export const sectionClass = 'flex min-w-0 flex-col gap-3';
-export const sectionStyle = { scrollMarginTop: 'var(--rop-object-page-sticky-offset, 0px)' } as const;
+// A section stops this many px below the bar, so the focus indicator of its title (2px wide, 2px away)
+// is not hidden under the bar.
+// A plain literal (not built from the constant): a string built at load time is kept in the bundle of
+// every export; a unit test pins the two together.
+export const SECTION_GAP_PX = 4;
+export const sectionStyle = { scrollMarginTop: 'calc(var(--rop-object-page-sticky-offset, 0px) + 4px)' } as const;
 export const sectionTitleClass = 'min-w-0 [overflow-wrap:anywhere]';
 // A wide child (a table) scrolls inside the section body, not the page. An overflow container clips on
 // every side, so it gets 4px of padding (cancelled by the negative margin): the focus indicator, drawn
 // up to 4px outside a control that fills the body, must not be cut.
 export const sectionBodyClass = 'min-w-0 -m-1 overflow-x-auto p-1';
+
+// Keyboard focus lands on a section title after an Anchor Bar jump (programmatic, so the focus indicator shows
+// only when the jump came from the keyboard).
+export const sectionTitleFocusClass =
+  'focus-visible:[outline:2px_solid_var(--color-rop-primary)] focus-visible:[outline-offset:2px]';
+
+// The Anchor Bar: first child of the scroller, pinned at its top (the negative margins cancel the
+// scroller's padding so it spans the full width and sits flush at the top; a sticky offset is measured
+// from the padding edge of the scroller, hence the negative one). The sticky level is the
+// `stickyLayer` of the overlay scale (a unit test pins the two together). Opaque, or the content
+// would show through while scrolling under it.
+export const anchorBarClass =
+  'sticky -top-4 z-rop-sticky -mx-4 -mt-4 min-w-0 border-b border-rop-border bg-rop-surface sm:-mx-6';
+// The list scrolls horizontally on its own (never the page) and never wraps.
+export const anchorBarListClass =
+  'm-0 flex min-w-0 list-none flex-nowrap gap-1 overflow-x-auto overflow-y-hidden p-0 px-4 sm:px-6';
+export const anchorBarItemClass = 'min-w-0 shrink-0';
+// 46px tall (padding, line and border): a touch target. A long title is cut by the max width, never wrapped.
+export const anchorBarLinkClass =
+  'block max-w-64 overflow-hidden text-ellipsis whitespace-nowrap border-0 border-b-2 border-solid ' +
+  'px-3 py-3 text-rop-label font-[500] no-underline hover:bg-rop-surface-subtle ' +
+  'focus-visible:[outline:2px_solid_var(--color-rop-primary)] focus-visible:[outline-offset:-2px]';
+export const anchorBarLinkIdleClass = 'border-transparent text-rop-text-muted hover:text-rop-text';
+export const anchorBarLinkActiveClass = 'border-rop-primary font-[600] text-rop-primary';
