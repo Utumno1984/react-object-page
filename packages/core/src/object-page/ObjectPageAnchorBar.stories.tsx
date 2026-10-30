@@ -168,15 +168,18 @@ export const ManySections: Story = {
     const link = await within(canvasElement).findByRole('link', { name: 'Condizioni e scadenze di pagamento' });
     await userEvent.click(link);
     await waitFor(() => expect(link).toHaveAttribute('aria-current', 'location'));
-    // Wait for the smooth scroll to settle so the picture is steady.
+    // Wait for the smooth scroll to arrive (the section's top at the bar's bottom edge) so the picture is
+    // steady, however slow the machine is: a "stopped moving" check could fire before it has started.
     const scroller = scrollerOf(canvasElement);
-    let last = -1;
-    await waitFor(() => {
-      const now = scroller.scrollTop;
-      const settled = now === last;
-      last = now;
-      expect(settled).toBe(true);
-    });
+    const bar = within(canvasElement).getByRole('navigation');
+    const section = within(canvasElement).getByRole('region', { name: 'Condizioni e scadenze di pagamento' });
+    await waitFor(
+      () => {
+        const gap = section.getBoundingClientRect().top - scroller.getBoundingClientRect().top - bar.getBoundingClientRect().height;
+        expect(Math.abs(gap)).toBeLessThanOrEqual(1);
+      },
+      { timeout: 8000 },
+    );
   },
 };
 
