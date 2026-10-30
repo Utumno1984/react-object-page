@@ -2,37 +2,37 @@
 
 > Documento di pianificazione. Nessun codice, nessuna struttura di file, nessun nome di classe o
 > variabile di una codebase altrui è riportato qui: ogni idea è riformulata in termini generici di
-> progettazione UI, ancorata dove possibile a un riferimento **pubblico** (SAP Fiori). Obiettivo:
+> progettazione UI enterprise diffusi nel settore. Obiettivo:
 > ripartire con un design system React indipendente, usato per primo da Daniele nei suoi progetti
 > (vistato, agent-scout, sniper-trading-bot, react-virtual-tree-view, react-virtual-dnd-table) e
 > messo a reddito con un modello **open-core** (core MIT gratuito + pacchetto Pro a pagamento).
 
-## 0. Posizionamento e riferimento pubblico: SAP Fiori
+## 0. Posizionamento: pattern UI enterprise generici
 
-Il pattern architetturale individuato nel lavoro pregresso (lista con filtri → pannello di
-preview → editor a sezioni con save-bar/dirty-guard) **non è un'invenzione proprietaria**: è,
-quasi tratto per tratto, l'implementazione dei due floorplan più noti di **SAP Fiori**, il design
-system enterprise pubblico di SAP (https://experience.sap.com/fiori-design-web/):
+Il pattern architetturale scelto (lista con filtri → pannello di preview → editor a sezioni con
+save-bar/dirty-guard) **non è un'invenzione proprietaria**: è un pattern di composizione diffuso
+in tutto il software enterprise/admin, implementato in forme molto simili da decine di design
+system e librerie indipendenti:
 
-- **List Report** — vista lista con *Smart Filter Bar* (filtri a pillole/segmented + ricerca),
-  tabella con colonne configurabili, selezione multipla e azioni bulk, stati vuoto/caricamento.
-- **Object Page** — editor a sezioni con **Anchor Bar** (navigazione ancorata alle sezioni),
-  **header** con identità dell'oggetto e azioni, **footer/save-bar** sticky, gestione dello stato
-  "sporco" (dirty) prima di uscire.
+- **List Report** — vista lista con barra filtri (filtri a pillole/segmented + ricerca), tabella
+  con colonne configurabili, selezione multipla e azioni bulk, stati vuoto/caricamento.
+- **Object Page** — editor a sezioni con navigazione ancorata alle sezioni, **header** con
+  identità dell'oggetto e azioni, **footer/save-bar** sticky, gestione dello stato "sporco"
+  (dirty) prima di uscire.
 
-Questo è un'**ottima notizia strategica**, non solo una curiosità: Fiori è uno standard enterprise
-pubblico, documentato, implementabile liberamente da chiunque (nessuna parte del codice/CSS di
-Fiori va copiata — i floorplan sono *pattern di interazione e composizione*, liberi da copyright
-sull'implementazione). Da qui in avanti:
+Questo è un'**ottima notizia strategica**, non solo una curiosità: sono pattern di interazione e
+composizione generici, liberi da copyright sull'implementazione, documentabili e implementabili
+da chiunque senza bisogno di ancorarsi a un prodotto specifico. Da qui in avanti:
 
-- Il pattern L1/L2/L3 va **ancorato esplicitamente** alla terminologia Fiori ovunque calzi, invece
-  di usare nomi generici inventati: **List Report**, **Object Page**, **Object Page Header**,
-  **Anchor Bar / Section Navigation**, **Smart Filter Bar**, **Message Strip** (per i banner di
-  stato/errore), **Object Status** (per i badge di stato record).
+- I nomi dei componenti restano generici e descrittivi (**List Report**, **Object Page**,
+  **Object Page Header**, **Anchor Bar**, **Filter Bar**, **Message Strip** per i banner di
+  stato/errore, **Status Badge** per i badge di stato record), senza citare né implicare
+  l'affiliazione con un prodotto commerciale specifico.
 - La legittimità del progetto non dipende dal "mi sono ispirato a un lavoro precedente": dipende
-  dal fatto che è un'implementazione React, libera e indipendente, di pattern enterprise **già
-  pubblici**. Questo va scritto chiaramente nel README/positioning del progetto finale.
-- Vedi §5 per la valutazione del positioning commerciale "Fiori-inspired design system per React".
+  dal fatto che è un'implementazione React, libera e indipendente, di pattern enterprise già
+  diffusi e descritti in astratto. Questo va scritto chiaramente nel README/positioning del
+  progetto finale, senza nominare prodotti o aziende specifiche.
+- Vedi §5 per la valutazione del positioning commerciale.
 
 ---
 
@@ -200,7 +200,7 @@ ricorrenti nei design system costruiti su primitivi headless (es. Radix):
 Scala tipografica condivisa (incluso un token "monospace" dedicato a codici/identificativi, non
 applicato a mano in ogni punto), scala icone coerente (xs→xl con passi dichiarati), varianti bottone
 (dimensione `inline`/`icon-xs` per usi compatti dentro testo o celle), **Message Strip** (banner di
-errore/successo/informazione, equivalente Fiori del concetto di "alert" inline) con un unico
+errore/successo/informazione, lo stesso concetto generico di "alert" inline) con un unico
 meccanismo condiviso di messaggio sotto-campo per tutti i controlli di form (stessa spaziatura/
 dimensione testo per errore e per testo d'aiuto).
 
@@ -267,12 +267,11 @@ più il default per il progetto nel suo complesso.
 
 ### 2.1 Riferimento architetturale primario
 
-**SAP Fiori — floorplan List Report e Object Page** (pubblico: https://experience.sap.com/fiori-design-web/)
-come riferimento esplicito per composizione e naming di alto livello. Il nuovo design system si
-presenta, in parte, come: *"un'implementazione React headless, indipendente e open-source, dei
-floorplan List Report / Object Page di SAP Fiori — per chi vuole quella UX enterprise senza lo
-stack SAP/UI5"*. Nessun asset, CSS o codice SAP viene toccato: solo il pattern di interazione
-pubblico.
+**List Report e Object Page come pattern di composizione enterprise generici** (vedi §0) come
+riferimento per composizione e naming di alto livello. Il nuovo design system si presenta, in
+parte, come: *"un'implementazione React headless, indipendente e open-source, dei pattern List
+Report / Object Page — per chi vuole quella UX enterprise senza un framework proprietario"*.
+Nessun asset, CSS o codice di terzi viene toccato: solo il pattern di interazione generico.
 
 ### 2.2 Stack tecnico
 
@@ -345,7 +344,7 @@ per adozione/community, bassa difficoltà o ampiamente disponibile in altre libr
 | Dialog/Sheet/Tooltip base (size, focus-trap base) | ✅ | | Radix-equivalenti esistono già gratis altrove: il valore è nell'integrazione coerente, non nel primitivo isolato |
 | Description List (inline/stacked) | ✅ | | Difficoltà media, ma componente "vetrina" per mostrare la qualità del DS e attirare adozione |
 | List Report client-side semplice (no virtualizzazione) | ✅ | | Buona come showcase, ma senza il pezzo difficile |
-| Object Page base (sezioni + save-bar semplice) | ✅ | | Idem: mostra il pattern Fiori, senza il dirty-tracking avanzato |
+| Object Page base (sezioni + save-bar semplice) | ✅ | | Idem: mostra il pattern, senza il dirty-tracking avanzato |
 | **List Report virtualizzata per dataset grandi** | | ✅ | Virtualizzazione + scroll/selection/drag coerenti è lavoro ingegneristico alto, moat reale (già provato su react-virtual-tree-view/dnd-table) |
 | **Dirty-tracking robusto con idratazione asincrona** (niente "eco" su valore esterno, niente falsi dirty) | | ✅ | Insidia sottile e ricorrente (§1.4), risolverla bene è anni di esperienza concentrati, difficile da replicare al volo |
 | **Change Summary avanzato** (diff per-campo affidabile su dati annidati/array) | | ✅ | Logica non banale, alto valore percepito per i clienti enterprise |
@@ -363,8 +362,7 @@ per adozione/community, bassa difficoltà o ampiamente disponibile in altre libr
   concettualmente un **Object Page** (fattura = oggetto, sezioni = dati fattura/fornitore/storico
   approvazioni, azioni = approva/rifiuta) con una **List Report** per la coda fatture da approvare.
   Migrarlo sul nuovo DS non è solo riuso interno: è il **primo banco di prova reale** per il DS (se
-  non regge vistato, non regge niente), e dà subito un secondo caso d'uso enterprise-admin oltre al
-  materiale di origine.
+  non regge vistato, non regge niente).
 - **react-virtual-tree-view / react-virtual-dnd-table**: candidati naturali come **fondamenta del
   livello Pro "tabelle avanzate"** (virtualizzazione + drag&drop già maturi, testati, con
   community/traction iniziale) invece di restare pacchetti satellite separati. Da **discutere, non
@@ -382,26 +380,18 @@ per adozione/community, bassa difficoltà o ampiamente disponibile in altre libr
 
 ## 5. Rischi e domande aperte per Daniele
 
-1. **Nome del progetto/pacchetto.** Deve comunicare "React + enterprise admin" senza clamare
-   affiliazione SAP. Candidati di forma (da verificare disponibilità npm/GitHub): qualcosa che
-   evochi "object page"/"list report"/"anchor" in combinazione con "react" — es. pattern già usato
-   da Daniele (`react-virtual-*`) suggerisce coerenza di naming con un prefisso simile per questo
-   DS (es. `react-enterprise-ui`, `react-object-page`, `fiori-react` — quest'ultimo è il più diretto
-   ma rischia confusione di affiliazione, vedi punto 3).
+1. **Nome del progetto/pacchetto**: deciso, `react-object-page` (coerente col naming `react-virtual-*`
+   già usato da Daniele).
 2. **Mecanismo di licensing Pro**: npm org privata (minimo sforzo, meno standard) vs license-key
    (più standard di mercato, più sforzo iniziale) vs source-available a pagamento. Raccomandazione
    preliminare in §2.4: iniziare semplice (npm org privata), evolvere se c'è trazione.
-3. **Positioning "Fiori-inspired"**: vantaggi — query di ricerca riconoscibili ("fiori react
-   components", "sap fiori react", "object page react") = acquisizione organica più facile su un
-   bisogno già esistente (team che vogliono UX Fiori senza stack SAP/UI5 sono un segmento reale e
-   verificabile); target chiaro (team enterprise-admin, spesso già familiari con SAP in altre parti
-   dell'azienda). Svantaggi — rischio di percezione "è ufficiale SAP?" (richiede disclaimer chiaro
-   "ispirato ai floorplan pubblici Fiori, non affiliato con né approvato da SAP" in README/sito, sia
-   per onestà che per motivi legali-trademark: "Fiori"/"SAP" sono marchi SAP, usabili solo in forma
-   descrittiva/comparativa, non nel nome del pacchetto né come se il progetto fosse un prodotto
-   SAP). **Raccomandazione**: usare "Fiori-inspired"/"implements the List Report and Object Page
-   patterns" come frase descrittiva nel posizionamento (SEO, README), **non** nel nome del
-   pacchetto/organizzazione.
+3. **Positioning: deciso neutro, nessun riferimento a prodotti/marchi terzi** (2026-10-30, revisione
+   della scelta iniziale). Il progetto si presenta solo come implementazione React headless e
+   indipendente di pattern UI enterprise generici (List Report, Object Page), senza nominare né
+   evocare alcun prodotto commerciale specifico — né nel nome, né nel README, né nella
+   documentazione pubblica. Motivo: evitare qualunque superficie che possa essere letta come un
+   collegamento con l'esperienza lavorativa pregressa di Daniele, al di là di quanto già
+   strettamente necessario a descrivere pattern UI generici e di pubblico dominio.
 4. **Abbonamento ricorrente vs licenza perpetua per il Pro**: coerente con l'indicazione "sempre
    nell'ottica di monetizzare" di Daniele, un **abbonamento ricorrente per-seat o per-progetto**
    (tipico di questo mercato: molte "admin template"/"component Pro" commerciali React vendono a
@@ -425,8 +415,8 @@ per adozione/community, bassa difficoltà o ampiamente disponibile in altre libr
 ## 6. Proposta di primo MVP
 
 Obiettivo: arrivare rapidamente a qualcosa che (a) Daniele può già usare lui stesso su vistato, (b)
-è presentabile pubblicamente come "Fiori-inspired, React, open-source", (c) ha già un primo
-componente Pro vendibile per validare la domanda, senza costruire tutto il resto prima.
+è presentabile pubblicamente come design system React headless, indipendente e open-source, (c) ha
+già un primo componente Pro vendibile per validare la domanda, senza costruire tutto il resto prima.
 
 **Ordine proposto:**
 
@@ -435,13 +425,13 @@ componente Pro vendibile per validare la domanda, senza costruire tutto il resto
    differenziale — farli bene e in fretta, non sovra-investire.)
 2. **Free — List Report semplice** (client-side, filtri a pillole, colonne configurabili,
    empty/loading stabili) + **Object Page semplice** (sezioni ancorate + save-bar base). Questo è
-   il primo momento in cui il posizionamento "Fiori-inspired" diventa visibile e dimostrabile in
+   il primo momento in cui il posizionamento del progetto diventa visibile e dimostrabile in
    Storybook — vale la pena investire qui su qualità visiva e demo, è il "biglietto da visita".
 3. **Validazione su vistato**: migrare la coda fatture di vistato su List Report + Object Page
    Free. Se emergono limiti reali (non estetici) qui, è il segnale più onesto di cosa manca prima
    di vendere qualcosa.
 4. **Primo componente Pro**: **dirty-tracking robusto + Change Summary** sull'Object Page (§1.4,
-   §3) — è il pattern con l'insidia più documentata e sottile nel materiale di origine, quindi il
+   §3) — è il pattern con l'insidia più sottile e documentata in questo spec (vedi §1.4), quindi il
    moat è reale e verificabile, e si collega direttamente al dolore di qualunque editor di record
    enterprise (non solo il caso di Daniele). Secondo componente Pro a ruota:
    **List Report virtualizzata** per dataset grandi, riusando direttamente
@@ -452,6 +442,6 @@ componente Pro vendibile per validare la domanda, senza costruire tutto il resto
    semplice (per-progetto, non per-seat, per abbassare la frizione del primo acquisto).
 
 **Non fare subito** (rischio di sovra-ingegnerizzare prima di validare): sistema di license-key,
-soft-delete come pattern Pro completo, Picker/Assignment dialog (è il componente più fragile del
-materiale di origine — rifarlo bene richiede aver già consolidato Dialog+Select+DataGrid, altrimenti
-si eredita la stessa classe di bug fin dall'inizio).
+soft-delete come pattern Pro completo, Picker/Assignment dialog (è notoriamente il componente più
+fragile di questa classe, §1.8 — rifarlo bene richiede aver già consolidato Dialog+Select+DataGrid,
+altrimenti si eredita la stessa classe di bug fin dall'inizio).

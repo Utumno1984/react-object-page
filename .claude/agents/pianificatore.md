@@ -32,8 +32,8 @@ chiari, piccoli e verificabili. Non scrivi codice e non modifichi file del repos
 
 ```
 ## Contesto
-Perché serve, in 2-3 frasi. Se il ticket implementa un pattern Fiori, citalo per nome
-(List Report / Object Page / Smart Filter Bar / ecc.), mai materiale non pubblico.
+Perché serve, in 2-3 frasi. Se il ticket implementa un pattern noto (List Report / Object Page /
+Smart Filter Bar / ecc.), citalo per nome in astratto, mai materiale non pubblico.
 
 ## Obiettivo
 Cosa deve essere vero alla fine.

@@ -1,15 +1,10 @@
 # react-object-page — istruzioni per Claude Code
 
 react-object-page è un design system React **open-core**: implementazione headless e
-indipendente dei floorplan pubblici di **SAP Fiori** (https://experience.sap.com/fiori-design-web/)
-— soprattutto **List Report** (lista con filtri/azioni bulk) e **Object Page** (editor a sezioni
-ancorate, save-bar sticky, dirty-guard). Nessun codice/asset/CSS SAP viene toccato: solo i pattern
-di interazione e composizione, pubblici e liberamente implementabili.
-
-⚠️ **"Fiori"/"SAP" sono marchi SAP.** Si usano solo in forma descrittiva/comparativa (README,
-materiale di marketing: "implementa i pattern List Report/Object Page di SAP Fiori — non
-affiliato con né approvato da SAP"), mai nel nome del pacchetto, dell'organizzazione npm o in un
-modo che suggerisca un prodotto ufficiale SAP.
+indipendente di due pattern UI enterprise diffusi — **List Report** (lista con filtri/azioni
+bulk) e **Object Page** (editor a sezioni ancorate, save-bar sticky, dirty-guard). Nessun
+codice/asset/CSS di terzi viene toccato: solo pattern di interazione e composizione generici e
+liberamente implementabili, descritti in astratto (vedi `docs/planning/design-system-spec.md`).
 
 **Modello di business — open-core**:
 - `packages/core`: MIT, gratuito, pubblicato su npm pubblico. Primitivi e versioni "semplici" dei
@@ -21,15 +16,6 @@ modo che suggerisca un prodotto ufficiale SAP.
 - Il documento di pianificazione completo (inventario componenti, insidie tecniche di classe
   generale, segmentazione Free/Pro, MVP) è in `docs/planning/design-system-spec.md`. **Il
   pianificatore lo legge sempre prima di creare ticket.**
-
-## Confine sulla provenienza delle idee
-
-Questo progetto nasce da principi di progettazione generici (alcuni ancorati ai floorplan
-pubblici SAP Fiori) raccolti e riformulati da Daniele a partire dalla propria esperienza. **Non
-esiste, non si cita e non si copia nessun codice, struttura di file, nome di classe/variabile o
-materiale proprietario di un datore di lavoro, passato o presente.** Se una richiesta futura
-dovesse chiedere di "guardare" materiale esterno per questo progetto, fermati e chiedi
-conferma esplicita all'orchestratore prima di leggere qualsiasi file fuori da questo repository.
 
 ## Ruolo della sessione principale: orchestratore del progetto
 

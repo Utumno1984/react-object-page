@@ -1,7 +1,7 @@
 # @react-object-page/core
 
-Headless React implementation of the public List Report and Object Page interaction patterns
-(Free tier, MIT). Not affiliated with or endorsed by SAP.
+Headless React implementation of public List Report and Object Page interaction patterns
+(Free tier, MIT).
 
 ## Styles
 
