@@ -16,9 +16,21 @@
   --color-rop-surface: #ffffff;
   --color-rop-surface-subtle: #f5f6f7;
   --color-rop-border: #c4cdd6;
-  --color-rop-primary: #0a6ed1;
-  /* Hover shades derive from the base color, so overriding --color-rop-primary/-error moves them too. */
+  /* Primary scale: blue-600 is the only hardcoded value; every other step is mixed from it. */
+  --color-rop-blue-600: #0a6ed1;
+  --color-rop-blue-50: color-mix(in srgb, var(--color-rop-blue-600) 8%, white);
+  --color-rop-blue-100: color-mix(in srgb, var(--color-rop-blue-600) 16%, white);
+  --color-rop-blue-200: color-mix(in srgb, var(--color-rop-blue-600) 32%, white);
+  --color-rop-blue-300: color-mix(in srgb, var(--color-rop-blue-600) 50%, white);
+  --color-rop-blue-400: color-mix(in srgb, var(--color-rop-blue-600) 68%, white);
+  --color-rop-blue-500: color-mix(in srgb, var(--color-rop-blue-600) 84%, white);
+  --color-rop-blue-700: color-mix(in srgb, var(--color-rop-blue-600) 80%, black);
+  --color-rop-blue-800: color-mix(in srgb, var(--color-rop-blue-600) 62%, black);
+  --color-rop-primary: var(--color-rop-blue-600);
+  /* Hover/active shades derive from the CURRENT primary (same expression as blue-700/800, so they are
+     identical by default), so overriding --color-rop-primary/-error moves them too. */
   --color-rop-primary-hover: color-mix(in srgb, var(--color-rop-primary) 80%, black);
+  --color-rop-primary-active: color-mix(in srgb, var(--color-rop-primary) 62%, black);
   --color-rop-primary-contrast: #ffffff;
   --color-rop-info: #0070f2;
   --color-rop-success: #107e3e;

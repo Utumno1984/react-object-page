@@ -1,0 +1,85 @@
+import tokensCss from './tokens.css?raw';
+
+// Resolves a token from the real tokens.css (hex, var(), color-mix in srgb, white/black), so the
+// contrast checks follow the shipped values instead of numbers copied by hand.
+type Rgb = [number, number, number];
+
+const declarations = new Map<string, string>();
+for (const m of tokensCss.matchAll(/(--[\w-]+):\s*([^;]+);/g)) declarations.set(m[1]!, m[2]!.trim());
+
+function resolve(value: string): Rgb {
+  const v = value.trim();
+  const hex = v.match(/^#([0-9a-f]{6})$/i);
+  if (hex) return [0, 2, 4].map((i) => parseInt(hex[1]!.slice(i, i + 2), 16)) as Rgb;
+  if (v === 'white') return [255, 255, 255];
+  if (v === 'black') return [0, 0, 0];
+  const ref = v.match(/^var\((--[\w-]+)\)$/);
+  if (ref) return resolve(declarations.get(ref[1]!) ?? fail(`missing token ${ref[1]}`));
+  const mix = v.match(/^color-mix\(in srgb,\s*(.+?)\s+(\d+(?:\.\d+)?)%,\s*(.+)\)$/);
+  if (mix) {
+    const p = Number(mix[2]) / 100;
+    const a = resolve(mix[1]!);
+    const b = resolve(mix[3]!);
+    return a.map((c, i) => c * p + b[i]! * (1 - p)) as Rgb;
+  }
+  return fail(`unsupported color expression: ${v}`);
+}
+
+function fail(message: string): never {
+  throw new Error(message);
+}
+
+const token = (name: string): Rgb => resolve(declarations.get(`--color-rop-${name}`) ?? fail(`missing ${name}`));
+
+const luminance = ([r, g, b]: Rgb) => {
+  const lin = (c: number) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+};
+const contrast = (a: Rgb, b: Rgb) => {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x) as [number, number];
+  return (hi + 0.05) / (lo + 0.05);
+};
+
+describe('primary scale tokens', () => {
+  it('blue-600 is the only hardcoded step; every other one is a color-mix of it', () => {
+    const steps = [50, 100, 200, 300, 400, 500, 600, 700, 800];
+    const hardcoded = steps.filter((s) => /#[0-9a-f]{3,8}\b/i.test(declarations.get(`--color-rop-blue-${s}`) ?? ''));
+    expect(hardcoded).toEqual([600]);
+    for (const s of [50, 100, 200, 300, 400, 500]) {
+      expect(declarations.get(`--color-rop-blue-${s}`)).toMatch(/^color-mix\(in srgb, var\(--color-rop-blue-600\) \d+%, white\)$/);
+    }
+    for (const s of [700, 800]) {
+      expect(declarations.get(`--color-rop-blue-${s}`)).toMatch(/^color-mix\(in srgb, var\(--color-rop-blue-600\) \d+%, black\)$/);
+    }
+  });
+
+  it('primary / hover / active resolve to blue-600 / 700 / 800', () => {
+    expect(token('primary')).toEqual(token('blue-600'));
+    expect(token('primary-hover')).toEqual(token('blue-700'));
+    expect(token('primary-active')).toEqual(token('blue-800'));
+  });
+
+  it('the scale gets monotonically darker from 50 to 800', () => {
+    const lum = [50, 100, 200, 300, 400, 500, 600, 700, 800].map((s) => luminance(token(`blue-${s}`)));
+    for (let i = 1; i < lum.length; i += 1) expect(lum[i]!).toBeLessThan(lum[i - 1]!);
+  });
+});
+
+describe('contrast', () => {
+  const white = token('primary-contrast');
+
+  it.each(['blue-600', 'blue-700', 'blue-800'])('white text on %s is at least 4.5:1 (WCAG AA)', (name) => {
+    expect(contrast(token(name), white)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it.each(['surface', 'surface-subtle'])('the focus ring (blue-600) on %s is at least 3:1 (WCAG 1.4.11)', (name) => {
+    expect(contrast(token('blue-600'), token(name))).toBeGreaterThanOrEqual(3);
+  });
+
+  it('the focus ring is drawn with the primary token', () => {
+    expect(token('primary')).toEqual(token('blue-600'));
+  });
+});
