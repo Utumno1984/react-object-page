@@ -161,6 +161,10 @@
     "useListReport": {
       "baseline": 3067,
       "limit": 3374
+    },
+    "useObjectPageForm": {
+      "baseline": 1770,
+      "limit": 1948
     }
   }
 }

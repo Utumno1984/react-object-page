@@ -55,6 +55,7 @@ const EXPORTS = [
   'useCombobox',
   'useFieldControl',
   'useListReport',
+  'useObjectPageForm',
 ];
 
 describe('built package consumers (requires a prior `npm run build`)', () => {

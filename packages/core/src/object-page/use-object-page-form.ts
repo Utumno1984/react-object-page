@@ -1,0 +1,221 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { deepEqual } from './equal';
+
+// Bundlers replace `process.env.NODE_ENV` in consumer builds; without `process` assume development.
+const isDev = (): boolean => {
+  try {
+    return process.env.NODE_ENV !== 'production';
+  } catch {
+    return true;
+  }
+};
+
+export interface UseObjectPageFormOptions<Values extends Record<string, unknown>> {
+  /**
+   * Initial baseline: the last known saved state. It is read **once**, at mount. Passing a different
+   * object later does not change `values` or `baseline` (in development a single `console.warn`
+   * points to `reset(newBaseline)`); use `reset(newBaseline)` to hydrate data that arrives later.
+   */
+  baseline: Values;
+  /**
+   * Replaces the default structural comparison used by `isDirty` (`(values, baseline) => boolean`).
+   */
+  isEqual?: (a: Values, b: Values) => boolean;
+}
+
+export interface UseObjectPageFormReturn<Values extends Record<string, unknown>> {
+  /** Current values (starts equal to the baseline). */
+  values: Values;
+  /** Current baseline (last saved or hydrated state). */
+  baseline: Values;
+  /**
+   * `true` when `values` differs from `baseline` under a deep structural comparison: plain objects
+   * and arrays by content, `Date` by `getTime()`, `NaN` equal to `NaN`. `''`, `null` and
+   * `undefined` are all **different** from each other, and a key set to `undefined` differs from a
+   * missing key. Other objects (`Map`, `Set`, class instances) compare by reference unless
+   * `isEqual` is passed. Computed against the real baseline, not a "touched" flag: restoring the
+   * original value makes the form clean again.
+   */
+  isDirty: boolean;
+  /** Sets one top-level field. Clears `saveError`. Stable identity. */
+  setValue: <K extends keyof Values>(name: K, value: Values[K]) => void;
+  /** Merges several top-level fields in a single update. Clears `saveError`. Stable identity. */
+  setValues: (patch: Partial<Values>) => void;
+  /**
+   * `reset(newBaseline)` hydrates: baseline and values become `newBaseline` and the form is clean,
+   * without any user-gesture signal (the hook exposes no change callback). `reset()` discards the
+   * edits and returns the values to the current baseline. Both clear `saveError`. During a save
+   * in flight the reset wins: the later success of that save does not overwrite the new baseline.
+   * Stable identity.
+   */
+  reset: (newBaseline?: Values) => void;
+  /**
+   * Runs `handler(values)` once. On success the new baseline is the value returned by the handler
+   * (when it is an object) or else the values that were sent; fields edited while saving stay dirty.
+   * If the values were not edited meanwhile they also become the returned baseline (the form shows
+   * what the server stored and is clean). A handler that throws synchronously or rejects sets
+   * `saveError`; values and baseline are untouched. Resolves `true` on success, `false` on error or
+   * when a save is already in flight (the handler is not called again). A save whose form was
+   * `reset` in the meantime resolves `true` when the handler succeeded but changes no state other
+   * than `isSaving`. Stable identity.
+   */
+  save: (handler: (values: Values) => Promise<Values | void> | Values | void) => Promise<boolean>;
+  /** `true` from the call to `save` until its handler settles. */
+  isSaving: boolean;
+  /**
+   * Error of the last save (a rejection with `undefined`/`null` is reported as an `Error`), `null`
+   * when there is none. Cleared by `setValue`, `setValues`, `reset` and a successful save.
+   */
+  saveError: unknown;
+}
+
+interface FormState<Values> {
+  baseline: Values;
+  values: Values;
+}
+
+/**
+ * Headless state of a simple Object Page form: values, baseline, dirty flag and save cycle.
+ * SSR-safe (no effect-only state, no DOM access).
+ *
+ * `Values` must be a type alias or inferred object type (an `interface` has no index signature and
+ * does not satisfy `Record<string, unknown>`).
+ */
+export function useObjectPageForm<Values extends Record<string, unknown>>(
+  options: UseObjectPageFormOptions<Values>,
+): UseObjectPageFormReturn<Values> {
+  const { baseline: baselineOption, isEqual = deepEqual } = options;
+
+  const [state, setState] = useState<FormState<Values>>(() => ({ baseline: baselineOption, values: baselineOption }));
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<{ error: unknown } | null>(null);
+
+  // Synchronous mirror of the state, so several updates in one event compose and `save` reads the
+  // very latest values without being recreated.
+  const stateRef = useRef(state);
+  const savingRef = useRef(false);
+  const mountedRef = useRef(false);
+  const epochRef = useRef(0);
+  const saveErrorRef = useRef(false);
+  const isEqualRef = useRef(isEqual);
+  const initialBaselineRef = useRef(baselineOption);
+  const warnedRef = useRef(false);
+
+  useEffect(() => {
+    isEqualRef.current = isEqual;
+  });
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (warnedRef.current || baselineOption === initialBaselineRef.current || !isDev()) return;
+    if (deepEqual(baselineOption, initialBaselineRef.current)) return;
+    warnedRef.current = true;
+    console.warn(
+      '[react-object-page] useObjectPageForm: the `baseline` option is only read at mount, a different value was ignored. Call `reset(newBaseline)` to hydrate data that arrives later.',
+    );
+  });
+
+  const commit = useCallback((next: FormState<Values>) => {
+    stateRef.current = next;
+    setState(next);
+  }, []);
+
+  const clearSaveError = useCallback(() => {
+    if (!saveErrorRef.current) return;
+    saveErrorRef.current = false;
+    setSaveError(null);
+  }, []);
+
+  const setValues = useCallback(
+    (patch: Partial<Values>) => {
+      const current = stateRef.current;
+      const keys = Object.keys(patch) as (keyof Values)[];
+      if (keys.some((key) => !Object.is(current.values[key], patch[key]) || !(key in current.values))) {
+        commit({ baseline: current.baseline, values: { ...current.values, ...patch } });
+      }
+      clearSaveError();
+    },
+    [commit, clearSaveError],
+  );
+
+  const setValue = useCallback(
+    <K extends keyof Values>(name: K, value: Values[K]) => {
+      const patch: Partial<Values> = {};
+      patch[name] = value;
+      setValues(patch);
+    },
+    [setValues],
+  );
+
+  const reset = useCallback(
+    (newBaseline?: Values) => {
+      epochRef.current += 1;
+      const baseline = newBaseline ?? stateRef.current.baseline;
+      commit({ baseline, values: baseline });
+      clearSaveError();
+    },
+    [commit, clearSaveError],
+  );
+
+  const save = useCallback(
+    async (handler: (values: Values) => Promise<Values | void> | Values | void): Promise<boolean> => {
+      if (savingRef.current) return false;
+      savingRef.current = true;
+      const epoch = epochRef.current;
+      const sent = stateRef.current.values;
+      setIsSaving(true);
+
+      let result: Values | void;
+      try {
+        // `await` also turns a synchronous throw of the handler into a save error.
+        result = await handler(sent);
+      } catch (thrown) {
+        savingRef.current = false;
+        if (mountedRef.current) {
+          saveErrorRef.current = true;
+          setSaveError({ error: thrown ?? new Error('Save failed') });
+          setIsSaving(false);
+        }
+        return false;
+      }
+
+      savingRef.current = false;
+      if (!mountedRef.current) return true;
+      setIsSaving(false);
+      // A reset during the save wins: the form was hydrated/discarded after the values were sent.
+      if (epoch !== epochRef.current) return true;
+
+      let baseline = sent;
+      if (result !== undefined) {
+        if (typeof result === 'object' && result !== null) baseline = result;
+        else if (isDev()) {
+          console.warn('[react-object-page] useObjectPageForm: the save handler returned a non-object, the sent values are the new baseline.');
+        }
+      }
+      const current = stateRef.current;
+      const untouched = current.values === sent || isEqualRef.current(current.values, sent);
+      commit({ baseline, values: untouched ? baseline : current.values });
+      clearSaveError();
+      return true;
+    },
+    [commit, clearSaveError],
+  );
+
+  return {
+    values: state.values,
+    baseline: state.baseline,
+    isDirty: !isEqual(state.values, state.baseline),
+    setValue,
+    setValues,
+    reset,
+    save,
+    isSaving,
+    saveError: saveError ? saveError.error : null,
+  };
+}
