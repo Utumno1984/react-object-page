@@ -105,7 +105,7 @@ test.describe('browsers that do not focus a button on click', () => {
         if ((e.target as Element).closest('button')) e.preventDefault();
       }),
     );
-    const opener = page.locator('button:text-is("Apri")');
+    const opener = page.locator('button').filter({ hasText: /^Apri$/ });
     await opener.click();
     await expect(sheetOf(page)).toBeVisible();
     await expect(opener).not.toBeFocused();
