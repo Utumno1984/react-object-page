@@ -1,0 +1,5 @@
+---
+'@react-object-page/core': minor
+---
+
+Add `ObjectPageFooter`, the save-bar of the Object Page. Rendered anywhere inside `ObjectPage`, it goes to the slot below the scroller and always occupies the same space (the declared height of the actions row, `--rop-object-page-footer-height`, 3.5rem by default; on a narrow screen a fixed 2rem message row sits above the actions), so showing or hiding it (`visible`) never moves the content. Hidden, it is `inert` and invisible (out of the accessibility tree); visible, it is a `region` named by `label` (default "Azioni di salvataggio") holding the consumer's actions at the end of the row. If it hides, or unmounts, while the focus is inside it, the focus moves to the header's title (the page root without a header), never to `<body>`; `ObjectPageHeader`'s title is now `tabIndex=-1` for this. `message` / `messageTone` (`error | success | info`) / `toneLabel` show a one-line status message (truncated, full text on hover and focus) in an always-mounted `role="status"` region. Outside an `ObjectPage` it throws in development; a second footer warns and is not rendered.

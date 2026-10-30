@@ -1,4 +1,4 @@
-import { forwardRef, type HTMLAttributes, type ReactNode } from 'react';
+import { forwardRef, useCallback, type HTMLAttributes, type ReactNode } from 'react';
 import { hasContent } from '../internal/react-nodes';
 import { Text } from '../typography/Text';
 import { Title } from '../typography/Title';
@@ -10,6 +10,7 @@ import {
   headerIdentityClass,
   headerSubtitleClass,
   headerTitleClass,
+  headerTitleFocusClass,
   headerTitleRowClass,
 } from './object-page-styles';
 
@@ -29,11 +30,13 @@ export const ObjectPageHeader = /* @__PURE__ */ forwardRef<HTMLDivElement, Objec
   ref,
 ) {
   const page = useObjectPageContext('ObjectPageHeader');
+  const registerHeaderTitle = page?.registerHeaderTitle;
+  const titleRef = useCallback((node: HTMLHeadingElement | null) => registerHeaderTitle?.(node), [registerHeaderTitle]);
   return (
     <div {...rest} ref={ref} className={cn(headerClass, className)}>
       <div className={headerIdentityClass}>
         <div className={headerTitleRowClass}>
-          <Title level={page?.headingLevel ?? 1} className={headerTitleClass}>
+          <Title ref={titleRef} level={page?.headingLevel ?? 1} tabIndex={-1} className={cn(headerTitleClass, headerTitleFocusClass)}>
             {title}
           </Title>
           {hasContent(status) ? <div>{status}</div> : null}

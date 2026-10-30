@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from 'react';
 import { cn } from '../utils/cn';
+import { composeRefs } from '../utils/compose-refs';
 import { ObjectPageAnchorBar } from './ObjectPageAnchorBar';
 import {
   ObjectPageContext,
@@ -46,6 +47,10 @@ export const ObjectPage = /* @__PURE__ */ forwardRef<HTMLDivElement, ObjectPageP
   ref,
 ) {
   const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const headerTitle = useRef<HTMLElement | null>(null);
+  const mergedRef = useMemo(() => composeRefs(ref, rootRef), [ref]);
+  const [footerClaims, setFooterClaims] = useState<readonly string[]>([]);
   const [footerSlot, setFooterSlot] = useState<HTMLDivElement | null>(null);
   const entries = useRef(new Map<string, ObjectPageSectionEntry>());
   const [sections, setSections] = useState<readonly ObjectPageSectionInfo[]>([]);
@@ -103,14 +108,44 @@ export const ObjectPage = /* @__PURE__ */ forwardRef<HTMLDivElement, ObjectPageP
     return undefined;
   }, []);
 
+  const claimFooter = useCallback((key: string) => {
+    setFooterClaims((prev) => (prev.includes(key) ? prev : [...prev, key]));
+    return () => setFooterClaims((prev) => prev.filter((k) => k !== key));
+  }, []);
+
+  const registerHeaderTitle = useCallback((element: HTMLElement | null) => {
+    headerTitle.current = element;
+  }, []);
+
+  // Where the focus goes when what had it disappears: the header's title, or the root made focusable
+  // for the occasion (a permanent `tabindex` would make every click inside the page focus it).
+  const focusFallback = useCallback(() => {
+    const target = headerTitle.current?.isConnected ? headerTitle.current : rootRef.current;
+    if (!target) return;
+    if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
+    target.focus({ preventScroll: true });
+  }, []);
+
   const context = useMemo<ObjectPageContextValue>(
-    () => ({ headingLevel, scrollerRef, footerSlot, sections, registerSection, unregisterSection, getSection }),
-    [headingLevel, footerSlot, sections, registerSection, unregisterSection, getSection],
+    () => ({
+      headingLevel,
+      scrollerRef,
+      footerSlot,
+      sections,
+      registerSection,
+      unregisterSection,
+      getSection,
+      footerClaims,
+      claimFooter,
+      registerHeaderTitle,
+      focusFallback,
+    }),
+    [headingLevel, footerSlot, sections, registerSection, unregisterSection, getSection, footerClaims, claimFooter, registerHeaderTitle, focusFallback],
   );
 
   return (
     <ObjectPageContext.Provider value={context}>
-      <div {...rest} ref={ref} className={cn(rootClass, className)}>
+      <div {...rest} ref={mergedRef} className={cn(rootClass, className)}>
         {/* Focusable on purpose: a scroll area with only text in it would otherwise be out of reach of the keyboard.
             It has no role or name: it is one extra Tab stop, announced as a bare group by some screen readers. */}
         {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}
