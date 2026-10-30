@@ -13,7 +13,7 @@ afterEach(() => {
 type Invoice = { name: string; amount: number };
 const BASE: Invoice = { name: 'ACME', amount: 10 };
 
-function setup<V extends Record<string, unknown> = Invoice>(options?: Partial<UseObjectPageFormOptions<V>>) {
+function setup<V extends object = Invoice>(options?: Partial<UseObjectPageFormOptions<V>>) {
   return renderHook((props: UseObjectPageFormOptions<V>) => useObjectPageForm<V>(props), {
     initialProps: { baseline: BASE as unknown as V, ...options } as UseObjectPageFormOptions<V>,
   });
@@ -157,6 +157,19 @@ describe('useObjectPageForm: values and dirty', () => {
     expect(() => result.current.setValue('amount', 'ten')).not.toThrow();
     // @ts-expect-error unknown field in the patch
     expect(() => result.current.setValues({ nope: 1 })).not.toThrow();
+  });
+
+  it('accepts an interface Values type, not just a type alias (Values extends object)', () => {
+    interface InvoiceForm {
+      name: string;
+      amount: number;
+    }
+    const baseline: InvoiceForm = { name: 'ACME', amount: 10 };
+    const { result } = setup<InvoiceForm>({ baseline });
+    act(() => result.current.setValue('name', 'ACME srl'));
+    expect(result.current.isDirty).toBe(true);
+    act(() => result.current.setValue('name', 'ACME'));
+    expect(result.current.isDirty).toBe(false);
   });
 
   it('is clean again after editing and restoring an element of an array or nested object', () => {
