@@ -53,6 +53,7 @@ const EXPORTS = [
   'composeRefs',
   'defaultComboboxFilter',
   'useCombobox',
+  'useDirtyGuard',
   'useFieldControl',
   'useListReport',
   'useObjectPageForm',

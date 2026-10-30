@@ -154,6 +154,10 @@
       "baseline": 2512,
       "limit": 2764
     },
+    "useDirtyGuard": {
+      "baseline": 28344,
+      "limit": 31179
+    },
     "useFieldControl": {
       "baseline": 714,
       "limit": 786

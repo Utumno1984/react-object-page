@@ -1,0 +1,149 @@
+import { useState } from 'react';
+import type { Meta, StoryObj } from '@storybook/react-vite';
+import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
+import { Button } from '../button/Button';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../dialog/Dialog';
+import { useDirtyGuard } from './use-dirty-guard';
+
+interface DemoArgs {
+  when: boolean;
+  title: string;
+  description: string;
+  stay: string;
+  leave: string;
+  /** The guarded exit action: it shows up in Actions only when the exit is confirmed. */
+  action: () => void;
+}
+
+const meta: Meta<DemoArgs> = {
+  title: 'Patterns/DirtyGuard',
+  parameters: { layout: 'fullscreen' },
+  argTypes: {
+    when: { control: 'boolean' },
+    title: { control: 'text' },
+    description: { control: 'text' },
+    stay: { control: 'text' },
+    leave: { control: 'text' },
+    action: { control: false },
+  },
+  args: {
+    when: true,
+    title: 'Modifiche non salvate',
+    description: 'Ci sono modifiche non salvate: se esci ora andranno perse.',
+    stay: 'Continua a modificare',
+    leave: 'Esci senza salvare',
+    action: fn(),
+  },
+};
+
+export default meta;
+type Story = StoryObj<DemoArgs>;
+
+function Demo({ when, title, description, stay, leave, action }: DemoArgs) {
+  const { guard, dialog } = useDirtyGuard({ when, labels: { title, description, stay, leave } });
+  return (
+    <main style={{ padding: 24, fontFamily: 'system-ui, sans-serif', fontSize: 14, minHeight: 360 }}>
+      <h1 style={{ margin: '0 0 8px', fontSize: 20 }}>Fornitore ACME</h1>
+      <p style={{ margin: '0 0 16px', maxWidth: 480 }}>
+        {when
+          ? 'Ci sono modifiche non salvate: ricaricare la pagina chiede conferma al browser.'
+          : 'Nessuna modifica: uscire è immediato e il browser non chiede conferma.'}
+      </p>
+      <Button variant="secondary" onClick={() => guard(action)}>
+        Torna alla lista
+      </Button>
+      {dialog}
+    </main>
+  );
+}
+
+/**
+ * Controls: `when` (unsaved changes), the four texts of the dialog. `action` is wired to Actions and
+ * is called only when the exit is confirmed. The play function opens the dialog, checks the focus on
+ * "Continua a modificare", stays (nothing in Actions, the focus back on the opener), then opens it
+ * again and leaves: exactly one call.
+ */
+export const Playground: Story = {
+  render: (args) => <Demo {...args} />,
+  play: async ({ args, canvasElement }) => {
+    if (!args.when) return;
+    const opener = within(canvasElement).getByRole('button', { name: 'Torna alla lista' });
+    const body = within(document.body);
+    await userEvent.click(opener);
+    const dialog = await body.findByRole('dialog', { name: args.title });
+    await expect(dialog).toHaveAttribute('aria-modal', 'true');
+    await expect(dialog).toHaveAccessibleDescription(args.description);
+    await waitFor(() => expect(body.getByRole('button', { name: args.stay })).toHaveFocus());
+
+    await userEvent.click(body.getByRole('button', { name: args.stay }));
+    await waitFor(() => expect(body.queryByRole('dialog')).toBeNull());
+    await expect(args.action).not.toHaveBeenCalled();
+    await waitFor(() => expect(opener).toHaveFocus());
+
+    await userEvent.click(opener);
+    await userEvent.click(await body.findByRole('button', { name: args.leave }));
+    await waitFor(() => expect(body.queryByRole('dialog')).toBeNull());
+    await expect(args.action).toHaveBeenCalledTimes(1);
+  },
+};
+
+/** The confirmation dialog open, for the visual snapshot (mobile, tablet and desktop). */
+export const DialogOpen: Story = {
+  tags: ['visual'],
+  render: (args) => <Demo {...args} />,
+  play: async ({ canvasElement }) => {
+    await userEvent.click(within(canvasElement).getByRole('button', { name: 'Torna alla lista' }));
+    await within(document.body).findByRole('dialog', { name: 'Modifiche non salvate' });
+  },
+};
+
+/**
+ * Fixture for the e2e suite: the guarded action unmounts the whole page. It records how many dialogs
+ * were in the DOM when it ran (the confirmation must already be closed); nothing may be left behind
+ * (scroll lock, `aria-hidden`, `inert`).
+ */
+export const UnmountsPage: Story = {
+  render: (args) => {
+    function Root() {
+      const [mounted, setMounted] = useState(true);
+      if (!mounted) return <p>Pagina chiusa</p>;
+      return (
+        <Demo
+          {...args}
+          action={() => {
+            (window as unknown as { __dialogsAtAction: number }).__dialogsAtAction =
+              document.querySelectorAll('[role=dialog]').length;
+            setMounted(false);
+          }}
+        />
+      );
+    }
+    return <Root />;
+  },
+};
+
+/** Fixture for the e2e suite: `guard` is called from inside another open Dialog; the confirmation stacks above it. */
+export const InsideDialog: Story = {
+  render: ({ title, description, stay, leave }) => {
+    function Root() {
+      const [open, setOpen] = useState(false);
+      const { guard, dialog } = useDirtyGuard({ when: true, labels: { title, description, stay, leave } });
+      return (
+        <main style={{ padding: 24, fontFamily: 'system-ui, sans-serif', fontSize: 14, minHeight: 360 }}>
+          <Button onClick={() => setOpen(true)}>Apri la scheda</Button>
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Scheda fornitore</DialogTitle>
+                <DialogDescription>Modifiche in corso.</DialogDescription>
+              </DialogHeader>
+              <Button onClick={() => guard(() => setOpen(false))}>Chiudi scheda</Button>
+              {dialog}
+            </DialogContent>
+          </Dialog>
+        </main>
+      );
+    }
+    return <Root />;
+  },
+};
