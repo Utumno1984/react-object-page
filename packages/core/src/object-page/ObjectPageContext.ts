@@ -19,8 +19,23 @@ export interface ObjectPageSectionInfo {
 }
 
 /** What a section tells the registry about itself. `element` is what gives the DOM order. */
-export interface ObjectPageSectionEntry extends ObjectPageSectionInfo {
+export interface ObjectPageSectionEntry {
+  id: string;
   element: HTMLElement;
+  /** Reads the title as the region's accessible name sees it (from the DOM, so a title rendered by a component counts). */
+  readTitle: () => string;
+}
+
+/** Text of a node as a screen reader names it: `aria-hidden` subtrees skipped, `aria-label` used, spaces normalized. */
+export function accessibleText(node: Node): string {
+  const walk = (n: Node): string => {
+    if (n.nodeType === 3) return n.textContent ?? '';
+    if (!(n instanceof Element) || n.getAttribute('aria-hidden') === 'true') return '';
+    const label = n.getAttribute('aria-label');
+    if (label) return label;
+    return Array.from(n.childNodes).map(walk).join('');
+  };
+  return walk(node).replace(/\s+/g, ' ').trim();
 }
 
 export interface ObjectPageContextValue {

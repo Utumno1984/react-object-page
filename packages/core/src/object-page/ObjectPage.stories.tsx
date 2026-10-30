@@ -193,6 +193,19 @@ export const ScrolledToEnd: Story = {
   },
 };
 
+/** The field of the last section with the keyboard focus: its ring must not be cut by the section body (visual regression). */
+export const FocusedField: Story = {
+  tags: ['visual'],
+  render: Overview.render,
+  play: async ({ canvasElement }) => {
+    const scroller = canvasElement.querySelector('[data-object-page-scroller]') as HTMLElement;
+    const field = within(canvasElement).getByRole('textbox', { name: 'Note interne' });
+    scroller.scrollTop = scroller.scrollHeight;
+    field.focus();
+    await expect(field).toHaveFocus();
+  },
+};
+
 /** Header only: no sections, no crash, still one scroller. */
 export const HeaderOnly: Story = {
   render: () => (

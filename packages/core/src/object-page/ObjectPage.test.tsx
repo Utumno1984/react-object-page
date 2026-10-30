@@ -153,6 +153,44 @@ describe('heading hierarchy and regions', () => {
     expect(screen.getByRole('region', { name: 'Dati generali' })).toBeInTheDocument();
   });
 
+  it('registers exactly the accessible name of the region, also for titles rendered by a component or with hidden parts', () => {
+    const Label = () => <>Dati generali</>;
+    render(
+      <ObjectPage>
+        <ObjectPageSection
+          id="a"
+          title={
+            <>
+              <Icon>{internalIcons.info}</Icon> Con icona
+            </>
+          }
+        >
+          x
+        </ObjectPageSection>
+        <ObjectPageSection id="b" title={<Label />}>
+          x
+        </ObjectPageSection>
+        <ObjectPageSection
+          id="c"
+          title={
+            <>
+              Visibile <span aria-hidden="true">nascosto</span>
+            </>
+          }
+        >
+          x
+        </ObjectPageSection>
+        <RegistryProbe />
+      </ObjectPage>,
+    );
+    expect(registry()).toEqual([
+      { id: 'a', title: 'Con icona' },
+      { id: 'b', title: 'Dati generali' },
+      { id: 'c', title: 'Visibile' },
+    ]);
+    for (const { title } of registry()) expect(screen.getByRole('region', { name: title })).toBeInTheDocument();
+  });
+
   it('declares the sticky offset variable as the scroll margin of a section', () => {
     render(
       <ObjectPage>
@@ -301,30 +339,57 @@ describe('section registry', () => {
     expect(registry().map((s) => s.id)).toEqual(['b', 'a']);
   });
 
-  it('keeps the same array identity when nothing changed (no re-render ripple)', () => {
+  it('keeps the same array identity when a mutation inside the scroller changes no section (no re-render ripple)', async () => {
     const seen: unknown[] = [];
     function Spy() {
       seen.push(useObjectPageSections());
       return null;
     }
-    const { rerender } = render(
+    function Page() {
+      const [extra, setExtra] = useState(false);
+      return (
+        <ObjectPage>
+          <ObjectPageSection id="a" title="A">
+            x
+          </ObjectPageSection>
+          {extra ? <p>messaggio comparso</p> : null}
+          <button onClick={() => setExtra(true)}>aggiungi</button>
+          <Spy />
+        </ObjectPage>
+      );
+    }
+    render(<Page />);
+    const before = seen[seen.length - 1];
+    await userEvent.click(screen.getByRole('button', { name: 'aggiungi' }));
+    // The observer runs in a microtask: let it fire.
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(screen.getByText('messaggio comparso')).toBeInTheDocument();
+    expect(seen[seen.length - 1]).toBe(before);
+  });
+
+  it('follows a title that changes without its section re-rendering', async () => {
+    let setLabel: (text: string) => void = () => undefined;
+    function Label() {
+      const [text, set] = useState('Prima');
+      setLabel = set;
+      return <>{text}</>;
+    }
+    render(
       <ObjectPage>
-        <ObjectPageSection id="a" title="A">
+        <ObjectPageSection id="a" title={<Label />}>
           x
         </ObjectPageSection>
-        <Spy />
+        <RegistryProbe />
       </ObjectPage>,
     );
-    const last = seen[seen.length - 1];
-    rerender(
-      <ObjectPage className="altra">
-        <ObjectPageSection id="a" title="A">
-          x
-        </ObjectPageSection>
-        <Spy />
-      </ObjectPage>,
-    );
-    expect(seen[seen.length - 1]).toBe(last);
+    expect(registry()).toEqual([{ id: 'a', title: 'Prima' }]);
+    act(() => setLabel('Dopo'));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(registry()).toEqual([{ id: 'a', title: 'Dopo' }]);
   });
 });
 

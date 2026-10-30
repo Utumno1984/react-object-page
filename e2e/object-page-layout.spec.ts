@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { expectNoA11yViolations } from './helpers/a11y';
-import { expectNoHorizontalOverflow, expectSingleScroller } from './helpers/geometry';
+import { expectFocusRingVisible, expectNoHorizontalOverflow, expectSingleScroller } from './helpers/geometry';
 import { expectPlayToPass, gotoStory } from './helpers/story';
 
 const STORY = (name: string) => `floorplans-object-page-layout--${name}`;
@@ -92,6 +92,25 @@ test.describe('Floorplans/Object Page/Layout', () => {
     expect(await body.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeGreaterThan(0);
     expect(await page.locator(SCROLLER).evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
     expect(await page.evaluate(() => document.scrollingElement!.scrollWidth <= window.innerWidth)).toBe(true);
+  });
+
+  test('the focus ring of a control filling a section body is not clipped by the body', async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 600 });
+    await gotoStory(page, STORY('keyboard-safe'));
+    const input = page.getByRole('textbox', { name: 'Indirizzo di fatturazione' });
+    await input.scrollIntoViewIfNeeded();
+    await page.keyboard.press('Tab');
+    await input.focus();
+    await expectFocusRingVisible(input);
+    const slack = await input.evaluate((el) => {
+      const cs = getComputedStyle(el);
+      const reach = parseFloat(cs.outlineWidth) + parseFloat(cs.outlineOffset);
+      // The ring is drawn `reach` px outside the control; the body clips at its padding box.
+      const body = el.closest('section')!.lastElementChild!.getBoundingClientRect();
+      const box = el.getBoundingClientRect();
+      return Math.min(box.left - reach - body.left, body.right - (box.right + reach), body.bottom - (box.bottom + reach));
+    });
+    expect(slack).toBeGreaterThanOrEqual(0);
   });
 
   test('sections stop below the sticky offset variable when scrolled into view', async ({ page }) => {

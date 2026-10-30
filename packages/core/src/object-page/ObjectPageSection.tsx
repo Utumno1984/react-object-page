@@ -3,7 +3,7 @@ import { textOf } from '../internal/react-nodes';
 import { Title, type TitleLevel } from '../typography/Title';
 import { composeRefs } from '../utils/compose-refs';
 import { cn } from '../utils/cn';
-import { useObjectPageContext } from './ObjectPageContext';
+import { accessibleText, useObjectPageContext } from './ObjectPageContext';
 import { sectionBodyClass, sectionClass, sectionStyle, sectionTitleClass } from './object-page-styles';
 
 export type ObjectPageSectionProps = Omit<HTMLAttributes<HTMLElement>, 'title' | 'id'> & {
@@ -28,15 +28,17 @@ export const ObjectPageSection = /* @__PURE__ */ forwardRef<HTMLElement, ObjectP
   const elementRef = useRef<HTMLElement | null>(null);
   const registerSection = page?.registerSection;
   const unregisterSection = page?.unregisterSection;
-  const titleText = textOf(title);
+  const titleRef = useRef<HTMLHeadingElement | null>(null);
+  // Only a change trigger: what the registry stores is read from the rendered heading (see `readTitle`).
+  const titleChange = textOf(title);
   const mergedRef = useMemo(() => composeRefs(ref, elementRef), [ref]);
 
   useEffect(() => {
     const element = elementRef.current;
     if (!element || !registerSection || !unregisterSection) return undefined;
-    registerSection(key, { id, title: titleText, element });
+    registerSection(key, { id, element, readTitle: () => (titleRef.current ? accessibleText(titleRef.current) : '') });
     return () => unregisterSection(key);
-  }, [key, id, titleText, registerSection, unregisterSection]);
+  }, [key, id, titleChange, registerSection, unregisterSection]);
 
   const level = Math.min((page?.headingLevel ?? 1) + 1, 6) as TitleLevel;
   return (
@@ -48,7 +50,7 @@ export const ObjectPageSection = /* @__PURE__ */ forwardRef<HTMLElement, ObjectP
       className={cn(sectionClass, className)}
       style={{ ...sectionStyle, ...style }}
     >
-      <Title level={level} id={titleId} className={sectionTitleClass}>
+      <Title ref={titleRef} level={level} id={titleId} className={sectionTitleClass}>
         {title}
       </Title>
       <div className={sectionBodyClass}>{children}</div>
