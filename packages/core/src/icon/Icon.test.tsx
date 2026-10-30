@@ -242,6 +242,7 @@ describe('internal icons', () => {
       'useCombobox',
       'useFieldControl',
       'useListReport',
+      'useObjectPageForm',
     ]);
   });
 });

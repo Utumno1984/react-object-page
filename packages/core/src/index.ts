@@ -86,3 +86,5 @@ export type {
   UseListReportOptions,
   UseListReportReturn,
 } from './list-report/types';
+export { useObjectPageForm } from './object-page/use-object-page-form';
+export type { UseObjectPageFormOptions, UseObjectPageFormReturn } from './object-page/use-object-page-form';
