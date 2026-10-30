@@ -38,3 +38,18 @@ che leghi "indice visivo nel DOM" a "indice nel dataset".
   deve scorrere la lista a metà drag e verificare che il drop finisca sulla riga di dataset
   corretta (per id, non per posizione), riusando gli helper geometrici già in `e2e/helpers/
   geometry.ts` (`expectSingleScroller`, `expectNoHorizontalOverflow`) per la parte di layout.
+
+## Feedback visivo durante il drag (specifica, non ancora implementata)
+
+Quando il componente nascerà, la riga trascinata e il punto di inserimento seguono la stessa
+disciplina di elevazione già in uso per gli altri overlay (`overlayLayer` in `src/overlay/
+layers.ts`):
+
+- **Riga trascinata**: elevata sopra le altre righe (un livello dedicato, non riusare
+  `overlayLayer.popover`/`.modal`: il drag non è un overlay portato fuori dal flusso, resta
+  dentro la tabella) con un'ombra più marcata della riga a riposo — stessa famiglia di token
+  ombra già in uso su `Dialog`/`Tooltip`, un gradino sopra quella del `Tooltip`.
+- **Linea di inserimento**: 2px, colore `--color-rop-blue-600` (il token primario, scala in
+  `tokens.css`), non un colore hardcoded — così segue un eventuale override del tema del
+  consumer. Visibile solo mentre un drag è attivo, mai renderizzata a riposo (niente `opacity:0`
+  sempre nel DOM: un elemento invisibile ma presente può comunque intercettare un hit-test).
