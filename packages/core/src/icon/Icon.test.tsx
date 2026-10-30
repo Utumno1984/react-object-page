@@ -240,6 +240,7 @@ describe('internal icons', () => {
       'composeRefs',
       'defaultComboboxFilter',
       'useCombobox',
+      'useDirtyGuard',
       'useFieldControl',
       'useListReport',
       'useObjectPageForm',
