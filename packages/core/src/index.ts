@@ -88,3 +88,5 @@ export type {
 } from './list-report/types';
 export { useObjectPageForm } from './object-page/use-object-page-form';
 export type { UseObjectPageFormOptions, UseObjectPageFormReturn } from './object-page/use-object-page-form';
+export { useDirtyGuard } from './object-page/use-dirty-guard';
+export type { UseDirtyGuardOptions, UseDirtyGuardReturn, DirtyGuardLabels } from './object-page/use-dirty-guard';
