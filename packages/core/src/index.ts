@@ -86,6 +86,12 @@ export type {
   UseListReportOptions,
   UseListReportReturn,
 } from './list-report/types';
+export { ObjectPage } from './object-page/ObjectPage';
+export type { ObjectPageProps } from './object-page/ObjectPage';
+export { ObjectPageHeader } from './object-page/ObjectPageHeader';
+export type { ObjectPageHeaderProps } from './object-page/ObjectPageHeader';
+export { ObjectPageSection } from './object-page/ObjectPageSection';
+export type { ObjectPageSectionProps } from './object-page/ObjectPageSection';
 export { useObjectPageForm } from './object-page/use-object-page-form';
 export type { UseObjectPageFormOptions, UseObjectPageFormReturn } from './object-page/use-object-page-form';
 export { useDirtyGuard } from './object-page/use-dirty-guard';

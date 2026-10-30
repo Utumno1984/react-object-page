@@ -1,0 +1,46 @@
+import { forwardRef, type HTMLAttributes, type ReactNode } from 'react';
+import { hasContent } from '../internal/react-nodes';
+import { Text } from '../typography/Text';
+import { Title } from '../typography/Title';
+import { cn } from '../utils/cn';
+import { useObjectPageContext } from './ObjectPageContext';
+import {
+  headerActionsClass,
+  headerClass,
+  headerIdentityClass,
+  headerSubtitleClass,
+  headerTitleClass,
+  headerTitleRowClass,
+} from './object-page-styles';
+
+export type ObjectPageHeaderProps = Omit<HTMLAttributes<HTMLDivElement>, 'title' | 'children'> & {
+  /** Identity of the object. Wraps when long, never truncated. */
+  title: ReactNode;
+  subtitle?: ReactNode;
+  /** Next to the title (a status badge, say). */
+  status?: ReactNode;
+  /** Buttons for the object (below the title on a narrow screen). */
+  actions?: ReactNode;
+};
+
+/** Identity of the object (title, subtitle, status) and its actions. Scrolls with the content. */
+export const ObjectPageHeader = /* @__PURE__ */ forwardRef<HTMLDivElement, ObjectPageHeaderProps>(function ObjectPageHeader(
+  { title, subtitle, status, actions, className, ...rest },
+  ref,
+) {
+  const page = useObjectPageContext('ObjectPageHeader');
+  return (
+    <div {...rest} ref={ref} className={cn(headerClass, className)}>
+      <div className={headerIdentityClass}>
+        <div className={headerTitleRowClass}>
+          <Title level={page?.headingLevel ?? 1} className={headerTitleClass}>
+            {title}
+          </Title>
+          {hasContent(status) ? <div>{status}</div> : null}
+        </div>
+        {hasContent(subtitle) ? <Text className={headerSubtitleClass}>{subtitle}</Text> : null}
+      </div>
+      {hasContent(actions) ? <div className={headerActionsClass}>{actions}</div> : null}
+    </div>
+  );
+});

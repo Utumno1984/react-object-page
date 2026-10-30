@@ -78,6 +78,18 @@
       "baseline": 13891,
       "limit": 15281
     },
+    "ObjectPage": {
+      "baseline": 11440,
+      "limit": 12585
+    },
+    "ObjectPageHeader": {
+      "baseline": 11260,
+      "limit": 12387
+    },
+    "ObjectPageSection": {
+      "baseline": 11344,
+      "limit": 12479
+    },
     "Select": {
       "baseline": 43775,
       "limit": 48153
@@ -143,12 +155,12 @@
       "limit": 11388
     },
     "composeRefs": {
-      "baseline": 751,
-      "limit": 827
+      "baseline": 868,
+      "limit": 955
     },
     "defaultComboboxFilter": {
-      "baseline": 722,
-      "limit": 795
+      "baseline": 835,
+      "limit": 919
     },
     "useCombobox": {
       "baseline": 2512,
@@ -159,8 +171,8 @@
       "limit": 31179
     },
     "useFieldControl": {
-      "baseline": 714,
-      "limit": 786
+      "baseline": 826,
+      "limit": 909
     },
     "useListReport": {
       "baseline": 3067,
