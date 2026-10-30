@@ -73,12 +73,14 @@ export function ObjectPageAnchorBar({ label }: ObjectPageAnchorBarProps) {
     const target = getSection?.(id);
     if (!scroller || !target) return;
     event.preventDefault();
-    pin(id);
     const barHeight = barRef.current?.getBoundingClientRect().height ?? 0;
-    const top = target.element.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop - barHeight;
+    const wanted = target.element.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop - barHeight;
+    // What the browser will clamp it to: the scroller cannot go past its end (a short last section).
+    const top = Math.min(Math.max(0, wanted), Math.max(0, scroller.scrollHeight - scroller.clientHeight));
+    pin(id, top);
     const reduced = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (typeof scroller.scrollTo === 'function') scroller.scrollTo({ top: Math.max(0, top), behavior: reduced ? 'auto' : 'smooth' });
-    else scroller.scrollTop = Math.max(0, top);
+    if (typeof scroller.scrollTo === 'function') scroller.scrollTo({ top, behavior: reduced ? 'auto' : 'smooth' });
+    else scroller.scrollTop = top;
     target.focusTitle();
   };
 

@@ -43,11 +43,12 @@ export const sectionTitleFocusClass =
   'focus-visible:[outline:2px_solid_var(--color-rop-primary)] focus-visible:[outline-offset:2px]';
 
 // The Anchor Bar: first child of the scroller, pinned at its top (the negative margins cancel the
-// scroller's padding so it spans the full width and sits flush at the top). The sticky level is the
+// scroller's padding so it spans the full width and sits flush at the top; a sticky offset is measured
+// from the padding edge of the scroller, hence the negative one). The sticky level is the
 // `stickyLayer` of the overlay scale (a unit test pins the two together). Opaque, or the content
 // would show through while scrolling under it.
 export const anchorBarClass =
-  'sticky top-0 z-rop-sticky -mx-4 -mt-4 min-w-0 border-b border-rop-border bg-rop-surface sm:-mx-6';
+  'sticky -top-4 z-rop-sticky -mx-4 -mt-4 min-w-0 border-b border-rop-border bg-rop-surface sm:-mx-6';
 // The list scrolls horizontally on its own (never the page) and never wraps.
 export const anchorBarListClass =
   'm-0 flex min-w-0 list-none flex-nowrap gap-1 overflow-x-auto overflow-y-hidden p-0 px-4 sm:px-6';
