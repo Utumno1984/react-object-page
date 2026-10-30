@@ -1,12 +1,9 @@
 # react-object-page
 
-Design system React **open-core**: implementazione headless e indipendente dei floorplan
-pubblici di [SAP Fiori](https://experience.sap.com/fiori-design-web/) — **List Report**
-(lista con filtri, selezione, azioni bulk) e **Object Page** (editor a sezioni ancorate,
-save-bar sticky, dirty-tracking) — per chi vuole quella UX enterprise senza lo stack SAP/UI5.
-
-> Non affiliato con né approvato da SAP. "Fiori" è un marchio SAP, citato qui solo in forma
-> descrittiva per indicare i pattern di interazione pubblici implementati.
+Design system React **open-core**: implementazione headless e indipendente di due pattern UI
+enterprise diffusi — **List Report** (lista con filtri, selezione, azioni bulk) e **Object Page**
+(editor a sezioni ancorate, save-bar sticky, dirty-tracking) — per chi vuole quella UX senza
+uno stack proprietario.
 
 ## Stato
 

@@ -1,7 +1,7 @@
 {
   "name": "@react-object-page/core",
   "version": "0.0.0",
-  "description": "Headless React implementation of the public List Report and Object Page interaction patterns (Free tier, MIT). Not affiliated with or endorsed by SAP.",
+  "description": "Headless React implementation of public List Report and Object Page interaction patterns (Free tier, MIT).",
   "license": "MIT",
   "type": "module",
   "sideEffects": [
