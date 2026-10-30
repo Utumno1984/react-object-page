@@ -10,7 +10,7 @@ const isDev = (): boolean => {
   }
 };
 
-export interface UseObjectPageFormOptions<Values extends Record<string, unknown>> {
+export interface UseObjectPageFormOptions<Values extends object> {
   /**
    * Initial baseline: the last known saved state. It is read **once**, at mount. Passing a different
    * object later does not change `values` or `baseline` (in development a single `console.warn`
@@ -26,7 +26,7 @@ export interface UseObjectPageFormOptions<Values extends Record<string, unknown>
   isEqual?: (a: Values, b: Values) => boolean;
 }
 
-export interface UseObjectPageFormReturn<Values extends Record<string, unknown>> {
+export interface UseObjectPageFormReturn<Values extends object> {
   /** Current values (starts equal to the baseline). */
   values: Values;
   /** Current baseline (last saved or hydrated state). */
@@ -42,7 +42,18 @@ export interface UseObjectPageFormReturn<Values extends Record<string, unknown>>
   isDirty: boolean;
   /** Sets one top-level field. Clears `saveError`. Stable identity. */
   setValue: <K extends keyof Values>(name: K, value: Values[K]) => void;
-  /** Merges several top-level fields in a single update. Clears `saveError`. Stable identity. */
+  /**
+   * Merges several top-level fields in a single update (shallow merge, like `Object.assign`).
+   * Clears `saveError`. Stable identity.
+   *
+   * Explicitly passing `undefined` for a field sets its value to `undefined`, same as any merge
+   * patch — this library does not (and structurally cannot) forbid it at the type level for a
+   * consumer whose own `tsconfig.json` has `exactOptionalPropertyTypes: false` (TypeScript's
+   * default, and what this package itself builds with): with that flag off, TypeScript always
+   * allows an optional property to be assigned `undefined` explicitly, regardless of how the
+   * library types the patch. Enable `exactOptionalPropertyTypes` in your own project if you want
+   * the compiler to catch `setValues({ requiredField: undefined })`.
+   */
   setValues: (patch: Partial<Values>) => void;
   /**
    * `reset(newBaseline)` hydrates: baseline and values become `newBaseline` and the form is clean,
@@ -83,11 +94,8 @@ interface FormState<Values> {
 /**
  * Headless state of a simple Object Page form: values, baseline, dirty flag and save cycle.
  * SSR-safe (no effect-only state, no DOM access).
- *
- * `Values` must be a type alias or inferred object type (an `interface` has no index signature and
- * does not satisfy `Record<string, unknown>`).
  */
-export function useObjectPageForm<Values extends Record<string, unknown>>(
+export function useObjectPageForm<Values extends object>(
   options: UseObjectPageFormOptions<Values>,
 ): UseObjectPageFormReturn<Values> {
   const { baseline: baselineOption, isEqual = deepEqual } = options;
