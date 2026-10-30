@@ -254,6 +254,33 @@ describe('Anchor Bar navigation', () => {
     expect(current().map((a) => a.textContent)).toEqual(['Sezione A']);
   });
 
+  it('drops the pin when content above the pinned section grows after the jump (layout moved, scroller did not)', () => {
+    const observers: (() => void)[] = [];
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(callback: () => void) {
+          observers.push(callback);
+        }
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    const { container } = render(<Page />);
+    const scroller = scrollerOf(container);
+    scroller.scrollTo = vi.fn() as unknown as typeof scroller.scrollTo;
+    fireEvent.click(link('Sezione B'));
+    scrollTo(scroller, 460);
+    expect(current().map((a) => a.textContent)).toEqual(['Sezione B']);
+    // A section above grew by 1500px: B is now far below, the scroller has not moved.
+    layout.tops = { a: 0, b: 2000, c: 2500 };
+    layout.scrollHeight = 3000;
+    act(() => observers.forEach((notify) => notify()));
+    flushFrames();
+    expect(current().map((a) => a.textContent)).toEqual(['Sezione A']);
+  });
+
   it('drops the pin when the animated scroll stalls before arriving', () => {
     vi.useFakeTimers();
     try {

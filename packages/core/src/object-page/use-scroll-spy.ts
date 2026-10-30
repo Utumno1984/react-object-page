@@ -43,6 +43,8 @@ export function useScrollSpy({ scrollerRef, barRef, ids, getElement }: UseScroll
   const frame = useRef(0);
   const stall = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const scheduleRef = useRef<() => void>(() => undefined);
+  // Set by the ResizeObserver: the next measure knows the layout moved without the scroller moving.
+  const layoutChanged = useRef(false);
   // Latest inputs, so the listeners are attached once and still read fresh values.
   const latest = useRef({ ids, getElement });
   latest.current = { ids, getElement };
@@ -60,6 +62,8 @@ export function useScrollSpy({ scrollerRef, barRef, ids, getElement }: UseScroll
 
   const measure = useCallback(() => {
     frame.current = 0;
+    const changed = layoutChanged.current;
+    layoutChanged.current = false;
     const scroller = scrollerRef.current;
     const { ids: list, getElement: get } = latest.current;
     if (!scroller || list.length === 0) {
@@ -68,6 +72,16 @@ export function useScrollSpy({ scrollerRef, barRef, ids, getElement }: UseScroll
     }
     const pin = pinned.current;
     if (pin) {
+      // Content that grew (or a resize) moved the pinned section: where the click would land now is
+      // elsewhere, and a scroller that stays put is no longer on it.
+      if (changed && pin.arrived) {
+        const element = get(pin.id);
+        if (element) {
+          const barHeight = barRef.current?.getBoundingClientRect().height ?? 0;
+          const wanted = element.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop - barHeight;
+          pin.landing = Math.min(Math.max(0, wanted), Math.max(0, scroller.scrollHeight - scroller.clientHeight));
+        }
+      }
       const away = Math.abs(scroller.scrollTop - pin.landing) > TOLERANCE;
       if (!away) pin.arrived = true;
       if (!(pin.arrived && away)) {
@@ -154,7 +168,10 @@ export function useScrollSpy({ scrollerRef, barRef, ids, getElement }: UseScroll
   useEffect(() => {
     const scroller = scrollerRef.current;
     if (!scroller || typeof ResizeObserver === 'undefined') return undefined;
-    const observer = new ResizeObserver(schedule);
+    const observer = new ResizeObserver(() => {
+      layoutChanged.current = true;
+      schedule();
+    });
     observer.observe(scroller);
     for (const id of ids) {
       const element = getElement(id);
