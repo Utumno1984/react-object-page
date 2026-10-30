@@ -84,12 +84,14 @@ describe('styles.css (compiled)', () => {
       // `--tw-*` are Tailwind's own inert internals (same policy as findGlobalLeaks): any font-weight
       // utility declares `--tw-font-weight`. `--rop-vv-*` are the Dialog's own visual-viewport
       // variables (#11), in the rop namespace. `--rop-list-report-*` is the List Report table's own
-      // row-height variable (#49), also in the rop namespace. Any other non-rop property still fails.
+      // row-height variable (#49), also in the rop namespace; `--rop-object-page-footer-height` is the Object
+      // Page footer's own declared row height (#57). Any other non-rop property still fails.
       (name) =>
         !/^--(color|text|font|radius|z-index|icon)-rop-/.test(name) &&
         !name.startsWith('--tw-') &&
         !name.startsWith('--rop-vv-') &&
-        !name.startsWith('--rop-list-report-'),
+        !name.startsWith('--rop-list-report-') &&
+        name !== '--rop-object-page-footer-height',
     );
     expect(outside).toEqual([]);
     // Tailwind's default spacing is inlined into the utilities, not referenced as a variable.

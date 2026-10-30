@@ -35,6 +35,7 @@ const EXPORTS = [
   'ListReportTable',
   'MessageStrip',
   'ObjectPage',
+  'ObjectPageFooter',
   'ObjectPageHeader',
   'ObjectPageSection',
   'Select',

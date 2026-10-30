@@ -64,8 +64,9 @@ test.describe('Floorplans/Object Page/Footer', () => {
       footerHeight: await page.locator(FOOTER).evaluate((el) => el.getBoundingClientRect().height),
     });
     const hidden = await measure();
-    // The declared height of the actions row (3.5rem = 56px at the default font size), hidden from the first render.
-    expect(hidden.footerHeight).toBe(56);
+    // The declared height of the actions row (3.5rem = 56px at the default font size) plus the 1px border,
+    // there from the first render although hidden.
+    expect(hidden.footerHeight).toBe(57);
 
     await jsClick(page, 'Modifica');
     await expect(page.getByRole('region', { name: 'Azioni di salvataggio' })).toBeVisible();
@@ -171,7 +172,7 @@ test.describe('Floorplans/Object Page/Footer', () => {
     await page.evaluate(() => (document.documentElement.style.fontSize = '32px'));
     const region = page.getByRole('region', { name: 'Azioni di salvataggio' });
     const box = (await region.boundingBox())!;
-    expect(box.height).toBe(112);
+    expect(box.height).toBe(113);
     for (const name of ['Salva', 'Annulla modifiche']) {
       const b = (await region.getByRole('button', { name }).boundingBox())!;
       expect(b.y).toBeGreaterThanOrEqual(box.y);

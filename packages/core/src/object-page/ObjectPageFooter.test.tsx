@@ -58,13 +58,13 @@ describe('ObjectPageFooter placement', () => {
         <ObjectPageFooter visible={false} />
       </ObjectPage>,
     );
-    expect(footerOf(container).className).toContain('sm:h-[var(--rop-object-page-footer-height,3.5rem)]');
+    expect(footerOf(container).className).toContain('[--rop-object-page-footer-height:3.5rem]');
     rerender(
       <ObjectPage>
         <ObjectPageFooter visible />
       </ObjectPage>,
     );
-    expect(footerOf(container).className).toContain('sm:h-[var(--rop-object-page-footer-height,3.5rem)]');
+    expect(footerOf(container).className).toContain('[--rop-object-page-footer-height:3.5rem]');
   });
 
   it('forwards the ref to the footer element', () => {

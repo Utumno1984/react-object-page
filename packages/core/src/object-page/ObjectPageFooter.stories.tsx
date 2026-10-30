@@ -1,6 +1,5 @@
 import { useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { useArgs } from 'storybook/preview-api';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import { Button } from '../button/Button';
 import { Field } from '../field/Field';
@@ -49,6 +48,9 @@ type Story = StoryObj<PlaygroundArgs>;
 
 // Inline styles: the stories are not scanned by Tailwind, so a class only used here would not exist.
 const FRAME: CSSProperties = { height: '100dvh', boxSizing: 'border-box', background: 'var(--color-rop-surface, #fff)' };
+// A toolbar row above the page, then the page filling the rest of the frame.
+const TOOLBAR_FRAME: CSSProperties = { ...FRAME, display: 'grid', gridTemplateRows: 'auto minmax(0, 1fr)' };
+const TOOLBAR: CSSProperties = { display: 'flex', justifyContent: 'flex-end', padding: 8 };
 const BLOCK_BG = 'var(--color-rop-blue-50, #eef5fc)';
 
 function Filler({ height, children }: { height: number; children: ReactNode }) {
@@ -81,29 +83,34 @@ const scrollerOf = (root: HTMLElement) => root.querySelector('[data-object-page-
 /**
  * The footer is a presentational bar: here it is driven by the `visible` control, and by two buttons
  * that behave like a real save (Salva and Annulla modifiche both hide it, as a clean form would).
- * "Modifica" in the header shows it again, standing in for the first edit of a field.
+ * "Modifica" (in a toolbar above the page, so reachable at any scroll position) shows it again,
+ * standing in for the first edit of a field.
  */
 export const Playground: Story = {
   render: function Render(args) {
-    const [, updateArgs] = useArgs<PlaygroundArgs>();
-    const { visible, message, messageTone, label, onSave, onCancel } = args;
+    const { message, messageTone, label, onSave, onCancel } = args;
+    // Local state, set again whenever the `visible` control changes (updating the args from here would
+    // replace the `fn()` spies, which the Actions panel and the play function watch).
+    const [visible, setVisible] = useState(args.visible);
+    const [seen, setSeen] = useState(args.visible);
+    if (seen !== args.visible) {
+      setSeen(args.visible);
+      setVisible(args.visible);
+    }
     return (
-      <div style={FRAME}>
+      <div style={TOOLBAR_FRAME}>
+        <div style={TOOLBAR}>
+          <Button variant="secondary" onClick={() => setVisible(true)}>
+            Modifica
+          </Button>
+        </div>
         <ObjectPage>
-          <ObjectPageHeader
-            title="Fattura 2026/0142"
-            subtitle="ACME srl"
-            actions={
-              <Button variant="secondary" onClick={() => updateArgs({ visible: true })}>
-                Modifica
-              </Button>
-            }
-          />
+          <ObjectPageHeader title="Fattura 2026/0142" subtitle="ACME srl" />
           <ObjectPageFooter visible={visible} message={message} messageTone={messageTone} label={label}>
             <Button
               onClick={() => {
                 onSave();
-                updateArgs({ visible: false });
+                setVisible(false);
               }}
             >
               Salva
@@ -112,7 +119,7 @@ export const Playground: Story = {
               variant="secondary"
               onClick={() => {
                 onCancel();
-                updateArgs({ visible: false });
+                setVisible(false);
               }}
             >
               Annulla modifiche

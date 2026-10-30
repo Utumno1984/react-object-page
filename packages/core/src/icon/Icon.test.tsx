@@ -222,6 +222,7 @@ describe('internal icons', () => {
       'ListReportTable',
       'MessageStrip',
       'ObjectPage',
+      'ObjectPageFooter',
       'ObjectPageHeader',
       'ObjectPageSection',
       'Select',
