@@ -176,7 +176,8 @@ export const ManySections: Story = {
     await waitFor(
       () => {
         const gap = section.getBoundingClientRect().top - scroller.getBoundingClientRect().top - bar.getBoundingClientRect().height;
-        expect(Math.abs(gap)).toBeLessThanOrEqual(1);
+        // The section stops 4px below the bar: room for the focus indicator of its title.
+        expect(Math.abs(gap - 4)).toBeLessThanOrEqual(1);
       },
       { timeout: 8000 },
     );

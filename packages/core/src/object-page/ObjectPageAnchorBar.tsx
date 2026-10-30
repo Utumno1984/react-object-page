@@ -8,6 +8,7 @@ import {
   anchorBarLinkClass,
   anchorBarLinkIdleClass,
   anchorBarListClass,
+  SECTION_GAP_PX,
 } from './object-page-styles';
 import { useScrollSpy } from './use-scroll-spy';
 
@@ -73,14 +74,21 @@ export function ObjectPageAnchorBar({ label }: ObjectPageAnchorBarProps) {
     const target = getSection?.(id);
     if (!scroller || !target) return;
     event.preventDefault();
-    const barHeight = barRef.current?.getBoundingClientRect().height ?? 0;
-    const wanted = target.element.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop - barHeight;
-    // What the browser will clamp it to: the scroller cannot go past its end (a short last section).
-    const top = Math.min(Math.max(0, wanted), Math.max(0, scroller.scrollHeight - scroller.clientHeight));
-    pin(id, top);
+    // Where the scroller has to be for the section to sit just below the bar (SECTION_GAP_PX of room for
+    // the title's focus indicator), clamped to what the browser can do: it cannot go past the end.
+    const landing = () => {
+      const barHeight = barRef.current?.getBoundingClientRect().height ?? 0;
+      const wanted = target.element.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop - barHeight - SECTION_GAP_PX;
+      return Math.min(Math.max(0, wanted), Math.max(0, scroller.scrollHeight - scroller.clientHeight));
+    };
     const reduced = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (typeof scroller.scrollTo === 'function') scroller.scrollTo({ top, behavior: reduced ? 'auto' : 'smooth' });
-    else scroller.scrollTop = top;
+    const scrollTo = (top: number) => {
+      if (typeof scroller.scrollTo === 'function') scroller.scrollTo({ top, behavior: reduced ? 'auto' : 'smooth' });
+      else scroller.scrollTop = top;
+    };
+    const top = landing();
+    pin(id, top, { landing, scrollTo });
+    scrollTo(top);
     target.focusTitle();
   };
 

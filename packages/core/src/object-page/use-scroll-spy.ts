@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
+import { SECTION_GAP_PX } from './object-page-styles';
 
 interface UseScrollSpyOptions {
   scrollerRef: RefObject<HTMLElement | null>;
@@ -15,13 +16,26 @@ const TOLERANCE = 2;
 const STALL_MS = 300;
 
 // Keys that scroll the scroller itself: they hand the active section back to the spy.
-const SCROLL_KEYS = new Set(['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' ', 'Spacebar']);
+const SCROLL_KEYS = /* @__PURE__ */ new Set(['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' ', 'Spacebar']);
+
+// Where the keys above do not scroll the scroller: they edit, move a caret or pick a value.
+const FIELD_SELECTOR =
+  'input, textarea, select, button, [contenteditable=""], [contenteditable="true"], ' +
+  '[role="textbox"], [role="combobox"], [role="listbox"], [role="slider"], [role="spinbutton"]';
+const isField = (target: EventTarget | null): boolean => target instanceof Element && target.closest(FIELD_SELECTOR) !== null;
 
 interface Pin {
   id: string;
   /** Where the scroller ends up (clamped to what can be scrolled). */
   landing: number;
   arrived: boolean;
+  /** How to find the landing again, and to scroll to it, when the layout moved. */
+  reposition: Reposition;
+}
+
+export interface Reposition {
+  landing: () => number;
+  scrollTo: (top: number) => void;
 }
 
 /**
@@ -33,9 +47,10 @@ interface Pin {
  * `pin(id, landing)` fixes the active section after a click on a link, so the animated scroll does not
  * pass through the intermediate sections and a short section that cannot reach the top is not replaced
  * by the last one afterwards. The pin lasts while the scroller is on its way to `landing` and while it
- * stays there; it is dropped when the user scrolls (wheel, touch, a scroll key, a press on the
- * scrollbar), when the scroller moves away from `landing` after arriving, or when the animation stalls
- * before arriving (interrupted by something else).
+ * stays there; it is dropped when the user scrolls (a wheel or touch not starting on the bar, a scroll
+ * key outside a field, a press on the scrollbar), when the scroller moves away from `landing` after
+ * arriving, or when the animation stalls before arriving. If the layout moves on the way (content that
+ * grows), the landing is recomputed and the animation re-aimed.
  */
 export function useScrollSpy({ scrollerRef, barRef, ids, getElement }: UseScrollSpyOptions) {
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -72,14 +87,14 @@ export function useScrollSpy({ scrollerRef, barRef, ids, getElement }: UseScroll
     }
     const pin = pinned.current;
     if (pin) {
-      // Content that grew (or a resize) moved the pinned section: where the click would land now is
-      // elsewhere, and a scroller that stays put is no longer on it.
-      if (changed && pin.arrived) {
-        const element = get(pin.id);
-        if (element) {
-          const barHeight = barRef.current?.getBoundingClientRect().height ?? 0;
-          const wanted = element.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop - barHeight;
-          pin.landing = Math.min(Math.max(0, wanted), Math.max(0, scroller.scrollHeight - scroller.clientHeight));
+      // Content that grew (or a resize) moved the pinned section: where the jump has to land is elsewhere.
+      // On its way, the animation is re-aimed at the new place; once arrived, a scroller that stays put
+      // is no longer on the section, and the pin is dropped just below.
+      if (changed) {
+        const fresh = pin.reposition.landing();
+        if (Math.abs(fresh - pin.landing) > TOLERANCE) {
+          pin.landing = fresh;
+          if (!pin.arrived) pin.reposition.scrollTo(fresh);
         }
       }
       const away = Math.abs(scroller.scrollTop - pin.landing) > TOLERANCE;
@@ -95,7 +110,8 @@ export function useScrollSpy({ scrollerRef, barRef, ids, getElement }: UseScroll
     if (atEnd) {
       next = list[list.length - 1] as string;
     } else {
-      const edge = scroller.getBoundingClientRect().top + (barRef.current?.getBoundingClientRect().height ?? 0) + TOLERANCE;
+      // A section that was jumped to sits SECTION_GAP_PX below the bar: it has passed the bar's edge.
+      const edge = scroller.getBoundingClientRect().top + (barRef.current?.getBoundingClientRect().height ?? 0) + SECTION_GAP_PX + TOLERANCE;
       for (const id of list) {
         const element = get(id);
         if (element && element.getBoundingClientRect().top <= edge) next = id;
@@ -110,10 +126,10 @@ export function useScrollSpy({ scrollerRef, barRef, ids, getElement }: UseScroll
   }, [measure]);
 
   const pin = useCallback(
-    (id: string, landing: number) => {
+    (id: string, landing: number, reposition: Reposition) => {
       const scroller = scrollerRef.current;
       const arrived = !scroller || Math.abs(scroller.scrollTop - landing) <= TOLERANCE;
-      const next = { id, landing, arrived };
+      const next = { id, landing, arrived, reposition };
       pinned.current = next;
       armStall(next);
       setActiveId(id);
@@ -135,25 +151,39 @@ export function useScrollSpy({ scrollerRef, barRef, ids, getElement }: UseScroll
   useEffect(() => {
     const scroller = scrollerRef.current;
     if (!scroller) return undefined;
+    const inBar = (event: Event) => event.target instanceof Node && !!barRef.current?.contains(event.target);
+    // Only gestures that scroll the scroller hand the active section back. A press or a key inside a
+    // field is not one (a space typed in a text field, a click to place the caret), and a touch or wheel
+    // that starts on the bar scrolls the bar's own list. Anything that does move the scroller away is
+    // caught anyway by the position check in `measure`.
+    const onGesture = (event: Event) => {
+      if (!inBar(event)) release();
+    };
+    const onPointerDown = (event: PointerEvent) => {
+      // Only a press on the scrollbar (the strip the content does not cover) is a way to scroll.
+      if (event.target !== scroller) return;
+      const box = scroller.getBoundingClientRect();
+      if (event.clientX - box.left >= scroller.clientWidth || event.clientY - box.top >= scroller.clientHeight) release();
+    };
     const onKey = (event: KeyboardEvent) => {
-      if (SCROLL_KEYS.has(event.key)) release();
+      if (SCROLL_KEYS.has(event.key) && !inBar(event) && !isField(event.target)) release();
     };
     scroller.addEventListener('scroll', schedule, { passive: true });
-    scroller.addEventListener('wheel', release, { passive: true });
-    scroller.addEventListener('touchstart', release, { passive: true });
-    scroller.addEventListener('pointerdown', release, { passive: true });
+    scroller.addEventListener('wheel', onGesture, { passive: true });
+    scroller.addEventListener('touchstart', onGesture, { passive: true });
+    scroller.addEventListener('pointerdown', onPointerDown, { passive: true });
     scroller.addEventListener('keydown', onKey);
     return () => {
       scroller.removeEventListener('scroll', schedule);
-      scroller.removeEventListener('wheel', release);
-      scroller.removeEventListener('touchstart', release);
-      scroller.removeEventListener('pointerdown', release);
+      scroller.removeEventListener('wheel', onGesture);
+      scroller.removeEventListener('touchstart', onGesture);
+      scroller.removeEventListener('pointerdown', onPointerDown);
       scroller.removeEventListener('keydown', onKey);
       cancelAnimationFrame(frame.current);
       frame.current = 0;
       clearTimeout(stall.current);
     };
-  }, [scrollerRef, schedule, release]);
+  }, [scrollerRef, barRef, schedule, release]);
 
   // Sections added, removed or renamed: a pin on a section that is gone is dropped; then re-measure.
   const key = ids.join('\n');
@@ -173,6 +203,9 @@ export function useScrollSpy({ scrollerRef, barRef, ids, getElement }: UseScroll
       schedule();
     });
     observer.observe(scroller);
+    // Everything in the scroller, not only the sections: a header or any block above them that grows
+    // moves the sections too (and the browser may not anchor the scroll position for us).
+    for (const child of Array.from(scroller.children)) observer.observe(child);
     for (const id of ids) {
       const element = getElement(id);
       if (element) observer.observe(element);

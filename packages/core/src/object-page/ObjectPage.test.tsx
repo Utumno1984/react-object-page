@@ -8,6 +8,7 @@ import { ObjectPage } from './ObjectPage';
 import { useObjectPageSections } from './ObjectPageContext';
 import { ObjectPageHeader } from './ObjectPageHeader';
 import { ObjectPageSection } from './ObjectPageSection';
+import { SECTION_GAP_PX } from './object-page-styles';
 
 /** Prints the registry as JSON, so a test reads exactly what a consumer of the hook gets. */
 function RegistryProbe() {
@@ -199,7 +200,9 @@ describe('heading hierarchy and regions', () => {
         </ObjectPageSection>
       </ObjectPage>,
     );
-    expect(screen.getByRole('region', { name: 'Dati' }).style.scrollMarginTop).toBe('var(--rop-object-page-sticky-offset, 0px)');
+    expect(screen.getByRole('region', { name: 'Dati' }).style.scrollMarginTop).toBe(
+      'calc(var(--rop-object-page-sticky-offset, 0px) + ' + SECTION_GAP_PX + 'px)',
+    );
   });
 });
 

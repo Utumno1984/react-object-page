@@ -122,7 +122,8 @@ test.describe('Floorplans/Object Page/Layout', () => {
     await scroller.evaluate((el) => el.style.setProperty('--rop-object-page-sticky-offset', '48px'));
     await page.locator('#sezione-4').evaluate((el) => el.scrollIntoView({ block: 'start' }));
     const delta = await page.locator('#sezione-4').evaluate((el, top) => el.getBoundingClientRect().top - top, await scroller.evaluate((el) => el.getBoundingClientRect().top));
-    expect(Math.round(delta)).toBe(48);
+    // The offset (48) plus the 4px a section keeps below the bar for its title's focus indicator.
+    expect(Math.round(delta)).toBe(52);
   });
 });
 

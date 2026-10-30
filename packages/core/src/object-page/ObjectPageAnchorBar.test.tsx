@@ -42,6 +42,8 @@ function scrollerOf(container: HTMLElement): HTMLElement {
   Object.defineProperty(scroller, 'scrollTop', { configurable: true, get: () => layout.scrollTop, set: (v: number) => (layout.scrollTop = v) });
   Object.defineProperty(scroller, 'scrollHeight', { configurable: true, get: () => layout.scrollHeight });
   Object.defineProperty(scroller, 'clientHeight', { configurable: true, get: () => layout.clientHeight });
+  // The scroller is 800 wide with a scrollbar to the right of x = 800 (content width 800).
+  Object.defineProperty(scroller, 'clientWidth', { configurable: true, get: () => 800 });
   return scroller;
 }
 
@@ -220,7 +222,8 @@ describe('Anchor Bar navigation', () => {
     const scrollToSpy = vi.fn();
     scroller.scrollTo = scrollToSpy as unknown as typeof scroller.scrollTo;
     fireEvent.click(link('Sezione B'));
-    expect(scrollToSpy).toHaveBeenCalledWith({ top: 500 - BAR_HEIGHT, behavior: 'auto' });
+    // 4px of room above the title for its focus indicator.
+    expect(scrollToSpy).toHaveBeenCalledWith({ top: 500 - BAR_HEIGHT - 4, behavior: 'auto' });
   });
 
   it('leaves modified clicks to the browser (open in a new tab)', () => {
@@ -271,7 +274,7 @@ describe('Anchor Bar navigation', () => {
     const scroller = scrollerOf(container);
     scroller.scrollTo = vi.fn() as unknown as typeof scroller.scrollTo;
     fireEvent.click(link('Sezione B'));
-    scrollTo(scroller, 460);
+    scrollTo(scroller, 456); // B's top minus the bar and the 4px gap
     expect(current().map((a) => a.textContent)).toEqual(['Sezione B']);
     // A section above grew by 1500px: B is now far below, the scroller has not moved.
     layout.tops = { a: 0, b: 2000, c: 2500 };
@@ -304,7 +307,8 @@ describe('Anchor Bar navigation', () => {
     for (const release of [
       (scroller: HTMLElement) => fireEvent.wheel(scroller),
       (scroller: HTMLElement) => fireEvent.keyDown(scroller, { key: 'PageUp' }),
-      (scroller: HTMLElement) => fireEvent.pointerDown(scroller),
+      // A press on the scrollbar (to the right of the content), not on the content.
+      (scroller: HTMLElement) => fireEvent.pointerDown(scroller, { clientX: 810, clientY: 100 }),
       (scroller: HTMLElement) => fireEvent.touchStart(scroller),
     ]) {
       layout.scrollTop = 0;
@@ -318,6 +322,57 @@ describe('Anchor Bar navigation', () => {
       expect(current().map((a) => a.textContent)).toEqual(['Sezione A']);
       unmount();
     }
+  });
+
+  it('keeps the pin for what does not scroll: presses and keys in a field, a press on the content, gestures on the bar', () => {
+    const { container } = render(<Page />);
+    const scroller = scrollerOf(container);
+    scroller.scrollTo = vi.fn() as unknown as typeof scroller.scrollTo;
+    fireEvent.click(link('Sezione C'));
+    scrollTo(scroller, 900);
+    const field = screen.getByRole('textbox', { name: 'campo c' });
+    fireEvent.pointerDown(field, { clientX: 10, clientY: 10 });
+    fireEvent.keyDown(field, { key: ' ' });
+    fireEvent.keyDown(field, { key: 'Home' });
+    fireEvent.pointerDown(scroller, { clientX: 10, clientY: 100 });
+    fireEvent.touchStart(link('Sezione B'));
+    fireEvent.wheel(screen.getByRole('navigation'));
+    flushFrames();
+    expect(current().map((a) => a.textContent)).toEqual(['Sezione C']);
+    // A scroll key that does not come from a field is the user scrolling.
+    fireEvent.keyDown(scroller, { key: ' ' });
+    layout.scrollTop = 0;
+    flushFrames();
+    expect(current().map((a) => a.textContent)).toEqual(['Sezione A']);
+  });
+
+  it('re-aims an animation under way when the layout moves (content that grew meanwhile)', () => {
+    const observers: (() => void)[] = [];
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(callback: () => void) {
+          observers.push(callback);
+        }
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    const { container } = render(<Page />);
+    const scroller = scrollerOf(container);
+    const scrollToSpy = vi.fn();
+    scroller.scrollTo = scrollToSpy as unknown as typeof scroller.scrollTo;
+    fireEvent.click(link('Sezione C'));
+    expect(scrollToSpy).toHaveBeenLastCalledWith({ top: 900, behavior: 'smooth' });
+    scrollTo(scroller, 300); // on its way
+    // The section in the middle grew by 400px while it scrolled: C is lower now.
+    layout.tops = { a: 0, b: 500, c: 1400 };
+    layout.scrollHeight = 2200;
+    act(() => observers.forEach((notify) => notify()));
+    flushFrames();
+    expect(scrollToSpy).toHaveBeenLastCalledWith({ top: 1400 - BAR_HEIGHT - 4, behavior: 'smooth' });
+    expect(current().map((a) => a.textContent)).toEqual(['Sezione C']);
   });
 
   it('clicking the last link with nothing to scroll makes it active; clicking the active one again keeps it', () => {

@@ -30,7 +30,12 @@ export const headerActionsClass = 'flex min-w-0 flex-wrap items-center gap-2';
 
 // Sections stop below whatever the Anchor Bar will pin at the top (it sets the variable).
 export const sectionClass = 'flex min-w-0 flex-col gap-3';
-export const sectionStyle = { scrollMarginTop: 'var(--rop-object-page-sticky-offset, 0px)' } as const;
+// A section stops this many px below the bar, so the focus indicator of its title (2px wide, 2px away)
+// is not hidden under the bar.
+// A plain literal (not built from the constant): a string built at load time is kept in the bundle of
+// every export; a unit test pins the two together.
+export const SECTION_GAP_PX = 4;
+export const sectionStyle = { scrollMarginTop: 'calc(var(--rop-object-page-sticky-offset, 0px) + 4px)' } as const;
 export const sectionTitleClass = 'min-w-0 [overflow-wrap:anywhere]';
 // A wide child (a table) scrolls inside the section body, not the page. An overflow container clips on
 // every side, so it gets 4px of padding (cancelled by the negative margin): the focus indicator, drawn

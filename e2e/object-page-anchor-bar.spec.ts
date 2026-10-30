@@ -86,6 +86,59 @@ test.describe('Floorplans/Object Page/Anchor Bar', () => {
     expect((await page.getByRole('region', { name: 'Righe' }).evaluate((el) => el.getBoundingClientRect().top)) - barBottom).toBeLessThanOrEqual(8);
   });
 
+  test('the focus indicator of the target title is not cut by the bar', async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 600 });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await gotoStory(page, STORY('scrollable'));
+    await page.getByRole('link', { name: 'Importi' }).focus();
+    await page.keyboard.press('Enter');
+    const heading = page.getByRole('heading', { name: 'Importi' });
+    await expect(heading).toBeFocused();
+    const { barBottom, top, left } = await heading.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      return { barBottom: document.querySelector('nav[aria-label]')!.getBoundingClientRect().bottom, top: r.top, left: r.left };
+    });
+    // The indicator is drawn 2px away and 2px wide: 4px above the title, which must still be below the bar.
+    expect(top - 4).toBeGreaterThanOrEqual(barBottom - 0.5);
+    const covered = await page.evaluate(
+      ({ x, y }) => !!document.elementFromPoint(x, y)?.closest('nav[aria-label]'),
+      { x: left + 10, y: top - 3 },
+    );
+    expect(covered).toBe(false);
+  });
+
+  test('clicking or typing in a field of the section jumped to keeps the active link', async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 700 });
+    await gotoStory(page, STORY('scrollable'), 'sectionCount:6;lastSectionHeight:40');
+    await page.getByRole('link', { name: 'Pagamenti' }).click();
+    await settle(page);
+    expect(await activeNames(page)).toEqual(['Pagamenti']);
+    const field = page.getByRole('textbox', { name: 'Campo Pagamenti' });
+    await field.click();
+    await page.keyboard.type('a b');
+    await page.keyboard.press('Home');
+    await page.waitForTimeout(300);
+    expect(await activeNames(page)).toEqual(['Pagamenti']);
+  });
+
+  test('content that grows while the jump is animating: it still lands the section below the bar', async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 600 });
+    await gotoStory(page, STORY('scrollable'), 'sectionCount:6');
+    await page.getByRole('link', { name: 'Importi' }).click();
+    await page.waitForTimeout(60);
+    await page.evaluate(() => {
+      const filler = document.createElement('div');
+      filler.style.height = '900px';
+      document.getElementById('sezione-2')!.appendChild(filler);
+    });
+    await settle(page);
+    await page.waitForTimeout(300);
+    expect(await activeNames(page)).toEqual(['Importi']);
+    const barBottom = await page.locator(BAR).evaluate((el) => el.getBoundingClientRect().bottom);
+    const sectionTop = await page.getByRole('region', { name: 'Importi' }).evaluate((el) => el.getBoundingClientRect().top);
+    expect(Math.abs(sectionTop - barBottom - 4)).toBeLessThanOrEqual(2);
+  });
+
   test('keyboard only: Enter on a link, then Tab enters the content of the section', async ({ page }) => {
     await page.setViewportSize({ width: 1024, height: 600 });
     await gotoStory(page, STORY('scrollable'));
