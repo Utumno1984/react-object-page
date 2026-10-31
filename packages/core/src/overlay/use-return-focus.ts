@@ -5,6 +5,12 @@ export interface UseReturnFocusOptions {
   open: boolean;
   /** Receives the focus when the opener is gone or disabled at close time. */
   fallbackRef?: RefObject<HTMLElement | null>;
+  /**
+   * Checked when the focus is about to be returned: when it answers `true` the focus is left where
+   * it is. For a caller whose return is delayed (an exit animation) and that knows another overlay
+   * can have taken the focus in the meantime. Default: always return, as before.
+   */
+  skipWhen?: () => boolean;
 }
 
 function canTakeFocus(el: HTMLElement | null | undefined): el is HTMLElement {
@@ -44,9 +50,10 @@ function canTakeFocus(el: HTMLElement | null | undefined): el is HTMLElement {
  *
  * Wrappers use this instead of Radix's own `onCloseAutoFocus` (call `preventDefault()` there).
  */
-export function useReturnFocus({ open, fallbackRef }: UseReturnFocusOptions): void {
+export function useReturnFocus({ open, fallbackRef, skipWhen }: UseReturnFocusOptions): void {
   const openerRef = useRef<HTMLElement | null>(null);
   const fallbackRefRef = useRef(fallbackRef);
+  const skipWhenRef = useRef(skipWhen);
   const wasOpenRef = useRef(open);
   // True from the moment a return-to-opener is scheduled (rAF) until it fires or is cancelled.
   // Guards the race where closing and reopening before that frame makes the layout effect's
@@ -57,6 +64,7 @@ export function useReturnFocus({ open, fallbackRef }: UseReturnFocusOptions): vo
 
   useLayoutEffect(() => {
     fallbackRefRef.current = fallbackRef;
+    skipWhenRef.current = skipWhen;
   });
 
   useLayoutEffect(() => {
@@ -87,6 +95,7 @@ export function useReturnFocus({ open, fallbackRef }: UseReturnFocusOptions): vo
     pendingReturnRef.current = true;
     const frame = requestAnimationFrame(() => {
       pendingReturnRef.current = false;
+      if (skipWhenRef.current?.()) return;
       const target = [openerRef.current, fallbackRefRef.current?.current].find(canTakeFocus);
       target?.focus();
     });

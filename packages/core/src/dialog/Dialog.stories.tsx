@@ -443,3 +443,79 @@ export const WithForm: Story = {
     await expect(field).toHaveValue('Rossi S.r.l.');
   },
 };
+
+/**
+ * A chain: "Continua" closes the first dialog and opens a second one in the same handler, and the
+ * second has a field that takes the focus at once. The first one animates out while the second is
+ * already open: its delayed focus return must not pull the focus away from the second (it would
+ * select the text typed in the field). The play function types straight after the click.
+ */
+export const Chained: Story = {
+  render: ({ size, dismissible }) => {
+    function Host() {
+      const [first, setFirst] = useState(false);
+      const [second, setSecond] = useState(false);
+      return (
+        <Page>
+          <Button variant="primary" onClick={() => setFirst(true)}>
+            Apri la procedura
+          </Button>
+          <Dialog open={first} onOpenChange={setFirst}>
+            <DialogContent size={size} dismissible={dismissible}>
+              <DialogHeader>
+                <DialogTitle>Passo uno</DialogTitle>
+              </DialogHeader>
+              <DialogFooter>
+                <Button
+                  variant="primary"
+                  onClick={() => {
+                    setFirst(false);
+                    setSecond(true);
+                  }}
+                >
+                  Continua
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+          <Dialog open={second} onOpenChange={setSecond}>
+            <DialogContent size={size} dismissible={dismissible}>
+              <DialogHeader>
+                <DialogTitle>Passo due</DialogTitle>
+              </DialogHeader>
+              <DialogBody>
+                <Field label="Nome">
+                  {/* eslint-disable-next-line jsx-a11y/no-autofocus -- the autoFocus field is the case under test */}
+                  <Input autoFocus />
+                </Field>
+              </DialogBody>
+            </DialogContent>
+          </Dialog>
+        </Page>
+      );
+    }
+    return <Host />;
+  },
+  play: async ({ canvasElement }) => {
+    const opener = within(canvasElement).getByRole('button', { name: 'Apri la procedura' });
+    await userEvent.click(opener);
+    const body = within(document.body);
+    await userEvent.click(await body.findByRole('button', { name: 'Continua' }));
+    // From here on the first dialog's opener must never get the focus back: the second one has it.
+    let bounced = false;
+    opener.addEventListener('focus', () => {
+      bounced = true;
+    });
+    const field = await body.findByRole('textbox', { name: 'Nome' });
+    await expect(field).toHaveFocus();
+    await userEvent.keyboard('Mario');
+    await waitFor(() => expect(body.queryByRole('dialog', { name: 'Passo uno' })).toBeNull(), { timeout: 5000 });
+    await settleMotion();
+    // One more frame: the (skipped) focus return of the first dialog is scheduled after its unmount.
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    await expect(bounced).toBe(false);
+    await expect(field).toHaveFocus();
+    await userEvent.keyboard('X');
+    await expect(field).toHaveValue('MarioX');
+  },
+};
