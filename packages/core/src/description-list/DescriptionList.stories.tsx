@@ -247,6 +247,27 @@ export const EdgeCases: Story = {
           </tr>
         </tbody>
       </table>
+      {/* Shrink-to-fit parents (the extra block `div` keeps the grid from stretching them). */}
+      <div>
+        <table>
+          <tbody>
+            <tr>
+              <td data-testid="auto-cell">
+                <DescriptionList data-testid="auto-cell-list">
+                  <DescriptionListItem label="Fornitore">Acme S.r.l.</DescriptionListItem>
+                </DescriptionList>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div>
+        <div data-testid="shrink-wrap" style={{ display: 'inline-block' }}>
+          <DescriptionList data-testid="shrink-list">
+            <DescriptionListItem label="Fornitore">Acme S.r.l.</DescriptionListItem>
+          </DescriptionList>
+        </div>
+      </div>
       <div style={{ width: 500 }}>
         <DescriptionList data-testid="empty-list" />
       </div>

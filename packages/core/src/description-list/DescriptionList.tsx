@@ -43,6 +43,11 @@ export interface DescriptionListProps extends HTMLAttributes<HTMLDListElement> {
 /**
  * Read-only key/value pairs: a semantic `<dl>` of `DescriptionListItem`s. `className` and `ref`
  * go to the `<dl>`; the element wrapping it (the size container) is an implementation detail.
+ *
+ * Sizing: the list fills the width of its parent and `auto` reacts to THAT width. A container
+ * query element has no intrinsic width, so give a shrink-to-fit parent (auto-width table cell,
+ * `inline-block`, `width: fit-content`) a real width; without one the list falls back to a
+ * minimum of 8rem and is stacked. Below 8rem of available width it overflows rather than shrinks.
  * Empty values (`null`, `undefined`, `false`, `''`, an empty fragment or array) show a
  * placeholder; `0` and `NaN` are values.
  */

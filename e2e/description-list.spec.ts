@@ -233,6 +233,20 @@ test.describe('Data/DescriptionList', () => {
     expect((await page.getByTestId('empty-list').boundingBox())!.height).toBe(0);
   });
 
+  test('in a shrink-to-fit parent (auto-width cell, inline-block) the list keeps a readable width, not 0', async ({
+    page,
+  }) => {
+    await gotoStory(page, EDGES);
+    for (const id of ['auto-cell-list', 'shrink-list']) {
+      const box = await page.getByTestId(id).boundingBox();
+      expect(box!.width).toBeGreaterThanOrEqual(128);
+      const [g] = await itemsGeometry(page.getByTestId(id));
+      // Stacked, and the label is not broken one character per line (one text line tall).
+      expect(g!.dd.top).toBeGreaterThanOrEqual(g!.dt.bottom - EPS);
+      expect(g!.dt.bottom - g!.dt.top).toBeLessThan(24);
+    }
+  });
+
   test('a value that changes after mount keeps the column (string -> node)', async ({ page }) => {
     await gotoStory(page, PLAYGROUND);
     const before = await itemsGeometry(page.getByTestId('list'));

@@ -4,10 +4,13 @@
 /**
  * Root: the size container. `container-type: inline-size` must sit on an ANCESTOR of the elements
  * that change layout (an element cannot query itself), so the `<dl>` grid lives one level down.
- * `w-full` keeps it from collapsing to 0 as a flex item or in an auto table cell (inline-size
- * containment gives it no intrinsic width); `min-w-0` lets it shrink in a flex row.
+ * Inline-size containment gives the box NO intrinsic width: `w-full` keeps it from collapsing as a
+ * flex item (it fills the row), but in a shrink-to-fit parent (auto-width table cell,
+ * `inline-block`, `fit-content`) the parent would size it to 0. `min-w-32` (8rem) is the floor
+ * that keeps such a list readable (stacked) instead of one character per line; the parent should
+ * still be given a real width.
  */
-export const ROOT = '@container block w-full min-w-0 max-w-full';
+export const ROOT = '@container block w-full min-w-32 max-w-full';
 
 export const LIST_BASE = 'm-0 grid gap-x-4 gap-y-3 p-0';
 
