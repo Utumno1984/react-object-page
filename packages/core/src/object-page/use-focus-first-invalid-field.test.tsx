@@ -83,6 +83,46 @@ describe('useFocusFirstInvalidField', () => {
     expect(error).not.toHaveBeenCalled();
   });
 
+  it('skips a disabled or hidden first match and focuses the next one in DOM order', () => {
+    function Mixed() {
+      const ref = useRef<HTMLDivElement>(null);
+      useFocusFirstInvalidField({ containerRef: ref, fieldErrors: { a: 'x', b: 'y', c: 'z' } });
+      return (
+        <div ref={ref}>
+          <input name="a" type="hidden" />
+          <input name="b" disabled aria-label="b" />
+          <input name="c" aria-label="c" />
+        </div>
+      );
+    }
+    const { getByLabelText } = render(<Mixed />);
+    expect(getByLabelText('c')).toHaveFocus();
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+  });
+
+  it('console.errors when every match is unfocusable', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    function OnlyDisabled() {
+      const ref = useRef<HTMLDivElement>(null);
+      useFocusFirstInvalidField({ containerRef: ref, fieldErrors: { a: 'x' } });
+      return (
+        <div ref={ref}>
+          <input name="a" disabled />
+        </div>
+      );
+    }
+    render(<OnlyDisabled />);
+    expect(error).toHaveBeenCalledTimes(1);
+    expect(scrollIntoView).not.toHaveBeenCalled();
+  });
+
+  it('treats a key whose value is undefined as no error', () => {
+    const { rerender, getByLabelText } = render(<Form errors={{ a: undefined }} />);
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    rerender(<Form errors={{ a: undefined, c: 'x' }} />);
+    expect(getByLabelText('c')).toHaveFocus();
+  });
+
   it('handles field names that would need CSS escaping', () => {
     const odd = 'a"]b';
     const { getByLabelText } = render(<Form errors={{ [odd]: 'x' }} fields={['q', odd]} />);

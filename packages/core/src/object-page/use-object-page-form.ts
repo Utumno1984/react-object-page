@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useInsertionEffect, useRef, useState } from 'react';
 import { deepEqual } from './equal';
 
 // Bundlers replace `process.env.NODE_ENV` in consumer builds; without `process` assume development.
@@ -29,7 +29,9 @@ export interface UseObjectPageFormOptions<Values extends object> {
    * Called synchronously by `save` with the current values, before the handler. Return one message
    * per invalid field (`{}` when valid). If the result has at least one key, `fieldErrors` is
    * updated, the handler is not called and `save` resolves `false` (`isSaving` is never touched).
-   * The latest function passed is used, so an inline function is fine.
+   * A key whose value is `undefined` counts as no error. If `validate` throws, it is treated like a
+   * throwing handler: `saveError` is set and `save` resolves `false`. The latest function passed is
+   * used, so an inline function is fine.
    */
   validate?: (values: Values) => Partial<Record<keyof Values, string>>;
 }
@@ -48,11 +50,11 @@ export interface UseObjectPageFormReturn<Values extends object> {
    * original value makes the form clean again.
    */
   isDirty: boolean;
-  /** Sets one top-level field. Clears `saveError`. Stable identity. */
+  /** Sets one top-level field. Clears `saveError` and `fieldErrors`. Stable identity. */
   setValue: <K extends keyof Values>(name: K, value: Values[K]) => void;
   /**
    * Merges several top-level fields in a single update (shallow merge, like `Object.assign`).
-   * Clears `saveError`. Stable identity.
+   * Clears `saveError` and `fieldErrors`. Stable identity.
    *
    * Explicitly passing `undefined` for a field sets its value to `undefined`, same as any merge
    * patch — this library does not (and structurally cannot) forbid it at the type level for a
@@ -66,7 +68,7 @@ export interface UseObjectPageFormReturn<Values extends object> {
   /**
    * `reset(newBaseline)` hydrates: baseline and values become `newBaseline` and the form is clean,
    * without any user-gesture signal (the hook exposes no change callback). `reset()` discards the
-   * edits and returns the values to the current baseline. Both clear `saveError`. During a save
+   * edits and returns the values to the current baseline. Both clear `saveError` and `fieldErrors`. During a save
    * in flight the reset wins: the later success of that save does not overwrite the new baseline.
    * Stable identity.
    */
@@ -103,7 +105,7 @@ export interface UseObjectPageFormReturn<Values extends object> {
 }
 
 // Shared identity so "no errors" never re-renders consumers that depend on `fieldErrors`.
-const NO_ERRORS: Record<never, never> = Object.freeze({});
+const NO_ERRORS: Record<never, never> = /* @__PURE__ */ Object.freeze({});
 
 interface FormState<Values> {
   baseline: Values;
@@ -134,7 +136,9 @@ export function useObjectPageForm<Values extends object>(
   const saveErrorRef = useRef(false);
   const fieldErrorsRef = useRef(false);
   const validateRef = useRef(validate);
-  useEffect(() => {
+  // Insertion effect: runs before any layout/passive effect of the same commit (so a `save` called
+  // from one sees the latest `validate`) and, unlike a layout effect, does not warn during SSR.
+  useInsertionEffect(() => {
     validateRef.current = validate;
   });
   const initialBaselineRef = useRef(baselineOption);
@@ -211,10 +215,24 @@ export function useObjectPageForm<Values extends object>(
       const validateFn = validateRef.current;
       if (validateFn) {
         // Synchronous, before any async work: `isSaving` is never touched on a validation failure.
-        const errors = validateFn(stateRef.current.values);
-        if (Object.keys(errors).length > 0) {
+        let errors: Partial<Record<keyof Values, string>>;
+        try {
+          errors = validateFn(stateRef.current.values);
+        } catch (thrown) {
+          // A `validate` that throws (e.g. `schema.parse`) follows the same contract as a throwing
+          // handler: `saveError` is set and `save` resolves `false`.
+          clearFieldErrors();
+          saveErrorRef.current = true;
+          setSaveError({ error: thrown ?? new Error('Validation failed') });
+          return false;
+        }
+        // A key whose value is `undefined` is "no error" (`{ name: ok ? undefined : 'Required' }`).
+        const invalid = (Object.keys(errors) as (keyof Values)[]).filter((key) => errors[key] !== undefined);
+        if (invalid.length > 0) {
+          const next: Partial<Record<keyof Values, string>> = {};
+          for (const key of invalid) next[key] = errors[key];
           fieldErrorsRef.current = true;
-          setFieldErrors(errors);
+          setFieldErrors(next);
           return false;
         }
         clearFieldErrors(); // stale errors of a previous attempt

@@ -141,6 +141,45 @@ describe('useObjectPageForm: validate / fieldErrors', () => {
     expect(result.current.fieldErrors).toEqual({});
   });
 
+  it('a key whose value is undefined is not an error: the save goes through', async () => {
+    const handler = vi.fn(async () => undefined);
+    const { result } = setup({ validate: (v) => ({ name: v.name ? undefined : 'Required' }) });
+    await act(async () => {
+      expect(await result.current.save(handler)).toBe(true);
+    });
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(result.current.fieldErrors).toEqual({});
+  });
+
+  it('only the defined keys end up in fieldErrors', async () => {
+    const { result } = setup({ validate: () => ({ name: undefined, amount: 'Too low' }) });
+    await act(async () => {
+      expect(await result.current.save(async () => undefined)).toBe(false);
+    });
+    expect(result.current.fieldErrors).toEqual({ amount: 'Too low' });
+    expect(Object.keys(result.current.fieldErrors)).toEqual(['amount']);
+  });
+
+  it('a validate that throws sets saveError, resolves false, skips the handler and leaves isSaving alone', async () => {
+    const handler = vi.fn(async () => undefined);
+    const { result } = setup({
+      validate: () => {
+        throw new Error('schema blew up');
+      },
+    });
+    await act(async () => {
+      expect(await result.current.save(handler)).toBe(false);
+    });
+    expect(handler).not.toHaveBeenCalled();
+    expect((result.current.saveError as Error).message).toBe('schema blew up');
+    expect(result.current.fieldErrors).toEqual({});
+    expect(result.current.isSaving).toBe(false);
+    // not stuck: the next save works
+    await act(async () => {
+      expect(await result.current.save(handler)).toBe(false);
+    });
+  });
+
   it('uses the latest validate function', async () => {
     const { result, rerender } = setup({ validate: () => ({ name: 'old' }) });
     rerender({ baseline: BASE, validate: () => ({ name: 'new' }) });
