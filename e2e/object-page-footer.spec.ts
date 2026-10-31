@@ -158,6 +158,17 @@ test.describe('Floorplans/Object Page/Footer', () => {
     const status = page.locator('[data-object-page-footer-message]');
     await expect(status).toHaveAttribute('role', 'status');
     await expect(status).toBeEmpty();
+    const handle = await status.elementHandle();
+    // Another story render with a message would remount; instead write it the way React would: through the
+    // controls channel, then check the very same node now holds the text.
+    await page.evaluate(() => {
+      const channel = (window as unknown as { __STORYBOOK_ADDONS_CHANNEL__: { emit: (e: string, p: unknown) => void } })
+        .__STORYBOOK_ADDONS_CHANNEL__;
+      const id = (window as unknown as { __STORYBOOK_PREVIEW__: { currentRender: { id: string } } }).__STORYBOOK_PREVIEW__.currentRender.id;
+      channel.emit('updateStoryArgs', { storyId: id, updatedArgs: { message: 'Errore di salvataggio' } });
+    });
+    await expect(status).toContainText('Errore di salvataggio');
+    expect(await handle!.evaluate((el, now) => el === now, await status.elementHandle())).toBe(true);
   });
 
   test('axe: hidden, with actions, with a long error', async ({ page }) => {

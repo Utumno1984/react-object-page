@@ -157,6 +157,10 @@ describe('ObjectPageFooter focus', () => {
     const { container } = render(<Demo withHeader={false} />);
     await userEvent.click(screen.getByRole('button', { name: 'Salva' }));
     expect(container.firstElementChild).toHaveFocus();
+    expect(container.firstElementChild).toHaveAttribute('tabindex', '-1');
+    // The root is focusable only while it holds the focus.
+    await userEvent.click(screen.getByRole('button', { name: 'Modifica' }));
+    expect(container.firstElementChild).not.toHaveAttribute('tabindex');
   });
 
   it('does not touch the focus when it was somewhere else', async () => {

@@ -67,6 +67,10 @@ const useIsoLayoutEffect = typeof window === 'undefined' ? useEffect : useLayout
  *
  * While a save is in flight, mark the action `aria-disabled` rather than `disabled`: the browser drops
  * the focus from a natively disabled button on its own, before the footer can do anything about it.
+ * `aria-disabled` does not stop the click: ignore it in the handler while saving.
+ *
+ * Server rendering: the footer goes to a slot that exists only once the page has mounted, so the server
+ * HTML has no footer and no reserved room; it appears (and the scroller shortens by its height) at hydration.
  */
 export const ObjectPageFooter = /* @__PURE__ */ forwardRef<HTMLDivElement, ObjectPageFooterProps>(function ObjectPageFooter(
   { visible, children, message, messageTone = 'info', toneLabel, label = 'Azioni di salvataggio', className, ...rest },

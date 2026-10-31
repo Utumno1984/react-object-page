@@ -122,7 +122,11 @@ export const ObjectPage = /* @__PURE__ */ forwardRef<HTMLDivElement, ObjectPageP
   const focusFallback = useCallback(() => {
     const target = headerTitle.current?.isConnected ? headerTitle.current : rootRef.current;
     if (!target) return;
-    if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
+    if (!target.hasAttribute('tabindex')) {
+      target.setAttribute('tabindex', '-1');
+      // Given only for as long as it holds the focus.
+      target.addEventListener('blur', () => target.removeAttribute('tabindex'), { once: true });
+    }
     target.focus({ preventScroll: true });
   }, []);
 
