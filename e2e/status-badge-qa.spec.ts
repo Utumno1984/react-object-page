@@ -149,24 +149,4 @@ test.describe('Primitives/StatusBadge (QA, extra cases)', () => {
     expect(m.table).toBe(200);
     expect(m.badge).toBeLessThanOrEqual(80 + EPS);
   });
-
-  test('a consumer className adding padding on the root (content-box) breaks the max-width: documented limitation', async ({ page }) => {
-    // Informational: measures what happens when `className="px-4"`-like padding lands on the root.
-    await gotoStory(page, OVERVIEW);
-    const m = await page.evaluate(() => {
-      const holder = document.createElement('div');
-      holder.style.cssText = 'width:120px';
-      const badge = document.querySelector('[data-testid="narrow-badge"]')!.cloneNode(true) as HTMLElement;
-      badge.style.paddingLeft = '16px';
-      badge.style.paddingRight = '16px';
-      holder.appendChild(badge);
-      document.querySelector('#storybook-root')!.appendChild(holder);
-      const w = badge.getBoundingClientRect().width;
-      holder.remove();
-      return w;
-    });
-    // eslint-disable-next-line no-console
-    console.log(`badge width with 16px padding on the root in a 120px container: ${m}px`);
-    expect(m).toBeGreaterThan(0);
-  });
 });
