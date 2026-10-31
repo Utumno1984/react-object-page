@@ -50,6 +50,7 @@ const EXPORTS = [
   'SheetHeader',
   'SheetTitle',
   'SheetTrigger',
+  'StatusBadge',
   'Text',
   'Title',
   'Tooltip',

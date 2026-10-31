@@ -167,7 +167,8 @@ describe('styles.css (compiled)', () => {
     // (was `.z-rop-tooltip` until the overlay layer map, #10, started using every level)
     // (was `.text-rop-title-lg` until Title started using it, #6)
     // (was `.rounded-rop-lg` until the Dialog started using it, #11)
-    expect(stylesCss).not.toContain('.rounded-rop-sm');
+    // (was `.rounded-rop-sm` until StatusBadge started using it, #86; replaced by another unused utility)
+    expect(stylesCss).not.toContain('.bg-rop-blue-50');
   });
 
   it('is deterministic: two builds produce the same bytes as dist/styles.css', () => {
