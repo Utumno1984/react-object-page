@@ -117,6 +117,15 @@ va bene procedere ticket per ticket senza fretta.
   un'asserzione dedicata "nessun leak"); preferire assegnazione diretta della prop allo spread
   condizionale quando il target è un componente (bypassa il controllo "proprietà in eccesso" di
   TypeScript).
+- **Motion**: qualunque transizione/animazione (durata, easing, quali proprietà animare) va
+  dichiarata come token (`--motion-rop-*` quando esiste un valore condiviso), mai come valore
+  letterale sparso nel componente. Ogni token di motion rispetta
+  `@media (prefers-reduced-motion: reduce)`: con la preferenza attiva l'effetto finale (stato
+  aperto/chiuso, valore aggiornato) compare senza transizione, non semplicemente "più veloce".
+  Su un overlay, l'animazione non deve mai alterare QUANDO il focus-trap si attiva o quando
+  `useReturnFocus` legge `document.activeElement` — vedi "Overlay" sopra: gli stessi test di
+  `Internal/OverlayLayers` e `Internal/ReturnFocus` restano verdi senza modifiche di
+  tolleranza/timeout.
 - **Data layer**: schema di validazione runtime condiviso tra form e chiamata API (fallisce
   rumorosamente su un campo mancante, non propaga `undefined` in silenzio); ricerca asincrona con
   tracking esplicito dell'ultima richiesta (scarta risposte di richieste superate); un valore
