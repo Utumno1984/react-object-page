@@ -64,6 +64,9 @@ const useIsoLayoutEffect = typeof window === 'undefined' ? useEffect : useLayout
  * hiding it moves nothing; hidden, it is `inert` and invisible. If the focus is inside it when it
  * hides, the focus moves to the header's title (the page root without a header), never to `<body>`.
  * Only the first mounted footer of a page is rendered.
+ *
+ * While a save is in flight, mark the action `aria-disabled` rather than `disabled`: the browser drops
+ * the focus from a natively disabled button on its own, before the footer can do anything about it.
  */
 export const ObjectPageFooter = /* @__PURE__ */ forwardRef<HTMLDivElement, ObjectPageFooterProps>(function ObjectPageFooter(
   { visible, children, message, messageTone = 'info', toneLabel, label = 'Azioni di salvataggio', className, ...rest },
