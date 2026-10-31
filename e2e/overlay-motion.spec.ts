@@ -115,18 +115,34 @@ test.describe('with motion allowed', () => {
       await trigger.click();
       await expect.poll(() => runningAnimations(page), { timeout: 5000 }).toEqual([]);
       expect(await focusInside(panel(page))).toBe(true);
+      // Sample inside the page, once per frame and atomically ("is the panel mounted?" and "has the
+      // opener the focus?" read in the same task): two Playwright round-trips would race with the end
+      // of the exit. Started before Escape so no frame of the exit is missed.
+      await page.evaluate((openerText) => {
+        const w = window as unknown as { __frames: { mounted: boolean; opener: boolean }[]; __sampling: boolean };
+        w.__frames = [];
+        w.__sampling = true;
+        const isOpener = (el: Element | null) => el?.tagName === 'BUTTON' && el.textContent === openerText;
+        const tick = () => {
+          w.__frames.push({ mounted: !!document.querySelector('[role=dialog]'), opener: isOpener(document.activeElement) });
+          if (w.__sampling) requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      }, opener);
       await page.keyboard.press('Escape');
       await expect(panel(page)).toHaveAttribute('data-state', 'closed');
-      // Sample the whole exit: for as long as the panel is mounted the opener has NOT got the focus back.
-      const samples: boolean[] = [];
-      const start = Date.now();
-      while ((await panel(page).count()) > 0 && Date.now() - start < 4000) {
-        samples.push(await trigger.evaluate((el) => el === document.activeElement));
-        await page.waitForTimeout(40);
-      }
-      expect(samples.length).toBeGreaterThan(3);
-      expect(samples.every((focused) => !focused)).toBe(true);
+      await expect(panel(page)).toHaveCount(0, { timeout: 5000 });
       await expect(trigger).toBeFocused();
+      const frames = await page.evaluate(() => {
+        const w = window as unknown as { __frames: { mounted: boolean; opener: boolean }[]; __sampling: boolean };
+        w.__sampling = false;
+        return w.__frames;
+      });
+      const mountedFrames = frames.filter((f) => f.mounted);
+      // A 900 ms exit is ~50 frames: plenty, whatever the load. For all of them the opener has NOT the focus.
+      expect(mountedFrames.length).toBeGreaterThan(10);
+      expect(mountedFrames.filter((f) => f.opener)).toEqual([]);
+      expect(frames.some((f) => !f.mounted && f.opener)).toBe(true);
     });
   }
 
