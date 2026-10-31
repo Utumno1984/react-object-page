@@ -40,6 +40,10 @@ interface ModalContextValue {
   fallbackHolder: { current: RefObject<HTMLElement | null> | undefined };
   /** The trigger node, if any: the last-resort target when the focus never sat on the opener. */
   triggerHolder: { current: HTMLElement | null };
+  /** Whether the panel is open (the requested state, not whether its node is still mounted). */
+  open: boolean;
+  /** Reported by the portal's content: true while the panel node exists, including its exit animation. */
+  setPanelMounted: (mounted: boolean) => void;
 }
 
 const ModalContext = /* @__PURE__ */ createContext<ModalContextValue | null>(null);
@@ -69,6 +73,9 @@ export interface ModalRootProps {
 export function ModalRoot({ open, defaultOpen = false, onOpenChange, children }: ModalRootProps) {
   const [innerOpen, setInnerOpen] = useState(defaultOpen);
   const current = open ?? innerOpen;
+  // True from the moment the panel's portal mounts until it has really unmounted, i.e. including
+  // the exit animation: Radix's `Presence` keeps the nodes in the DOM until the animation ends.
+  const [panelMounted, setPanelMounted] = useState(false);
   const fallbackHolder = useRef<RefObject<HTMLElement | null> | undefined>(undefined);
   const triggerHolder = useRef<HTMLElement | null>(null);
   // Stable object whose `current` is resolved when the focus is returned, i.e. after the content
@@ -88,7 +95,12 @@ export function ModalRoot({ open, defaultOpen = false, onOpenChange, children }:
     }),
     [],
   );
-  useReturnFocus({ open: current, fallbackRef });
+  // The focus must come back after the exit animation, not in the middle of it: `useReturnFocus`
+  // gets "open or still on screen". The opener is still captured at the moment `current` turns true
+  // (`panelMounted` is only set once the portal has mounted), and the focus returns in the frame
+  // after the panel has really unmounted. Without an animation (reduced motion) the panel unmounts
+  // in the same commit as the close, so the timing is the one from before the animation existed.
+  useReturnFocus({ open: current || panelMounted, fallbackRef });
 
   const handleOpenChange = useCallback(
     (next: boolean) => {
@@ -98,7 +110,10 @@ export function ModalRoot({ open, defaultOpen = false, onOpenChange, children }:
     [open, onOpenChange],
   );
 
-  const ctx = useMemo(() => ({ fallbackHolder, triggerHolder }), []);
+  const ctx = useMemo(
+    () => ({ fallbackHolder, triggerHolder, open: current, setPanelMounted }),
+    [current],
+  );
   return (
     <ModalContext.Provider value={ctx}>
       <RadixDialog.Root open={current} onOpenChange={handleOpenChange}>
@@ -132,8 +147,16 @@ export function createModalTrigger(part: string, root: string) {
 // The backdrop and the content sit in one fixed wrapper at the `modal` level, which is the stacking
 // unit: a second (nested) panel's wrapper comes later in the DOM at the same level, so its backdrop
 // covers the first, while its popovers (level `popover`) still sit above both.
-export const MODAL_WRAPPER = 'fixed inset-0';
-export const MODAL_BACKDROP = 'fixed inset-0 bg-[rgb(0_0_0/0.4)]';
+// Enter / exit are keyframe animations (tokens in `tokens.css`), applied only under `motion-safe:`: with
+// prefers-reduced-motion there is no `animation` at all, so Radix's Presence unmounts at once. (Not
+// `motion-reduce:animate-none`: in the compiled CSS it loses to the `data-[state]` variants.)
+// While closing, the wrapper and its parts let the pointer through: the exit must not swallow a click.
+// The wrapper's own `hold` animation is invisible: it keeps the portal mounted until its children
+// have finished animating out (Radix's Presence of the portal watches the wrapper, not the children).
+export const MODAL_WRAPPER =
+  'fixed inset-0 data-[state=closed]:pointer-events-none motion-safe:data-[state=closed]:animate-rop-modal-hold';
+export const MODAL_BACKDROP =
+  'fixed inset-0 bg-[rgb(0_0_0/0.4)] motion-safe:data-[state=open]:animate-rop-overlay-in motion-safe:data-[state=closed]:animate-rop-overlay-out';
 // `--rop-vv-top` / `--rop-vv-h` follow the visual viewport (kept by `trackVisualViewport`, defaulting
 // to the layout viewport; no comma in a class name: the stylesheet leak check splits selectors on
 // commas), so an on-screen keyboard does not hide the active field. The surface is shared by every
@@ -146,8 +169,18 @@ export function modalPanelClass(placement: string): string {
   return (
     `[--rop-vv-top:0px] [--rop-vv-h:100dvh] ${placement} ` +
     'flex flex-col overflow-hidden bg-rop-surface font-rop-sans text-rop-text ' +
+    'motion-safe:data-[state=open]:animate-rop-modal-in motion-safe:data-[state=closed]:animate-rop-modal-out data-[state=closed]:pointer-events-none ' +
     '[outline:1px_solid_var(--color-rop-border)] [outline-offset:-1px]'
   );
+}
+
+/** Tells the root that the portal's content is in the DOM (see `panelMounted`); renders nothing. */
+function MountedReporter({ report }: { report: (mounted: boolean) => void }) {
+  useLayoutEffect(() => {
+    report(true);
+    return () => report(false);
+  }, [report]);
+  return null;
 }
 
 /** Keeps `--rop-vv-top` / `--rop-vv-h` on the node in sync with `window.visualViewport`. */
@@ -210,7 +243,7 @@ export const ModalPanel = /* @__PURE__ */ forwardRef<ElementRef<typeof RadixDial
     },
     forwardedRef,
   ) {
-    const { fallbackHolder } = useModalContext(part, root);
+    const { fallbackHolder, open, setPanelMounted } = useModalContext(part, root);
     useLayoutEffect(() => {
       fallbackHolder.current = returnFocusRef;
     });
@@ -245,7 +278,8 @@ export const ModalPanel = /* @__PURE__ */ forwardRef<ElementRef<typeof RadixDial
 
     return (
       <RadixDialog.Portal>
-        <div className={cn(MODAL_WRAPPER, overlayLayer.modal)}>
+        <div className={cn(MODAL_WRAPPER, overlayLayer.modal)} data-state={open ? 'open' : 'closed'}>
+          <MountedReporter report={setPanelMounted} />
           <RadixDialog.Overlay className={cn(MODAL_BACKDROP, overlayLayer.backdrop)} />
           <RadixDialog.Content
             aria-modal="true"

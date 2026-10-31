@@ -32,7 +32,8 @@ function canTakeFocus(el: HTMLElement | null | undefined): el is HTMLElement {
  *   else left as is). An overlay mounted already open has no remembered element either.
  * - The focus is returned even if the user moved it elsewhere in the meantime (as Radix does).
  * - The content must be unmounted by the next frame after `open` becomes false; an exit animation
- *   that keeps it mounted longer must delay `open` accordingly.
+ *   that keeps it mounted longer must delay `open` accordingly (`ModalRoot` passes
+ *   "open or still mounted", so the focus returns after the exit animation).
  * - Closing and reopening before that frame fires does not forget the real opener: while a return
  *   is still pending, the listener's cleanup (which runs on the same reopen) does not overwrite
  *   `openerRef` with `document.activeElement` (transiently `body` right after the content

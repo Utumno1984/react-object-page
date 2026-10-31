@@ -4,6 +4,7 @@ import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import { Button } from '../button/Button';
 import { Field } from '../field/Field';
 import { Input } from '../input/Input';
+import { settleMotion } from '../internal/settle-motion';
 import {
   Dialog,
   DialogBody,
@@ -154,6 +155,7 @@ const renderOpen: Story['render'] = ({ size, dismissible, onOpenChange }) => (
 
 const playOpen: Story['play'] = async () => {
   const dialog = await within(document.body).findByRole('dialog', { name: 'Modifica fornitore' });
+  await settleMotion(); // measure the final state, not a frame of the entry
   await expect(dialog.getBoundingClientRect().width).toBeLessThanOrEqual(window.innerWidth);
 };
 
@@ -180,6 +182,7 @@ export const LongContent: Story = {
   ),
   play: async () => {
     const dialog = await within(document.body).findByRole('dialog');
+    await settleMotion();
     const scroller = dialog.querySelector<HTMLElement>('[tabindex="0"]');
     await expect(scroller).not.toBeNull();
     await expect(scroller!.scrollHeight).toBeGreaterThan(scroller!.clientHeight);
@@ -216,6 +219,7 @@ export const WideTable: Story = {
   ),
   play: async ({ args }) => {
     const dialog = await within(document.body).findByRole('dialog');
+    await settleMotion();
     await expect(args.size).toBe('sm');
     await expect(dialog.getBoundingClientRect().width).toBeLessThanOrEqual(400);
   },
@@ -384,6 +388,7 @@ export const ClassOverride: Story = {
   ),
   play: async () => {
     const dialog = await within(document.body).findByRole('dialog');
+    await settleMotion();
     await expect(Math.round(dialog.getBoundingClientRect().width)).toBeLessThanOrEqual(400);
   },
 };
