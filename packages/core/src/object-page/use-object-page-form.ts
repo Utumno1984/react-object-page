@@ -98,7 +98,9 @@ export interface UseObjectPageFormReturn<Values extends object> {
    * Field-level errors of the last save attempt, as returned by `validate` (`{}` when there are none
    * or no `validate` was passed). Distinct from `saveError` (network/server). Cleared as a whole by
    * `setValue`, `setValues`, `reset` and a successful save, and replaced/cleared by every new save
-   * attempt that gets past a passing `validate`; per-field clearing is not supported. The hook never
+   * attempt that gets past a passing `validate`; per-field clearing is not supported. Every failed
+   * `validate` produces a **new** object, even with content identical to the previous attempt
+   * (`useFocusFirstInvalidField` relies on this identity). The hook never
    * touches the DOM: pair it with `useFocusFirstInvalidField` to scroll/focus.
    */
   fieldErrors: Partial<Record<keyof Values, string>>;

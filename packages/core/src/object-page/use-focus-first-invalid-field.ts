@@ -58,8 +58,8 @@ export function useFocusFirstInvalidField({ containerRef, fieldErrors }: UseFocu
     // `fieldset`) is skipped: the first one that really receives focus wins.
     for (const el of candidates) {
       el.focus({ preventScroll: true });
-      // Compare against the element's own root: `document.activeElement` is the host inside a
-      // a ShadowRoot (and the `<iframe>` across a frame boundary).
+      // Compare against the element's own root: `document.activeElement` is the host when
+      // the element lives in a ShadowRoot (and the `<iframe>` across a frame boundary).
       const root = el.getRootNode() as Document | ShadowRoot;
       if (root.activeElement !== el) continue;
       el.scrollIntoView({ block: 'center' });
