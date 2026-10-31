@@ -41,7 +41,7 @@ test.describe('ListReport count pill', () => {
     await gotoStory(page, NO_PLAY);
     const pill = pillLocator(page);
     const rest = await tokenColor(page, '--color-rop-surface-subtle');
-    const strong = await tokenColor(page, '--color-rop-blue-100');
+    const strong = await tokenColor(page, '--color-rop-blue-50');
     expect(await pill.evaluate((el) => getComputedStyle(el).transitionDuration)).toBe('0.12s');
 
     await page.getByRole('radio', { name: 'Da approvare' }).click();
@@ -63,7 +63,6 @@ test.describe('ListReport count pill', () => {
     await gotoStory(page, NO_PLAY);
     const pill = pillLocator(page);
     const rest = await tokenColor(page, '--color-rop-surface-subtle');
-    expect(await pill.evaluate((el) => getComputedStyle(el).transitionDuration)).toBe('0s');
     expect(await pill.evaluate((el) => getComputedStyle(el).transitionProperty)).toBe('none');
 
     // record every background the pill takes from now on

@@ -57,7 +57,7 @@ describe('design tokens (src/styles/tokens.css, built into dist/theme.css and di
   it('every custom property lives in ONE namespace and none redefines a default Tailwind token', () => {
     const namespaces = new Set<string>();
     for (const name of customProperties(themeCss).keys()) {
-      const match = /^--(color|text|font|radius|z-index|icon|container)-([a-z]+)-/.exec(name);
+      const match = /^--(color|text|font|radius|z-index|icon|container|motion)-([a-z]+)-/.exec(name);
       expect(match, `${name} is outside a <group>-<namespace>- prefix`).not.toBeNull();
       namespaces.add(match?.[2] as string);
     }
@@ -87,7 +87,7 @@ describe('styles.css (compiled)', () => {
       // row-height variable (#49), also in the rop namespace; `--rop-object-page-footer-height` is the Object
       // Page footer's own declared row height (#57). Any other non-rop property still fails.
       (name) =>
-        !/^--(color|text|font|radius|z-index|icon|container)-rop-/.test(name) &&
+        !/^--(color|text|font|radius|z-index|icon|container|motion)-rop-/.test(name) &&
         !name.startsWith('--tw-') &&
         !name.startsWith('--rop-vv-') &&
         !name.startsWith('--rop-list-report-') &&
@@ -168,7 +168,8 @@ describe('styles.css (compiled)', () => {
     // (was `.text-rop-title-lg` until Title started using it, #6)
     // (was `.rounded-rop-lg` until the Dialog started using it, #11)
     // (was `.rounded-rop-sm` until StatusBadge started using it, #86; replaced by another unused utility)
-    expect(stylesCss).not.toContain('.bg-rop-blue-50');
+    // (was `.bg-rop-blue-50` until the ListReport count pill, #75, started using it; replaced by another unused utility)
+    expect(stylesCss).not.toContain('.bg-rop-blue-800');
   });
 
   it('is deterministic: two builds produce the same bytes as dist/styles.css', () => {

@@ -13,12 +13,13 @@ export const titleClass = 'min-w-0 [overflow-wrap:anywhere]';
 
 // Invisible (not removed) while there is no count to show: the header keeps the same box.
 // A small pill (token background, border and radius). The background transition reads the motion token
-// (0s under prefers-reduced-motion) and is also switched off by `motion-reduce`.
+// and is switched off by `motion-reduce` (prefers-reduced-motion).
 export const countClass =
-  'inline-block rounded-rop-sm border border-rop-border bg-rop-surface-subtle px-1.5 font-normal text-rop-text-muted transition-[background-color] duration-[var(--motion-rop-feedback-duration)] ease-[var(--motion-rop-feedback-easing)] motion-reduce:transition-none';
+  'inline-block rounded-rop-sm border border-rop-border bg-rop-surface-subtle px-1.5 font-normal text-rop-text-muted transition-[background-color,border-color] duration-[var(--motion-rop-feedback-duration)] ease-[var(--motion-rop-feedback-easing)] motion-reduce:transition-none';
 // While the value just changed: a stronger tone, which the transition above eases in and out. With
 // reduced motion the pill keeps its resting tone (the new value simply appears).
-export const countFlashClass = 'bg-rop-blue-100 motion-reduce:bg-rop-surface-subtle';
+// (blue-50 keeps the muted text above 4.5:1 while the flash lasts.)
+export const countFlashClass = 'bg-rop-blue-50 border-rop-blue-300 motion-reduce:bg-rop-surface-subtle motion-reduce:border-rop-border';
 export const countHiddenClass = 'invisible';
 
 export const actionsClass = 'flex min-w-0 flex-wrap items-center gap-2';
