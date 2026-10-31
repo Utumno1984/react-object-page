@@ -23,9 +23,9 @@ export const LIST =
  * stacked below the `--container-rop-description-list` threshold and subgrid from it up.
  */
 export const ITEM_CLASS = {
-  inline: 'col-span-full grid grid-cols-subgrid items-start gap-y-0.5',
-  stacked: 'col-span-full grid grid-cols-[minmax(0,1fr)] items-start gap-y-0.5',
-  auto: 'col-span-full grid grid-cols-[minmax(0,1fr)] items-start gap-y-0.5 @rop-description-list:grid-cols-subgrid',
+  inline: 'rop-dl-item col-span-full grid grid-cols-subgrid items-start gap-y-0.5',
+  stacked: 'rop-dl-item col-span-full grid grid-cols-[minmax(0,1fr)] items-start gap-y-0.5',
+  auto: 'rop-dl-item col-span-full grid grid-cols-[minmax(0,1fr)] items-start gap-y-0.5 @rop-description-list:grid-cols-subgrid',
 } as const;
 
 export const TERM =
@@ -49,4 +49,4 @@ export const STATUS_DETAIL = 'min-w-0 flex-1 text-start text-rop-text-muted';
  * sibling: no separator at the top). Same subgrid / columns as a normal item.
  */
 export const SUMMARY_ITEM =
-  'font-semibold [font-variant-numeric:tabular-nums] [&>dt]:text-rop-text [:not([data-rop-summary])+&]:pt-3 [:not([data-rop-summary])+&]:[border-top:1px_solid_var(--color-rop-border)]';
+  'font-semibold [font-variant-numeric:tabular-nums] [&>dt]:text-rop-text [.rop-dl-item:not([data-rop-summary])+&]:pt-3 [.rop-dl-item:not([data-rop-summary])+&]:[border-top:1px_solid_var(--color-rop-border)]';

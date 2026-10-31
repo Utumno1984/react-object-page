@@ -13,7 +13,9 @@ import {
 } from '../sheet/Sheet';
 import { Text } from '../typography/Text';
 import { TruncatedText } from '../truncated-text/TruncatedText';
+import { StatusBadge, type StatusBadgeTone } from '../status-badge/StatusBadge';
 import { DescriptionList, DescriptionListItem, type DescriptionListLayout } from './DescriptionList';
+import { DescriptionListStatus } from './DescriptionListStatus';
 
 type ValueKind = 'strings' | 'mixed' | 'with-empties';
 
@@ -332,6 +334,173 @@ export const EdgeCases: Story = {
       <div style={{ width: 500 }}>
         <DescriptionList data-testid="empty-list" />
       </div>
+    </div>
+  ),
+};
+
+type Entity = 'archiviata con audit' | 'archiviata senza audit' | 'attiva, senza stato' | 'solo dettaglio';
+const ENTITIES: Entity[] = ['archiviata con audit', 'archiviata senza audit', 'attiva, senza stato', 'solo dettaglio'];
+const TONES: StatusBadgeTone[] = ['neutral', 'info', 'success', 'warning', 'error'];
+const AUDIT = 'Archiviato il 12/10/2026 da Maria Rossi (ufficio acquisti)';
+
+interface StatusDemoProps {
+  entity: Entity;
+  tone: StatusBadgeTone;
+  /** Width of the demo container in px. */
+  width: number;
+  showSummary: boolean;
+  layout: DescriptionListLayout;
+  onSelect?: (entity: Entity) => void;
+}
+
+function StatusDemo({ entity: initial, tone, width, showSummary, layout, onSelect }: StatusDemoProps) {
+  const [entity, setEntity] = useState<Entity>(initial);
+  const [prev, setPrev] = useState(initial);
+  if (prev !== initial) {
+    // The `entity` control drives the demo too.
+    setPrev(initial);
+    setEntity(initial);
+  }
+  const hasBadge = entity === 'archiviata con audit' || entity === 'archiviata senza audit';
+  const hasDetail = entity === 'archiviata con audit' || entity === 'solo dettaglio';
+  return (
+    <div style={{ display: 'grid', gap: 12 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        {ENTITIES.map((e) => (
+          <Button
+            key={e}
+            size="sm"
+            variant={e === entity ? 'primary' : 'secondary'}
+            aria-pressed={e === entity}
+            onClick={() => {
+              setEntity(e);
+              onSelect?.(e);
+            }}
+          >
+            {e}
+          </Button>
+        ))}
+      </div>
+      <div data-testid="container" style={{ width, maxWidth: '100%', border: BORDER, padding: 8 }}>
+        <DescriptionListStatus
+          data-testid="status"
+          status={hasBadge ? <StatusBadge tone={tone}>Archiviato</StatusBadge> : undefined}
+          detail={hasDetail ? AUDIT : undefined}
+        />
+        <div style={{ height: 12 }} />
+        <DescriptionList layout={layout} data-testid="list">
+          <DescriptionListItem label="Fornitore">Acme S.r.l.</DescriptionListItem>
+          <DescriptionListItem label="Numero">INV-2026-0142</DescriptionListItem>
+          <DescriptionListItem label="Imponibile">1.016,39 €</DescriptionListItem>
+          {showSummary ? (
+            <>
+              <DescriptionListItem label="IVA 22%" variant="summary">
+                223,61 €
+              </DescriptionListItem>
+              <DescriptionListItem label="Totale" variant="summary">
+                1.240,00 €
+              </DescriptionListItem>
+            </>
+          ) : null}
+        </DescriptionList>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Controls: `entity` (which kind of record is shown), badge `tone`, container width, `showSummary`,
+ * `layout`; `onSelect` shows in Actions. The play function selects each of the four entities in
+ * turn through the demo buttons and checks after every switch that the `<dl>` did not move and that
+ * the row of an entity with no status exposes no text.
+ */
+export const StatusAndSummary: Story = {
+  name: 'Stato e riepilogo',
+  render: (args) => <StatusDemo {...(args as unknown as StatusDemoProps)} />,
+  argTypes: {
+    entity: { control: 'radio', options: ENTITIES },
+    tone: { control: 'radio', options: TONES },
+    width: { control: { type: 'range', min: 200, max: 800, step: 10 } },
+    showSummary: { control: 'boolean' },
+    layout: { control: 'radio', options: ['auto', 'inline', 'stacked'] satisfies DescriptionListLayout[] },
+    onSelect: { control: false },
+    valueKind: { table: { disable: true } },
+    emptyLabel: { table: { disable: true } },
+    onOpen: { table: { disable: true } },
+  } as Story['argTypes'],
+  args: {
+    entity: 'archiviata con audit',
+    tone: 'warning',
+    width: 600,
+    showSummary: true,
+    layout: 'auto',
+    onSelect: fn(),
+  } as unknown as Story['args'],
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    const list = canvas.getByTestId('list');
+    const status = canvas.getByTestId('status');
+    const top = rect(list).top;
+    const height = rect(status).height;
+    for (const entity of [...ENTITIES, ENTITIES[0]!]) {
+      await userEvent.click(canvas.getByRole('button', { name: entity }));
+      await expect(Math.abs(rect(list).top - top)).toBeLessThanOrEqual(0.5);
+      await expect(Math.abs(rect(status).height - height)).toBeLessThanOrEqual(0.5);
+      if (entity === 'attiva, senza stato') {
+        await expect(status.textContent).toBe('');
+        await expect(status.childElementCount).toBe(0);
+      }
+    }
+    await expect((args as unknown as StatusDemoProps).onSelect).toHaveBeenCalledTimes(ENTITIES.length + 1);
+    // Summary value column = normal value column.
+    const dds = Array.from(list.querySelectorAll('dd'));
+    await expect(new Set(dds.map((d) => Math.round(rect(d).left))).size).toBe(1);
+  },
+};
+
+function SummaryRows({ layout, width }: { layout: DescriptionListLayout; width: number }) {
+  return (
+    <div data-testid={`summary-${layout}`} style={{ width, maxWidth: '100%', border: BORDER, padding: 8 }}>
+      <DescriptionList layout={layout}>
+        <DescriptionListItem label="Imponibile">1.016,39 €</DescriptionListItem>
+        <DescriptionListItem label="IVA 22%" variant="summary">
+          223,61 €
+        </DescriptionListItem>
+        <DescriptionListItem label="Totale" variant="summary">
+          1.240,00 €
+        </DescriptionListItem>
+        <DescriptionListItem label="Pagato">0,00 €</DescriptionListItem>
+        <DescriptionListItem label="Residuo" variant="summary">
+          1.240,00 €
+        </DescriptionListItem>
+      </DescriptionList>
+    </div>
+  );
+}
+
+/** Visual: status with detail, empty status (reserved space shown as absence), truncated detail, summaries inline and stacked. */
+export const StatusAndSummaryVisual: Story = {
+  name: 'Stato e riepilogo (visual)',
+  tags: ['visual'],
+  parameters: { controls: { disable: true } },
+  render: () => (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24, alignItems: 'flex-start' }}>
+      {[
+        { id: 'full', status: <StatusBadge tone="warning">Archiviato</StatusBadge>, detail: AUDIT, width: 420 },
+        { id: 'empty', status: undefined, detail: undefined, width: 420 },
+        { id: 'truncated', status: <StatusBadge tone="warning">Archiviato</StatusBadge>, detail: AUDIT, width: 250 },
+      ].map(({ id, status, detail, width }) => (
+        <div key={id} data-testid={`box-${id}`} style={{ width, maxWidth: '100%', border: BORDER, padding: 8 }}>
+          <DescriptionListStatus data-testid={`status-${id}`} status={status} detail={detail} />
+          <div style={{ height: 12 }} />
+          <DescriptionList data-testid={`list-${id}`}>
+            <DescriptionListItem label="Fornitore">Acme S.r.l.</DescriptionListItem>
+            <DescriptionListItem label="Numero">INV-2026-0142</DescriptionListItem>
+          </DescriptionList>
+        </div>
+      ))}
+      <SummaryRows layout="inline" width={420} />
+      <SummaryRows layout="stacked" width={250} />
     </div>
   ),
 };
