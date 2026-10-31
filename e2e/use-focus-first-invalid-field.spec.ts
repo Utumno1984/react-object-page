@@ -44,6 +44,18 @@ test.describe('useFocusFirstInvalidField: behavior in a real browser', () => {
     await expect(page.getByLabel('Field C')).not.toBeFocused();
   });
 
+  test('two Save clicks in a row with the same missing field refocus it both times', async ({ page }) => {
+    await gotoStory(page, LONG_EMPTY);
+    await save(page).click();
+    await expect(page.getByLabel('Field A')).toBeFocused();
+    // The click on Save (at the bottom, scrolls there) takes the focus away; the second identical
+    // failure must bring it back and scroll the field into view again.
+    await save(page).click();
+    await expect(page.getByLabel('Field A')).toBeFocused();
+    expect(await inViewport(page, 'Field A')).toBe(true);
+    await expect(page.getByTestId('field-error-count')).toHaveText('field errors: 4');
+  });
+
   test('typing after a failure clears every field error at once', async ({ page }) => {
     await gotoStory(page, LONG_EMPTY);
     await save(page).click();

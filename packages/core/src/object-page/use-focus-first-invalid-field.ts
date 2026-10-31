@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import type { RefObject } from 'react';
 
 // Bundlers replace `process.env.NODE_ENV` in consumer builds; without `process` assume development.
@@ -25,24 +25,22 @@ export interface UseFocusFirstInvalidFieldOptions {
 }
 
 /**
- * When `fieldErrors` goes from empty to non-empty, scrolls the first invalid control into view
- * (`block: 'center'`) and focuses it. Controls are looked up as `[name="<key>"]` inside the
+ * Every time a new non-empty `fieldErrors` object arrives, scrolls the first invalid control into
+ * view (`block: 'center'`) and focuses it. Controls are looked up as `[name="<key>"]` inside the
  * container, and "first" is the **visual (document) order** of the matches, never the order of the
  * keys of `fieldErrors`. A match that cannot take focus (`type="hidden"`, disabled, not rendered,
  * inert) is skipped in favor of the next one. If no key matches a focusable `[name]` element nothing
- * happens (one `console.error` in development). A key whose value is `undefined` is not an error. Runs in an effect, so it is inert on the server.
+ * happens (one `console.error` in development). A key whose value is `undefined` is not an error.
+ * Runs in an effect, so it is inert on the server.
  *
- * It fires on the empty → non-empty transition only: a new non-empty `fieldErrors` replacing a
- * non-empty one (a second failed attempt without correcting anything) does not move the focus again.
+ * The trigger is the **identity** of `fieldErrors`, not its content: a second failed attempt with
+ * identical errors (`useObjectPageForm` builds a new object per failed `save`) moves the focus
+ * again, so the user always gets a reaction. Pass a referentially stable object: one recreated on
+ * every render (`{ ...errors }` inline) would re-focus on every render.
  */
 export function useFocusFirstInvalidField({ containerRef, fieldErrors }: UseFocusFirstInvalidFieldOptions): void {
-  const hadErrorsRef = useRef(false);
-  const hasErrors = invalidKeys(fieldErrors).length > 0;
-
   useEffect(() => {
-    const had = hadErrorsRef.current;
-    hadErrorsRef.current = hasErrors;
-    if (!hasErrors || had) return;
+    if (invalidKeys(fieldErrors).length === 0) return;
 
     const wanted = new Set(invalidKeys(fieldErrors));
     const container = containerRef.current;
@@ -60,7 +58,10 @@ export function useFocusFirstInvalidField({ containerRef, fieldErrors }: UseFocu
     // `fieldset`) is skipped: the first one that really receives focus wins.
     for (const el of candidates) {
       el.focus({ preventScroll: true });
-      if (document.activeElement !== el) continue;
+      // Compare against the element's own root: `document.activeElement` is the host inside a
+      // a ShadowRoot (and the `<iframe>` across a frame boundary).
+      const root = el.getRootNode() as Document | ShadowRoot;
+      if (root.activeElement !== el) continue;
       el.scrollIntoView({ block: 'center' });
       return;
     }
@@ -70,6 +71,5 @@ export function useFocusFirstInvalidField({ containerRef, fieldErrors }: UseFocu
         '[react-object-page] useFocusFirstInvalidField: none of the keys of `fieldErrors` matches a mounted, focusable `[name]` element inside the container, nothing was focused.',
       );
     }
-    // Keyed on the transition (`hasErrors`) and the latest errors/container, read when it fires.
-  }, [hasErrors, fieldErrors, containerRef]);
+  }, [fieldErrors, containerRef]);
 }

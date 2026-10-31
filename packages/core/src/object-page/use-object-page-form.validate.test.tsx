@@ -208,6 +208,19 @@ describe('useObjectPageForm: validate / fieldErrors', () => {
     });
   });
 
+  it('every failed validate produces a new fieldErrors object, even with identical content', async () => {
+    const { result } = setup({ validate: () => ({ name: 'Required' }) });
+    await act(async () => {
+      await result.current.save(async () => undefined);
+    });
+    const first = result.current.fieldErrors;
+    await act(async () => {
+      await result.current.save(async () => undefined);
+    });
+    expect(result.current.fieldErrors).toEqual(first);
+    expect(result.current.fieldErrors).not.toBe(first);
+  });
+
   it('keeps a stable fieldErrors identity while there are no errors', () => {
     const { result } = setup({ validate: requireName });
     const first = result.current.fieldErrors;

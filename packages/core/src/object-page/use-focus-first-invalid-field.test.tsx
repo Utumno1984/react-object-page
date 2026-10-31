@@ -43,19 +43,48 @@ describe('useFocusFirstInvalidField', () => {
     expect(scrollIntoView.mock.contexts[0]).toBe(getByLabelText('b'));
   });
 
-  it('fires on the empty → non-empty transition and again after going empty', () => {
+  it('fires on every new non-empty fieldErrors object, even with identical content', () => {
     const { rerender, getByLabelText } = render(<Form errors={{}} />);
-    rerender(<Form errors={{ c: 'x' }} />);
-    expect(getByLabelText('c')).toHaveFocus();
-    // non-empty → non-empty does not steal the focus again
-    getByLabelText('a').focus();
-    rerender(<Form errors={{ b: 'y' }} />);
-    expect(getByLabelText('a')).toHaveFocus();
+    rerender(<Form errors={{ b: 'x' }} />);
+    expect(getByLabelText('b')).toHaveFocus();
     expect(scrollIntoView).toHaveBeenCalledTimes(1);
-    rerender(<Form errors={{}} />);
-    rerender(<Form errors={{ b: 'y' }} />);
+    // second failed attempt, same content, new object: the user moved away meanwhile
+    getByLabelText('c').focus();
+    rerender(<Form errors={{ b: 'x' }} />);
     expect(getByLabelText('b')).toHaveFocus();
     expect(scrollIntoView).toHaveBeenCalledTimes(2);
+    // different content, new object
+    rerender(<Form errors={{ c: 'y' }} />);
+    expect(getByLabelText('c')).toHaveFocus();
+    expect(scrollIntoView).toHaveBeenCalledTimes(3);
+  });
+
+  it('does not fire again for the same fieldErrors object, nor when it becomes empty', () => {
+    const errors = { b: 'x' };
+    const { rerender, getByLabelText } = render(<Form errors={errors} />);
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    getByLabelText('c').focus();
+    rerender(<Form errors={errors} />);
+    expect(getByLabelText('c')).toHaveFocus();
+    rerender(<Form errors={{}} />);
+    expect(getByLabelText('c')).toHaveFocus();
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+  });
+
+  it('works inside an open ShadowRoot, where document.activeElement is the host', () => {
+    const host = document.createElement('div');
+    document.body.append(host);
+    const mount = document.createElement('div');
+    host.attachShadow({ mode: 'open' }).append(mount);
+    const { unmount } = render(<Form errors={{ b: 'x', c: 'y' }} />, { container: mount });
+    const root = host.shadowRoot!;
+    const b = root.querySelector<HTMLInputElement>('[name="b"]')!;
+    expect(root.activeElement).toBe(b);
+    expect(document.activeElement).toBe(host);
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    expect(scrollIntoView.mock.contexts[0]).toBe(b);
+    unmount();
+    host.remove();
   });
 
   it('only looks inside the container', () => {
