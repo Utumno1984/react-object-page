@@ -29,7 +29,8 @@ export interface DescriptionListProps extends HTMLAttributes<HTMLDListElement> {
   /**
    * `inline`: value to the side of the label, in one shared column. `stacked`: value under the
    * label. `auto` (default): decided by a CSS container query on the content width of the `<dl>`
-   * itself (so a `className`/`style` that changes its width or padding is taken into account),
+   * itself (so a `className`/`style` that changes its width is taken into account; padding would
+   * too, but see the note on padding below),
    * not of the window: inline from `--container-rop-description-list` (24rem) up, stacked below
    * it (a container exactly at the threshold is inline; the query is a plain `min-width`, so
    * there is no flicker around it). No JavaScript measures anything and there is no transition:

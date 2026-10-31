@@ -156,7 +156,7 @@ test.describe('Data/DescriptionList', () => {
     for (const condition of conditions) expect(condition).toContain(token);
   });
 
-  test('the <dl> is the measured container: a className/style that narrows or pads it changes the layout', async ({
+  test('the <dl> is the measured container: a max-width/width on it changes the layout, display:none leaves no box', async ({
     page,
   }) => {
     await gotoStory(page, PLAYGROUND, 'layout:auto;width:800');
@@ -176,7 +176,7 @@ test.describe('Data/DescriptionList', () => {
     await expect.poll(state).toBe('stacked');
     await dl.evaluate((el) => (el.style.width = ''));
     await expect.poll(state).toBe('inline');
-    // `hidden` leaves no box behind.
+    // `display: none` (a `className="hidden"` utility) leaves no box behind.
     await dl.evaluate((el) => (el.style.display = 'none'));
     expect((await page.getByTestId('container').boundingBox())!.height).toBeLessThan(40);
   });
