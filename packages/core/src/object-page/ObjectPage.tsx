@@ -125,7 +125,13 @@ export const ObjectPage = /* @__PURE__ */ forwardRef<HTMLDivElement, ObjectPageP
     if (!target.hasAttribute('tabindex')) {
       target.setAttribute('tabindex', '-1');
       // Given only for as long as it holds the focus.
-      target.addEventListener('blur', () => target.removeAttribute('tabindex'), { once: true });
+      // `focusout` bubbles: only the target's own counts (the button that just lost the focus fires one too).
+      const release = (event: FocusEvent) => {
+        if (event.target !== target) return;
+        target.removeAttribute('tabindex');
+        target.removeEventListener('focusout', release);
+      };
+      target.addEventListener('focusout', release);
     }
     target.focus({ preventScroll: true });
   }, []);
