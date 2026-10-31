@@ -292,7 +292,7 @@ export const ErrorState: Story = {
 
 /**
  * Il conteggio e' una piccola pillola che si colora per un attimo quando il numero cambia (non al
- * montaggio). Controls: `dataset` cambia `totalCount`. La play function sceglie "Da approvare" e verifica
+ * montaggio). Senza Controls (le callback e i Controls sono nel Playground). La play function sceglie "Da approvare" e verifica
  * che la pillola segni il cambio (`data-changed`) e poi torni a riposo, poi torna a "Tutte" e controlla lo
  * stesso ciclo. Con `prefers-reduced-motion` il tono non cambia (vedi e2e): il numero compare e basta.
  */
