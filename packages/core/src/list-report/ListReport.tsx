@@ -15,6 +15,7 @@ import type { ListReportTableLabels } from './ListReportTableStates';
 import {
   actionsClass,
   countClass,
+  countFlashClass,
   countHiddenClass,
   filterBarClass,
   headerClass,
@@ -23,6 +24,7 @@ import {
   titleClass,
 } from './list-report-styles';
 import type { UseListReportReturn } from './types';
+import { useChangeFlash } from './use-change-flash';
 
 /** Texts of `ListReport`: those of `ListReportTable` plus the count in the header (Italian defaults). */
 export interface ListReportLabels extends ListReportTableLabels {
@@ -86,6 +88,8 @@ function ListReportImpl<Row>(props: ListReportProps<Row>, ref: Ref<HTMLDivElemen
   const nameId = `${useId()}-name`;
   const barRef = useRef<HTMLDivElement | null>(null);
   const count = labels?.count ?? DEFAULT_COUNT;
+  // The pill eases to a stronger tone when the numbers change (not at mount); the text itself just changes.
+  const countChanged = useChangeFlash(`${table.resultCount}/${table.totalCount}`);
 
   const showBar = showSearch || table.filters.length > 0;
   // The count is hidden (not removed) while there is nothing true to say: no rows yet, or an error.
@@ -106,7 +110,13 @@ function ListReportImpl<Row>(props: ListReportProps<Row>, ref: Ref<HTMLDivElemen
       <div className={headerClass}>
         <Title level={titleLevel} className={titleClass}>
           <span id={nameId}>{title}</span>{' '}
-          <span className={cn(countClass, !countShown && countHiddenClass)}>{count(table.resultCount, table.totalCount)}</span>
+          <span
+            data-rop-count=""
+            data-changed={countChanged ? '' : undefined}
+            className={cn(countClass, countChanged && countFlashClass, !countShown && countHiddenClass)}
+          >
+            {count(table.resultCount, table.totalCount)}
+          </span>
         </Title>
         {actions ? <div className={actionsClass}>{actions}</div> : null}
       </div>

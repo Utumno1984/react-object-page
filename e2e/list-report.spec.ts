@@ -61,7 +61,7 @@ async function tabTo(page: Page, target: Locator, max = 12): Promise<void> {
 }
 
 test.describe('Floorplans/List Report: stories play', () => {
-  for (const name of ['playground', 'with-active-filter', 'loading', 'empty', 'no-results', 'error-state']) {
+  for (const name of ['playground', 'with-active-filter', 'loading', 'empty', 'no-results', 'error-state', 'count-pill']) {
     test(`${name}: the play function passes`, async ({ page }) => {
       await expectPlayToPass(page, STORY(name));
     });
@@ -69,7 +69,7 @@ test.describe('Floorplans/List Report: stories play', () => {
 });
 
 test.describe('accessibility', () => {
-  for (const name of ['playground', 'with-active-filter', 'loading', 'empty', 'no-results', 'error-state', 'flow-layout']) {
+  for (const name of ['playground', 'with-active-filter', 'loading', 'empty', 'no-results', 'error-state', 'flow-layout', 'count-pill']) {
     test(`${name}: no axe violations`, async ({ page }) => {
       await expectPlayToPass(page, STORY(name));
       await expectNoA11yViolations(page);

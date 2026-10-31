@@ -77,4 +77,10 @@
   --z-index-rop-modal: 30;
   --z-index-rop-popover: 40;
   --z-index-rop-tooltip: 50;
+
+  /* Motion: a short feedback (e.g. a value that changed). The tokens are plain values: every use site
+     switches the transition off under prefers-reduced-motion with `motion-reduce:transition-none`
+     (the stylesheet has no un-layered rule, so the preference cannot be handled here). */
+  --motion-rop-feedback-duration: 120ms;
+  --motion-rop-feedback-easing: ease-out;
 }
