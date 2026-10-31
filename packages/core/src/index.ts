@@ -100,3 +100,9 @@ export { useFocusFirstInvalidField } from './object-page/use-focus-first-invalid
 export type { UseFocusFirstInvalidFieldOptions } from './object-page/use-focus-first-invalid-field';
 export { useDirtyGuard } from './object-page/use-dirty-guard';
 export type { UseDirtyGuardOptions, UseDirtyGuardReturn, DirtyGuardLabels } from './object-page/use-dirty-guard';
+export { DescriptionList, DescriptionListItem } from './description-list/DescriptionList';
+export type {
+  DescriptionListProps,
+  DescriptionListItemProps,
+  DescriptionListLayout,
+} from './description-list/DescriptionList';

@@ -17,6 +17,8 @@ function run(file: string): string[] {
 const EXPORTS = [
   'Button',
   'Combobox',
+  'DescriptionList',
+  'DescriptionListItem',
   'Dialog',
   'DialogBody',
   'DialogClose',

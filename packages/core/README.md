@@ -49,7 +49,7 @@ Do **not** also import `styles.css`: loading both duplicates the utilities and i
 (it does not crash, but the output is redundant and the cascade order is not guaranteed).
 
 `theme.css` only declares variables in the `rop` namespace (`--color-rop-*`, `--text-rop-*`,
-`--font-rop-*`, `--radius-rop-*`, `--z-index-rop-*`); it never redefines Tailwind defaults. You
+`--font-rop-*`, `--radius-rop-*`, `--z-index-rop-*`, `--container-rop-*`); it never redefines Tailwind defaults. You
 can use `text-rop-body`, `font-rop-mono`, `z-rop-modal`, `bg-rop-primary`... in your own markup.
 
 ### Tokens
@@ -60,8 +60,14 @@ can use `text-rop-body`, `font-rop-mono`, `z-rop-modal`, `bg-rop-primary`... in 
 | Type scale (size + line height) | `caption`, `body`, `label`, `title-sm`, `title-md`, `title-lg` |
 | Families | `font-rop-sans`, `font-rop-mono` (system stacks, no web font; the mono stack ends with `monospace`) |
 | z-index | `sticky` < `overlay` (backdrop) < `modal` < `popover` < `tooltip` |
+| Container query thresholds | `--container-rop-description-list` (24rem): the `DescriptionList` width from which `layout="auto"` is inline |
 
-Tokens are plain CSS variables: override them in your own CSS for theming.
+Tokens are plain CSS variables: override them in your own CSS for theming. **Exception: the
+container query thresholds.** A container query condition cannot use `var()`, so Tailwind writes
+the token's value into the compiled CSS: redefine `--container-rop-description-list` in the
+`@theme` of your own Tailwind build (mode b, `theme.css`); overriding the variable at runtime or on
+top of the precompiled `styles.css` (mode a) has no effect. Or force the layout with the `layout`
+prop.
 
 `primary-hover` and `error-hover` (the hover background of the `primary` and `danger` Buttons) are
 not fixed colors: they are `color-mix(in srgb, <base> 80%, black)` of `--color-rop-primary` /

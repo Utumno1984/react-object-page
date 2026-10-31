@@ -68,6 +68,9 @@
   --radius-rop-md: 0.5rem;
   --radius-rop-lg: 0.75rem;
 
+  /* Container-query thresholds (Tailwind v4 `container` namespace: `@rop-description-list:` variant) */
+  --container-rop-description-list: 24rem;
+
   /* z-index scale: sticky < overlay (backdrop) < modal < popover < tooltip */
   --z-index-rop-sticky: 10;
   --z-index-rop-overlay: 20;
