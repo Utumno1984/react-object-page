@@ -97,7 +97,11 @@ export interface DescriptionListItemProps extends Omit<HTMLAttributes<HTMLDivEle
   /**
    * `summary`: a row of totals, emphasised (semibold, tabular figures) with one separator above
    * the first item of each consecutive run of summaries (none if it is the first item of the list).
-   * Same value column as the other items. Default `default`; an unknown value acts as `default`.
+   * Same value column as the other items. The separator keys on the previous sibling: a hand-written
+   * non-item element between an item and a summary removes it, and a `hidden` normal item inside a
+   * run of summaries adds one. To drop the separator of one item use the important modifier
+   * (`className="border-0! pt-0!"`): the rule is a sibling-dependent variant, which a plain
+   * `border-0` does not beat. Default `default`; an unknown value acts as `default`.
    */
   variant?: DescriptionListItemVariant;
 }

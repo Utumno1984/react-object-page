@@ -39,14 +39,20 @@ export const DETAILS = 'm-0 min-w-0 p-0 font-rop-sans text-rop-body text-start t
  */
 export const STATUS_ROOT =
   'flex min-h-[var(--text-rop-body--line-height)] w-full min-w-0 max-w-full items-center gap-x-2 font-rop-sans text-rop-body text-rop-text';
-export const STATUS_SLOT = 'flex min-w-0 max-w-full shrink items-center';
-export const STATUS_DETAIL = 'min-w-0 flex-1 text-start text-rop-text-muted';
+// `empty:hidden`: a `status` node that renders nothing (e.g. a badge component returning `null`)
+// must not leave a gap before the detail. The detail keeps a floor of width so that a long badge
+// shrinks (and truncates itself) instead of squeezing the detail down to nothing.
+export const STATUS_SLOT = 'flex min-w-0 max-w-full shrink items-center empty:hidden';
+export const STATUS_DETAIL = 'min-w-[6rem] flex-1 text-start text-rop-text-muted';
 
 /**
  * Summary item (totals): emphasis from the typographic tokens (semibold, tabular figures, `dt` in
  * the main text colour) and ONE separator above the first item of each run of summaries, i.e. when
  * the previous sibling is not a summary (a summary that is first in the list has no previous
  * sibling: no separator at the top). Same subgrid / columns as a normal item.
+ * The separator is a variant rule (it depends on the previous sibling), so a plain `border-0` in a
+ * consumer `className` does not beat it (`cn` cannot merge across variants); the documented way to
+ * drop it is the important modifier: `className="border-0! pt-0!"`.
  */
 export const SUMMARY_ITEM =
   'font-semibold [font-variant-numeric:tabular-nums] [&>dt]:text-rop-text [.rop-dl-item:not([data-rop-summary])+&]:pt-3 [.rop-dl-item:not([data-rop-summary])+&]:[border-top:1px_solid_var(--color-rop-border)]';

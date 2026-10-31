@@ -89,17 +89,17 @@ test.describe('DescriptionListStatus QA — markup and edge cases', () => {
     expect(d.x + d.width).toBeLessThanOrEqual(c.x + c.width + 0.5);
   });
 
-  test('keyboard-focus tooltip does not stay orphaned after switching entity', async ({ page }) => {
+  test('open tooltip never keeps the old detail text when the detail changes under it', async ({ page }) => {
     await gotoStory(page, PLAY, 'width:250');
     await select(page, 'archiviata con audit');
     await page.getByTestId('status').locator('> span').last().hover();
-    await expect(page.getByRole('tooltip')).toBeVisible({ timeout: 3000 });
-    await page.keyboard.press('Escape');
-    await expect(page.getByRole('tooltip')).toHaveCount(0);
-    await select(page, 'solo dettaglio');
-    await page.mouse.move(0, 0);
+    await expect(page.getByRole('tooltip')).toContainText('Maria Rossi', { timeout: 3000 });
+    // the detail stays mounted with a different text; the tooltip stays open (no Escape)
+    await page.getByRole('button', { name: 'solo dettaglio', exact: true }).evaluate((b) => (b as HTMLElement).click());
+    await expect(page.getByTestId('status')).toContainText('Luca Bianchi');
     await page.waitForTimeout(500);
-    await expect(page.getByRole('tooltip')).toHaveCount(0);
+    const tips = page.getByRole('tooltip');
+    if ((await tips.count()) > 0) await expect(tips).not.toContainText('Maria Rossi');
   });
 
   test('visual story: the first summary after normal items has a separator; axe passes; no page overflow at 375px', async ({

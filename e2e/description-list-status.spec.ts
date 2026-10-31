@@ -153,6 +153,42 @@ test.describe('Data/DescriptionList — DescriptionListStatus', () => {
   });
 });
 
+test.describe('Data/DescriptionList — DescriptionListStatus edge cases', () => {
+  const EDGES = 'data-descriptionlist--status-edge-cases';
+
+  test('a badge with an icon keeps the row at one body line, same as the row with no badge', async ({ page }) => {
+    await gotoStory(page, EDGES);
+    const plain = (await page.getByTestId('row-plain').boundingBox())!;
+    const icon = (await page.getByTestId('row-icon').boundingBox())!;
+    expect(Math.abs(icon.height - plain.height)).toBeLessThanOrEqual(EPS);
+  });
+
+  test('a status node that renders nothing leaves no gap before the detail', async ({ page }) => {
+    await gotoStory(page, EDGES);
+    const left = (row: string) =>
+      page.getByTestId(row).evaluate((el) => el.querySelector(':scope > :last-child')!.getBoundingClientRect().left - el.getBoundingClientRect().left);
+    expect(Math.abs((await left('row-null')) - (await left('row-plain')))).toBeLessThanOrEqual(EPS);
+  });
+
+  test('a long badge shrinks and the detail keeps a visible, reachable width', async ({ page }) => {
+    await gotoStory(page, EDGES);
+    const detail = page.getByTestId('row-long').locator('> :last-child');
+    expect((await detail.boundingBox())!.width).toBeGreaterThanOrEqual(90);
+    const row = (await page.getByTestId('row-long').boundingBox())!;
+    expect(Math.abs(row.height - (await page.getByTestId('row-plain').boundingBox())!.height)).toBeLessThanOrEqual(EPS);
+  });
+
+  test('className with the important modifier drops the separator (border and padding) of a summary item', async ({ page }) => {
+    await gotoStory(page, EDGES);
+    const style = await page
+      .getByTestId('override-list')
+      .locator('> div')
+      .last()
+      .evaluate((el) => [getComputedStyle(el).borderTopWidth, getComputedStyle(el).paddingTop]);
+    expect(style).toEqual(['0px', '0px']);
+  });
+});
+
 test.describe('Data/DescriptionList — summary rows', () => {
   const dds = (page: Page, testid: string) => page.getByTestId(testid).locator('dd');
 
@@ -185,14 +221,15 @@ test.describe('Data/DescriptionList — summary rows', () => {
       const normals = items.filter((i) => !i.hasAttribute('data-rop-summary'));
       normals.forEach((n) => n.remove());
       const onlySummaries = border();
-      // summary first, then a normal one, then summaries again
-      dl.prepend(items[1]!);
-      dl.append(normals[0]!);
+      // summary first, then a normal one, then summaries again: [IVA, Imponibile, Totale, Pagato, Residuo]
+      dl.replaceChildren(items[1]!, items[0]!, items[2]!, items[3]!, items[4]!);
       const summaryFirst = border();
       return { onlySummaries, summaryFirst };
     });
     expect(result.onlySummaries).toEqual(['0px', '0px', '0px']);
-    expect(result.summaryFirst[0]).toBe('0px');
+    // no separator at the top; one above the summary that follows a normal item; none for the
+    // summary that follows another summary; one above the last run
+    expect(result.summaryFirst).toEqual(['0px', '0px', '1px', '0px', '1px']);
   });
 
   test('emphasis: semibold and tabular figures', async ({ page }) => {

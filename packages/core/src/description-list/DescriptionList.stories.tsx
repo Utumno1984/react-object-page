@@ -13,7 +13,8 @@ import {
 } from '../sheet/Sheet';
 import { Text } from '../typography/Text';
 import { TruncatedText } from '../truncated-text/TruncatedText';
-import { StatusBadge, type StatusBadgeTone } from '../status-badge/StatusBadge';
+import { internalIcons } from '../internal/icons';
+import { StatusBadge,type StatusBadgeTone } from '../status-badge/StatusBadge';
 import { DescriptionList, DescriptionListItem, type DescriptionListLayout } from './DescriptionList';
 import { DescriptionListStatus } from './DescriptionListStatus';
 
@@ -342,6 +343,7 @@ type Entity = 'archiviata con audit' | 'archiviata senza audit' | 'attiva, senza
 const ENTITIES: Entity[] = ['archiviata con audit', 'archiviata senza audit', 'attiva, senza stato', 'solo dettaglio'];
 const TONES: StatusBadgeTone[] = ['neutral', 'info', 'success', 'warning', 'error'];
 const AUDIT = 'Archiviato il 12/10/2026 da Maria Rossi (ufficio acquisti)';
+const AUDIT_ONLY = 'Ultima verifica il 03/11/2026 da Luca Bianchi (amministrazione)';
 
 interface StatusDemoProps {
   entity: Entity;
@@ -385,7 +387,7 @@ function StatusDemo({ entity: initial, tone, width, showSummary, layout, onSelec
         <DescriptionListStatus
           data-testid="status"
           status={hasBadge ? <StatusBadge tone={tone}>Archiviato</StatusBadge> : undefined}
-          detail={hasDetail ? AUDIT : undefined}
+          detail={hasDetail ? (hasBadge ? AUDIT : AUDIT_ONLY) : undefined}
         />
         <div style={{ height: 12 }} />
         <DescriptionList layout={layout} data-testid="list">
@@ -477,6 +479,51 @@ function SummaryRows({ layout, width }: { layout: DescriptionListLayout; width: 
     </div>
   );
 }
+
+const NullBadge = () => null;
+
+/**
+ * Edge cases for the e2e suite (not photographed): a badge with an icon (the tallest variant), a
+ * `status` node that renders nothing, a long badge next to a detail in a narrow box, and a summary
+ * whose `className` removes the separator.
+ */
+export const StatusEdgeCases: Story = {
+  parameters: { controls: { disable: true } },
+  render: () => (
+    <div style={{ display: 'grid', gap: 16, width: 280 }}>
+      <div data-testid="edge-plain">
+        <DescriptionListStatus data-testid="row-plain" detail={AUDIT} />
+      </div>
+      <div data-testid="edge-icon">
+        <DescriptionListStatus
+          data-testid="row-icon"
+          status={
+            <StatusBadge tone="warning" icon={internalIcons.warning}>
+              Archiviato
+            </StatusBadge>
+          }
+          detail={AUDIT}
+        />
+      </div>
+      <div data-testid="edge-null">
+        <DescriptionListStatus data-testid="row-null" status={<NullBadge />} detail={AUDIT} />
+      </div>
+      <div data-testid="edge-long">
+        <DescriptionListStatus
+          data-testid="row-long"
+          status={<StatusBadge tone="info">In attesa di approvazione del responsabile di reparto</StatusBadge>}
+          detail={AUDIT}
+        />
+      </div>
+      <DescriptionList data-testid="override-list" layout="inline">
+        <DescriptionListItem label="Imponibile">1.016,39 €</DescriptionListItem>
+        <DescriptionListItem label="Totale" variant="summary" className="border-0! pt-0!">
+          1.240,00 €
+        </DescriptionListItem>
+      </DescriptionList>
+    </div>
+  ),
+};
 
 /** Visual: status with detail, empty status (reserved space shown as absence), truncated detail, summaries inline and stacked. */
 export const StatusAndSummaryVisual: Story = {
