@@ -61,6 +61,11 @@ export interface StatusBadgeProps extends Omit<HTMLAttributes<HTMLSpanElement>, 
  * rows does not make a screen reader announce every badge). It is a one-line inline box no taller
  * than a `body` text line; text too long for its container is cut with an ellipsis (the whole text
  * stays in the DOM). Wrap it in `TruncatedText` if you want a tooltip.
+ *
+ * Like every box of the library it is `content-box` (no box-sizing reset) and its root has no
+ * padding or border, so `max-width: 100%` is its real outer width. A `className` that adds padding
+ * or a border to the root pushes it past that limit: also pass a box-sizing utility, or space it
+ * with a margin or a wrapper instead.
  */
 export const StatusBadge = /* @__PURE__ */ forwardRef<HTMLSpanElement, StatusBadgeProps>(function StatusBadge(
   { tone = 'neutral', icon, className, children, ...rest },
