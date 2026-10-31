@@ -31,3 +31,22 @@ export const ITEM_CLASS = {
 export const TERM =
   'm-0 min-w-0 p-0 font-rop-sans text-rop-body text-start text-rop-text-muted [overflow-wrap:anywhere]';
 export const DETAILS = 'm-0 min-w-0 p-0 font-rop-sans text-rop-body text-start text-rop-text [overflow-wrap:anywhere]';
+
+/**
+ * Status row (a sibling above the `<dl>`). `min-height` is one `body` line taken from the token
+ * (a `StatusBadge` is never taller), so an empty row and a full one are the same height; rem-based,
+ * so it grows with the text at 200% zoom.
+ */
+export const STATUS_ROOT =
+  'flex min-h-[var(--text-rop-body--line-height)] w-full min-w-0 max-w-full items-center gap-x-2 font-rop-sans text-rop-body text-rop-text';
+export const STATUS_SLOT = 'flex min-w-0 max-w-full shrink items-center';
+export const STATUS_DETAIL = 'min-w-0 flex-1 text-start text-rop-text-muted';
+
+/**
+ * Summary item (totals): emphasis from the typographic tokens (semibold, tabular figures, `dt` in
+ * the main text colour) and ONE separator above the first item of each run of summaries, i.e. when
+ * the previous sibling is not a summary (a summary that is first in the list has no previous
+ * sibling: no separator at the top). Same subgrid / columns as a normal item.
+ */
+export const SUMMARY_ITEM =
+  'font-semibold [font-variant-numeric:tabular-nums] [&>dt]:text-rop-text [:not([data-rop-summary])+&]:pt-3 [:not([data-rop-summary])+&]:[border-top:1px_solid_var(--color-rop-border)]';

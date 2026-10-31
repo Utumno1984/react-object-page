@@ -1,9 +1,10 @@
 import { createContext, forwardRef, useContext, useMemo, type HTMLAttributes, type ReactNode } from 'react';
 import { hasContent } from '../internal/react-nodes';
 import { cn } from '../utils/cn';
-import { DETAILS, ITEM_CLASS, LIST, TERM } from './description-list-styles';
+import { DETAILS, ITEM_CLASS, LIST, SUMMARY_ITEM, TERM } from './description-list-styles';
 
 export type DescriptionListLayout = 'auto' | 'inline' | 'stacked';
+export type DescriptionListItemVariant = 'default' | 'summary';
 
 const DEFAULT_EMPTY_LABEL = 'Not specified';
 const DEFAULT_EMPTY_PLACEHOLDER = '—';
@@ -93,18 +94,30 @@ export interface DescriptionListItemProps extends Omit<HTMLAttributes<HTMLDivEle
   children?: ReactNode;
   /** Overrides the list's `emptyLabel` for this item. */
   emptyLabel?: string;
+  /**
+   * `summary`: a row of totals, emphasised (semibold, tabular figures) with one separator above
+   * the first item of each consecutive run of summaries (none if it is the first item of the list).
+   * Same value column as the other items. Default `default`; an unknown value acts as `default`.
+   */
+  variant?: DescriptionListItemVariant;
 }
 
 /** One term/value pair. Must be a child of `DescriptionList` (throws in development otherwise). */
 export const DescriptionListItem = /* @__PURE__ */ forwardRef<HTMLDivElement, DescriptionListItemProps>(
-  function DescriptionListItem({ label, children, emptyLabel, className, ...rest }, ref) {
+  function DescriptionListItem({ label, children, emptyLabel, variant, className, ...rest }, ref) {
     const context = useContext(DescriptionListContext);
     if (!context && isDev()) {
       throw new Error('[react-object-page] <DescriptionListItem> must be rendered inside a <DescriptionList>.');
     }
     const filled = hasContent(children);
+    const summary = variant === 'summary';
     return (
-      <div {...rest} ref={ref} className={cn(ITEM_CLASS[context?.layout ?? 'auto'], className)}>
+      <div
+        {...rest}
+        ref={ref}
+        {...(summary ? { 'data-rop-summary': '' } : null)}
+        className={cn(ITEM_CLASS[context?.layout ?? 'auto'], summary && SUMMARY_ITEM, className)}
+      >
         <dt className={TERM}>{label}</dt>
         <dd className={DETAILS}>
           {filled ? (
