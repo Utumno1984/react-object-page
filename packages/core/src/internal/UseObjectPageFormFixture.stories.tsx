@@ -1,6 +1,6 @@
 // Internal fixture for `useObjectPageForm`: bare `<input>`s, no style. Not exported from the
 // package and never to be re-exported from it.
-import { useRef } from 'react';
+import { useRef, type ComponentProps } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import { useFocusFirstInvalidField } from '../object-page/use-focus-first-invalid-field';
@@ -80,16 +80,20 @@ function FocusDemo({ scenario, onSave }: { scenario: Scenario; onSave: (v: Long)
   const containerRef = useRef<HTMLFormElement>(null);
   useFocusFirstInvalidField({ containerRef, fieldErrors: form.fieldErrors });
   const field = (k: keyof Long) => (
-    <label style={{ display: 'grid', gap: 4 }}>
-      Field {k.toUpperCase()}
+    <div style={{ display: 'grid', gap: 4 }}>
+      <label htmlFor={`focus-${k}`}>Field {k.toUpperCase()}</label>
       <input
+        id={`focus-${k}`}
         name={k}
         value={form.values[k]}
         aria-invalid={k in form.fieldErrors}
+        aria-describedby={`focus-${k}-error`}
         onChange={(e) => form.setValue(k, e.target.value)}
       />
-      <span style={{ color: '#b00020', minHeight: '1lh' }}>{form.fieldErrors[k] ?? ''}</span>
-    </label>
+      <span id={`focus-${k}-error`} style={{ color: '#b00020', minHeight: '1lh' }}>
+        {form.fieldErrors[k] ?? ''}
+      </span>
+    </div>
   );
   return (
     <form
@@ -127,6 +131,7 @@ export const Default: Story = {};
 
 const focusMeta = {
   component: FocusDemo,
+  render: (args: ComponentProps<typeof FocusDemo>) => <FocusDemo {...args} />,
   argTypes: {
     scenario: { control: 'radio', options: ['all-empty', 'valid-above-invalid'] satisfies Scenario[] },
     onSave: { action: 'save' },
@@ -139,6 +144,11 @@ const inViewport = (el: HTMLElement) => {
   const r = el.getBoundingClientRect();
   return r.top >= 0 && r.bottom <= window.innerHeight;
 };
+
+/** No `play`: the e2e drives Save itself. */
+export const LongFormAllEmpty: FocusStory = { ...focusMeta };
+/** No `play`: field A is already valid. */
+export const LongFormValidAbove: FocusStory = { ...focusMeta, args: { ...focusMeta.args, scenario: 'valid-above-invalid' } };
 
 /** Save with nothing filled in: focus and scroll go to the first field in visual order (A), though the errors are keyed D, C, B, A. */
 export const FocusFirstInvalidAllEmpty: FocusStory = {

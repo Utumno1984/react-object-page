@@ -4,6 +4,9 @@ import { expectPlayToPass, gotoStory } from './helpers/story';
 const ALL_EMPTY = 'internal-useobjectpageformfixture--focus-first-invalid-all-empty';
 const SKIPS_VALID = 'internal-useobjectpageformfixture--focus-first-invalid-skips-valid';
 const TYPING = 'internal-useobjectpageformfixture--focus-first-invalid-typing-clears';
+// Same fixture without a play function: the test itself clicks Save.
+const LONG_EMPTY = 'internal-useobjectpageformfixture--long-form-all-empty';
+const LONG_VALID = 'internal-useobjectpageformfixture--long-form-valid-above';
 
 const save = (page: Page) => page.getByRole('button', { name: 'Save' });
 const inViewport = (page: Page, label: string) =>
@@ -24,7 +27,7 @@ test.describe('useFocusFirstInvalidField: behavior in a real browser', () => {
   test('all empty: focus and scroll go to the first field in visual order, even though the errors are keyed D, C, B, A', async ({
     page,
   }) => {
-    await gotoStory(page, ALL_EMPTY);
+    await gotoStory(page, LONG_EMPTY);
     await page.getByLabel('Field D').scrollIntoViewIfNeeded(); // start far from the first field
     await save(page).click();
     await expect(page.getByLabel('Field A')).toBeFocused();
@@ -33,7 +36,7 @@ test.describe('useFocusFirstInvalidField: behavior in a real browser', () => {
   });
 
   test('a valid field above two invalid ones is skipped: the focus stops on the first invalid one', async ({ page }) => {
-    await gotoStory(page, SKIPS_VALID);
+    await gotoStory(page, LONG_VALID);
     await save(page).click();
     await expect(page.getByLabel('Field B')).toBeFocused();
     expect(await inViewport(page, 'Field B')).toBe(true);
@@ -42,7 +45,7 @@ test.describe('useFocusFirstInvalidField: behavior in a real browser', () => {
   });
 
   test('typing after a failure clears every field error at once', async ({ page }) => {
-    await gotoStory(page, TYPING);
+    await gotoStory(page, LONG_EMPTY);
     await save(page).click();
     await expect(page.getByLabel('Field A')).toBeFocused();
     await page.keyboard.type('x');
@@ -51,7 +54,7 @@ test.describe('useFocusFirstInvalidField: behavior in a real browser', () => {
   });
 
   test('the focused field is centered, not stuck at an edge', async ({ page }) => {
-    await gotoStory(page, SKIPS_VALID);
+    await gotoStory(page, LONG_VALID);
     await save(page).click();
     await expect(page.getByLabel('Field B')).toBeFocused();
     const { top, height, vh } = await page.getByLabel('Field B').evaluate((el) => {
