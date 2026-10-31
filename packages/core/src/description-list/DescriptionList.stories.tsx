@@ -73,7 +73,10 @@ interface DemoProps {
 
 function Demo({ layout, width, valueKind, emptyLabel, onOpen }: DemoProps) {
   return (
-    <div data-testid="container" style={{ width, border: BORDER, padding: 8, boxSizing: 'content-box' }}>
+    <div
+      data-testid="container"
+      style={{ width, maxWidth: '100%', border: BORDER, padding: 8, boxSizing: 'content-box' }}
+    >
       <DescriptionList layout={layout} emptyLabel={emptyLabel} data-testid="list">
         <Items kind={valueKind} onOpen={onOpen} />
       </DescriptionList>
@@ -150,9 +153,9 @@ export const AutoSideBySide: Story = {
   tags: ['visual'],
   argTypes: { width: { control: false } },
   render: ({ valueKind, emptyLabel }) => (
-    <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24, alignItems: 'flex-start' }}>
       {[600, 280].map((w) => (
-        <div key={w} data-testid={`box-${w}`} style={{ width: w, border: BORDER, padding: 8, flex: 'none' }}>
+        <div key={w} data-testid={`box-${w}`} style={{ width: w, maxWidth: '100%', border: BORDER, padding: 8 }}>
           <DescriptionList emptyLabel={emptyLabel} data-testid={`list-${w}`}>
             <Items kind={valueKind} />
           </DescriptionList>
@@ -173,7 +176,7 @@ export const AutoSideBySide: Story = {
 
 function LongAndEmptyList({ width, layout }: { width: number; layout: DescriptionListLayout }) {
   return (
-    <div data-testid={`box-${width}`} style={{ width, border: BORDER, padding: 8, flex: 'none' }}>
+    <div data-testid={`box-${width}`} style={{ width, maxWidth: '100%', border: BORDER, padding: 8 }}>
       <DescriptionList layout={layout} data-testid={`list-${width}`}>
         <DescriptionListItem label={LONG_WORD}>Valore con etichetta lunghissima</DescriptionListItem>
         <DescriptionListItem label="Stringa senza spazi">{LONG_WORD}</DescriptionListItem>
@@ -192,7 +195,7 @@ export const LongAndEmpty: Story = {
   tags: ['visual'],
   parameters: { controls: { disable: true } },
   render: () => (
-    <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24, alignItems: 'flex-start' }}>
       <LongAndEmptyList width={600} layout="inline" />
       <LongAndEmptyList width={280} layout="inline" />
       <LongAndEmptyList width={280} layout="stacked" />

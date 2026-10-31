@@ -10,6 +10,14 @@
       "baseline": 38295,
       "limit": 42125
     },
+    "DescriptionList": {
+      "baseline": 11045,
+      "limit": 12150
+    },
+    "DescriptionListItem": {
+      "baseline": 11185,
+      "limit": 12304
+    },
     "Dialog": {
       "baseline": 5247,
       "limit": 5772

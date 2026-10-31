@@ -9,17 +9,15 @@
  */
 export const ROOT = '@container block w-full min-w-0 max-w-full';
 
-// Label column: as wide as the longest label, at most 40% of the list; values take the rest.
-const INLINE_COLUMNS = 'grid-cols-[fit-content(40%)_minmax(0,1fr)]';
-const STACKED_COLUMNS = 'grid-cols-[minmax(0,1fr)]';
-
 export const LIST_BASE = 'm-0 grid gap-x-4 gap-y-3 p-0';
 
+// Full literals (Tailwind's scan cannot see a class built by concatenation). Inline = label
+// column as wide as the longest label, at most 40% of the list, values take the rest.
 export const LAYOUT_CLASS = {
-  inline: INLINE_COLUMNS,
-  stacked: STACKED_COLUMNS,
+  inline: 'grid-cols-[fit-content(40%)_minmax(0,1fr)]',
+  stacked: 'grid-cols-[minmax(0,1fr)]',
   // Below the `--container-rop-description-list` threshold: stacked; at or above it: inline.
-  auto: `${STACKED_COLUMNS} @rop-description-list:${INLINE_COLUMNS}`,
+  auto: 'grid-cols-[minmax(0,1fr)] @rop-description-list:grid-cols-[fit-content(40%)_minmax(0,1fr)]',
 } as const;
 
 /**
