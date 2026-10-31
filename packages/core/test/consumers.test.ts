@@ -19,6 +19,7 @@ const EXPORTS = [
   'Combobox',
   'DescriptionList',
   'DescriptionListItem',
+  'DescriptionListStatus',
   'Dialog',
   'DialogBody',
   'DialogClose',

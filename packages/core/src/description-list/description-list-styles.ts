@@ -23,11 +23,36 @@ export const LIST =
  * stacked below the `--container-rop-description-list` threshold and subgrid from it up.
  */
 export const ITEM_CLASS = {
-  inline: 'col-span-full grid grid-cols-subgrid items-start gap-y-0.5',
-  stacked: 'col-span-full grid grid-cols-[minmax(0,1fr)] items-start gap-y-0.5',
-  auto: 'col-span-full grid grid-cols-[minmax(0,1fr)] items-start gap-y-0.5 @rop-description-list:grid-cols-subgrid',
+  inline: 'rop-dl-item col-span-full grid grid-cols-subgrid items-start gap-y-0.5',
+  stacked: 'rop-dl-item col-span-full grid grid-cols-[minmax(0,1fr)] items-start gap-y-0.5',
+  auto: 'rop-dl-item col-span-full grid grid-cols-[minmax(0,1fr)] items-start gap-y-0.5 @rop-description-list:grid-cols-subgrid',
 } as const;
 
 export const TERM =
   'm-0 min-w-0 p-0 font-rop-sans text-rop-body text-start text-rop-text-muted [overflow-wrap:anywhere]';
 export const DETAILS = 'm-0 min-w-0 p-0 font-rop-sans text-rop-body text-start text-rop-text [overflow-wrap:anywhere]';
+
+/**
+ * Status row (a sibling above the `<dl>`). `min-height` is one `body` line taken from the token
+ * (a `StatusBadge` is never taller), so an empty row and a full one are the same height; rem-based,
+ * so it grows with the text at 200% zoom.
+ */
+export const STATUS_ROOT =
+  'flex min-h-[var(--text-rop-body--line-height)] w-full min-w-0 max-w-full items-center gap-x-2 font-rop-sans text-rop-body text-rop-text';
+// `empty:hidden`: a `status` node that renders nothing (e.g. a badge component returning `null`)
+// must not leave a gap before the detail. The detail keeps a floor of width so that a long badge
+// shrinks (and truncates itself) instead of squeezing the detail down to nothing.
+export const STATUS_SLOT = 'flex min-w-0 max-w-full shrink items-center empty:hidden';
+export const STATUS_DETAIL = 'min-w-[6rem] flex-1 text-start text-rop-text-muted';
+
+/**
+ * Summary item (totals): emphasis from the typographic tokens (semibold, tabular figures, `dt` in
+ * the main text colour) and ONE separator above the first item of each run of summaries, i.e. when
+ * the previous sibling is not a summary (a summary that is first in the list has no previous
+ * sibling: no separator at the top). Same subgrid / columns as a normal item.
+ * The separator is a variant rule (it depends on the previous sibling), so a plain `border-0` in a
+ * consumer `className` does not beat it (`cn` cannot merge across variants); the documented way to
+ * drop it is the important modifier: `className="border-0! pt-0!"`.
+ */
+export const SUMMARY_ITEM =
+  'font-semibold [font-variant-numeric:tabular-nums] [&>dt]:text-rop-text [.rop-dl-item:not([data-rop-summary])+&]:pt-3 [.rop-dl-item:not([data-rop-summary])+&]:[border-top:1px_solid_var(--color-rop-border)]';

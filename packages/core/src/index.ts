@@ -106,5 +106,8 @@ export { DescriptionList, DescriptionListItem } from './description-list/Descrip
 export type {
   DescriptionListProps,
   DescriptionListItemProps,
+  DescriptionListItemVariant,
   DescriptionListLayout,
 } from './description-list/DescriptionList';
+export { DescriptionListStatus } from './description-list/DescriptionListStatus';
+export type { DescriptionListStatusProps } from './description-list/DescriptionListStatus';

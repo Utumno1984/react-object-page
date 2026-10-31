@@ -206,6 +206,7 @@ describe('internal icons', () => {
       'Combobox',
       'DescriptionList',
       'DescriptionListItem',
+      'DescriptionListStatus',
       'Dialog',
       'DialogBody',
       'DialogClose',
