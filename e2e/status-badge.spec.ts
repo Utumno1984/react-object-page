@@ -16,8 +16,9 @@ test.describe('Primitives/StatusBadge', () => {
     await expectNoA11yViolations(page);
   });
 
-  test('the Playground play function passes', async ({ page }) => {
+  test('the Playground and NarrowLongText play functions pass', async ({ page }) => {
     await expectPlayToPass(page, 'primitives-statusbadge--playground');
+    await expectPlayToPass(page, 'primitives-statusbadge--narrow-long-text');
   });
 
   test('the tone changes the colours (from tokens), and every tone has a visible border', async ({ page }) => {

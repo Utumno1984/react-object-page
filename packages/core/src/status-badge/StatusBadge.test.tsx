@@ -61,19 +61,52 @@ describe('StatusBadge', () => {
   });
 
   describe('empty children', () => {
-    it.each([null, undefined, false, '', '   ', <></>])('renders nothing and warns in development (%#)', (children) => {
-      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    it.each([null, undefined, false, '', '   ', <></>])('renders nothing (%#)', (children) => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
       const { container } = render(<StatusBadge>{children as never}</StatusBadge>);
       expect(container).toBeEmptyDOMElement();
-      warn.mockRestore();
+      vi.restoreAllMocks();
     });
 
-    it('logs the warning once, not once per render', () => {
-      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      const { rerender } = render(<StatusBadge>{null}</StatusBadge>);
-      rerender(<StatusBadge>{false}</StatusBadge>);
-      expect(warn.mock.calls.length).toBeLessThanOrEqual(1);
-      warn.mockRestore();
+    // The warning flag lives for the whole module: each case imports a fresh copy of it. The
+    // component uses no hooks, so a second module instance renders fine next to the test's React.
+    describe('warning', () => {
+      afterEach(() => {
+        vi.restoreAllMocks();
+        vi.unstubAllEnvs();
+        vi.resetModules();
+      });
+      const freshBadge = async () => (await import('./StatusBadge')).StatusBadge;
+
+      it('is logged once in development, naming the component, and not again for later empty renders', async () => {
+        vi.resetModules();
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const Badge = await freshBadge();
+        const { rerender } = render(<Badge>{null}</Badge>);
+        expect(warn).toHaveBeenCalledTimes(1);
+        expect(String(warn.mock.calls[0]?.[0])).toContain('StatusBadge');
+        rerender(<Badge>{false}</Badge>);
+        render(<Badge>{'  '}</Badge>);
+        expect(warn).toHaveBeenCalledTimes(1);
+      });
+
+      it('is not logged for a badge with content', async () => {
+        vi.resetModules();
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const Badge = await freshBadge();
+        render(<Badge>Attivo</Badge>);
+        expect(warn).not.toHaveBeenCalled();
+      });
+
+      it('is not logged in production', async () => {
+        vi.resetModules();
+        vi.stubEnv('NODE_ENV', 'production');
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const Badge = await freshBadge();
+        const { container } = render(<Badge>{null}</Badge>);
+        expect(container).toBeEmptyDOMElement();
+        expect(warn).not.toHaveBeenCalled();
+      });
     });
 
     it('0 is content', () => {

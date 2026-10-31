@@ -2,14 +2,12 @@ import { expect, test } from '@playwright/test';
 import { expectPlayToPass, gotoStory } from './helpers/story';
 
 const OVERVIEW = 'primitives-statusbadge--overview';
-const PLAYGROUND = 'primitives-statusbadge--playground';
+const NARROW_LONG_TEXT = 'primitives-statusbadge--narrow-long-text';
 const EPS = 1;
-
-const LONGWORD = 'Archiviato_in_attesa_di_approvazione_da_parte_del_responsabile_di_reparto';
 
 test.describe('Primitives/StatusBadge (QA, extra cases)', () => {
   test('80px container with a long text: ellipsis, no horizontal overflow, whole text in the DOM', async ({ page }) => {
-    await expectPlayToPass(page, PLAYGROUND, `children:${LONGWORD}`);
+    await expectPlayToPass(page, NARROW_LONG_TEXT);
     // the play function leaves 100px; go down to 80px like the width control would
     await page.getByTestId('container').evaluate((c) => {
       c.style.width = '80px';

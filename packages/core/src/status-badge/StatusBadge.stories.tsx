@@ -44,9 +44,8 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /**
- * Controls: tone, text, icon, container width. The play function checks that the badge carries no
- * live role, then narrows the container to 100px with a long text: the badge stays inside it and
- * the whole text is still its content.
+ * Controls: tone, text, icon, container width. The play function checks that the badge is static
+ * (no live role, no `aria-live`) and decorative-icon-only: the text is its whole accessible content.
  */
 export const Playground: Story = {
   args: { tone: 'warning', icon: internalIcons.warning },
@@ -57,13 +56,31 @@ export const Playground: Story = {
     const badge = canvas.getByTestId('badge');
     await expect(badge).not.toHaveAttribute('aria-live');
     await expect(badge).not.toHaveAttribute('role');
+    await expect(badge.querySelector('[aria-hidden="true"] svg')).not.toBeNull();
+    await expect(badge).toHaveTextContent('Archiviato');
+  },
+};
 
+/**
+ * A long text rendered by the component (through `children`), then the container is narrowed to
+ * 100px: the badge stays inside it, is clipped (ellipsis) on one line and its text content is still
+ * the whole text. The width Control keeps working on top of it.
+ */
+export const NarrowLongText: Story = {
+  args: { tone: 'info', icon: internalIcons.info, children: LONG, width: 300 },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const badge = canvas.getByTestId('badge');
+    const label = badge.lastElementChild as HTMLElement;
+    await expect(canvas.queryByRole('status')).toBeNull();
+    await expect(canvas.queryByRole('alert')).toBeNull();
     const container = canvas.getByTestId('container');
     container.style.width = '100px';
-    badge.querySelector('span:last-child')!.textContent = LONG;
-    await expect(badge.getBoundingClientRect().width).toBeLessThanOrEqual(container.getBoundingClientRect().width);
-    await expect(badge.scrollWidth).toBeLessThanOrEqual(badge.clientWidth + 1);
-    await expect(badge.textContent).toBe(LONG);
+    await expect(badge.getBoundingClientRect().width).toBeLessThanOrEqual(100);
+    await expect(label.scrollWidth).toBeGreaterThan(label.clientWidth);
+    await expect(getComputedStyle(label).textOverflow).toBe('ellipsis');
+    await expect(getComputedStyle(label).whiteSpace).toBe('nowrap');
+    await expect(badge).toHaveTextContent(LONG);
   },
 };
 
