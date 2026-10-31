@@ -79,12 +79,16 @@
       "limit": 15281
     },
     "ObjectPage": {
-      "baseline": 13323,
-      "limit": 14656
+      "baseline": 14069,
+      "limit": 15476
+    },
+    "ObjectPageFooter": {
+      "baseline": 33190,
+      "limit": 36509
     },
     "ObjectPageHeader": {
-      "baseline": 11260,
-      "limit": 12387
+      "baseline": 11428,
+      "limit": 12571
     },
     "ObjectPageSection": {
       "baseline": 11344,
@@ -179,8 +183,8 @@
       "limit": 3374
     },
     "useObjectPageForm": {
-      "baseline": 1770,
-      "limit": 1948
+      "baseline": 1956,
+      "limit": 2152
     }
   }
 }

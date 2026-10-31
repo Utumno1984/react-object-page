@@ -19,12 +19,39 @@ export const scrollerStyle = { paddingBottom: 'calc(var(--rop-keyboard-inset, 0p
 // Where the footer goes. Never inside the scroller; empty (zero height) until a footer is mounted.
 export const footerSlotClass = 'shrink-0';
 
+// The footer is always there (hidden, it only turns invisible), so the room below the scroller never
+// changes. The component-owned variable `--rop-object-page-footer-height` (3.5rem, declared on the footer
+// itself, overridable with a `className`) is the declared height of the actions row; the 1px border
+// comes on top of it (the library sets no box-sizing). From 640px the row is the whole footer;
+// below it a message row of fixed height (2rem) sits above the actions, which share the row in equal
+// columns.
+export const footerClass =
+  '[--rop-object-page-footer-height:3.5rem] flex min-w-0 flex-col border-t border-rop-border bg-rop-surface px-4 ' +
+  'font-rop-sans text-rop-body text-rop-text ' +
+  'sm:h-(--rop-object-page-footer-height) sm:flex-row sm:items-center sm:gap-4 sm:px-6';
+export const footerHiddenClass = 'invisible';
+export const footerMessageClass = 'flex h-8 min-w-0 items-center gap-2 sm:h-auto sm:flex-1';
+export const footerActionsClass =
+  'grid h-(--rop-object-page-footer-height) auto-cols-fr grid-flow-col items-center gap-2 [&>*]:min-w-0 ' +
+  'sm:flex sm:h-auto sm:shrink-0 sm:justify-end';
+export const footerTruncatedClass =
+  'focus-visible:[outline:2px_solid_var(--color-rop-primary)] focus-visible:[outline-offset:-2px]';
+export const footerToneIconClass = {
+  info: 'text-rop-info',
+  success: 'text-rop-success',
+  error: 'text-rop-error',
+} as const;
+
 // Title (and status) above, actions below on a narrow screen; side by side from 640px.
 export const headerClass = 'flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4';
 export const headerIdentityClass = 'flex min-w-0 flex-col gap-1';
 export const headerTitleRowClass = 'flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1';
 // A very long title wraps; it is never truncated (it is the identity of the object).
 export const headerTitleClass = 'min-w-0 [overflow-wrap:anywhere]';
+// The title takes the focus when the footer hides with the focus inside it (programmatic, so the
+// focus indicator shows only after a keyboard gesture).
+export const headerTitleFocusClass =
+  'focus-visible:[outline:2px_solid_var(--color-rop-primary)] focus-visible:[outline-offset:2px]';
 export const headerSubtitleClass = 'min-w-0 text-rop-text-muted [overflow-wrap:anywhere]';
 export const headerActionsClass = 'flex min-w-0 flex-wrap items-center gap-2';
 

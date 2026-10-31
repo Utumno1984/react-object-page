@@ -90,6 +90,8 @@ export { ObjectPage } from './object-page/ObjectPage';
 export type { ObjectPageProps } from './object-page/ObjectPage';
 export { ObjectPageHeader } from './object-page/ObjectPageHeader';
 export type { ObjectPageHeaderProps } from './object-page/ObjectPageHeader';
+export { ObjectPageFooter } from './object-page/ObjectPageFooter';
+export type { ObjectPageFooterProps, ObjectPageFooterTone } from './object-page/ObjectPageFooter';
 export { ObjectPageSection } from './object-page/ObjectPageSection';
 export type { ObjectPageSectionProps } from './object-page/ObjectPageSection';
 export { useObjectPageForm } from './object-page/use-object-page-form';

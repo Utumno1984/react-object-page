@@ -54,6 +54,14 @@ export interface ObjectPageContextValue {
   unregisterSection: (key: string) => void;
   /** The registered section with this DOM id (the first one, if the id is duplicated). */
   getSection: (id: string) => ObjectPageSectionEntry | undefined;
+  /** Keys of the mounted footers, in mount order: only the first one is rendered. */
+  footerClaims: readonly string[];
+  /** A footer claims the slot; returns the release. */
+  claimFooter: (key: string) => () => void;
+  /** Hands the header's title element to the page (`null` when the header unmounts). */
+  registerHeaderTitle: (element: HTMLElement | null) => void;
+  /** Moves the focus (without scrolling) to the header's title, or to the page root when there is no header. */
+  focusFallback: () => void;
 }
 
 export const ObjectPageContext = /* @__PURE__ */ createContext<ObjectPageContextValue | null>(null);

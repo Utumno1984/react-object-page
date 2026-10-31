@@ -2,6 +2,7 @@
 import { renderToString } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { ObjectPage } from './ObjectPage';
+import { ObjectPageFooter } from './ObjectPageFooter';
 import { ObjectPageHeader } from './ObjectPageHeader';
 import { ObjectPageSection } from './ObjectPageSection';
 
@@ -20,6 +21,21 @@ describe('ObjectPage SSR', () => {
     expect(html).toContain('Fattura 2026/0142');
     expect(html).toContain('<section');
     expect(html).toContain('Dati generali');
+    expect(error).not.toHaveBeenCalled();
+    vi.restoreAllMocks();
+  });
+
+  it('renders a footer on the server as nothing (its slot is not there yet), with no errors', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const html = renderToString(
+      <ObjectPage>
+        <ObjectPageHeader title="Fattura" />
+        <ObjectPageFooter visible message="m">
+          <button>Salva</button>
+        </ObjectPageFooter>
+      </ObjectPage>,
+    );
+    expect(html).not.toContain('Salva');
     expect(error).not.toHaveBeenCalled();
     vi.restoreAllMocks();
   });
