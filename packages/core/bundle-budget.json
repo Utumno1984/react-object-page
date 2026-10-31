@@ -159,12 +159,12 @@
       "limit": 11388
     },
     "composeRefs": {
-      "baseline": 868,
-      "limit": 955
+      "baseline": 972,
+      "limit": 1070
     },
     "defaultComboboxFilter": {
-      "baseline": 835,
-      "limit": 919
+      "baseline": 938,
+      "limit": 1032
     },
     "useCombobox": {
       "baseline": 2512,
@@ -175,16 +175,20 @@
       "limit": 31179
     },
     "useFieldControl": {
-      "baseline": 826,
-      "limit": 909
+      "baseline": 925,
+      "limit": 1018
+    },
+    "useFocusFirstInvalidField": {
+      "baseline": 1243,
+      "limit": 1368
     },
     "useListReport": {
       "baseline": 3067,
       "limit": 3374
     },
     "useObjectPageForm": {
-      "baseline": 1956,
-      "limit": 2152
+      "baseline": 2153,
+      "limit": 2369
     }
   }
 }

@@ -59,6 +59,7 @@ const EXPORTS = [
   'useCombobox',
   'useDirtyGuard',
   'useFieldControl',
+  'useFocusFirstInvalidField',
   'useListReport',
   'useObjectPageForm',
 ];
