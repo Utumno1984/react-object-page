@@ -142,6 +142,10 @@
       "baseline": 3614,
       "limit": 3976
     },
+    "StatusBadge": {
+      "baseline": 11338,
+      "limit": 12472
+    },
     "Text": {
       "baseline": 10484,
       "limit": 11533
@@ -175,8 +179,8 @@
       "limit": 1032
     },
     "useCombobox": {
-      "baseline": 2512,
-      "limit": 2764
+      "baseline": 2772,
+      "limit": 3050
     },
     "useDirtyGuard": {
       "baseline": 28344,
@@ -191,8 +195,8 @@
       "limit": 1368
     },
     "useListReport": {
-      "baseline": 3067,
-      "limit": 3374
+      "baseline": 3382,
+      "limit": 3721
     },
     "useObjectPageForm": {
       "baseline": 2153,

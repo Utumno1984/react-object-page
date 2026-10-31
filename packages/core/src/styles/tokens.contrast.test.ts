@@ -79,6 +79,22 @@ describe('contrast', () => {
     expect(contrast(token('blue-600'), token(name))).toBeGreaterThanOrEqual(3);
   });
 
+  // StatusBadge: the dark text token on each tone's background. The tinted tones are the tone token
+  // at 10% opacity over the white surface (`bg-rop-<tone>/10`), mixed here in srgb; neutral is the
+  // subtle surface. Both are computed from the real tokens.
+  const over = (name: string, alpha: number): Rgb =>
+    token(name).map((c, i) => c * alpha + token('surface')[i]! * (1 - alpha)) as Rgb;
+  const badgeBackgrounds: Record<string, Rgb> = {
+    neutral: token('surface-subtle'),
+    info: over('info', 0.1),
+    success: over('success', 0.1),
+    warning: over('warning', 0.1),
+    error: over('error', 0.1),
+  };
+  it.each(Object.keys(badgeBackgrounds))('StatusBadge %s: text on its background is at least 4.5:1 (WCAG AA)', (tone) => {
+    expect(contrast(token('text'), badgeBackgrounds[tone]!)).toBeGreaterThanOrEqual(4.5);
+  });
+
   it('the focus ring is drawn with the primary token', () => {
     expect(token('primary')).toEqual(token('blue-600'));
   });

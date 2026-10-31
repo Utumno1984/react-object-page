@@ -11,6 +11,8 @@ export { Button } from './button/Button';
 export type { ButtonProps, ButtonVariant, ButtonSize, ButtonTextSize, ButtonIconSize } from './button/Button';
 export { MessageStrip } from './message-strip/MessageStrip';
 export type { MessageStripProps, MessageStripTone } from './message-strip/MessageStrip';
+export { StatusBadge } from './status-badge/StatusBadge';
+export type { StatusBadgeProps, StatusBadgeTone } from './status-badge/StatusBadge';
 export { FieldMessage } from './field-message/FieldMessage';
 export type { FieldMessageProps, FieldMessageTone } from './field-message/FieldMessage';
 export { Field } from './field/Field';
