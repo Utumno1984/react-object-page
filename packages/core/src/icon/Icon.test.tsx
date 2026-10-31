@@ -246,6 +246,7 @@ describe('internal icons', () => {
       'useCombobox',
       'useDirtyGuard',
       'useFieldControl',
+      'useFocusFirstInvalidField',
       'useListReport',
       'useObjectPageForm',
     ]);

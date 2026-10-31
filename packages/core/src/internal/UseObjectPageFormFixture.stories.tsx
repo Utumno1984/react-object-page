@@ -2,6 +2,8 @@
 // package and never to be re-exported from it.
 import { useRef } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
+import { useFocusFirstInvalidField } from '../object-page/use-focus-first-invalid-field';
 import { useObjectPageForm } from '../object-page/use-object-page-form';
 
 type Invoice = { supplier: string; amount: string };
@@ -56,6 +58,62 @@ function FormDemo() {
   );
 }
 
+type Scenario = 'all-empty' | 'valid-above-invalid';
+type Long = { a: string; b: string; c: string; d: string };
+
+const SPACER = { height: '110vh', background: 'repeating-linear-gradient(#f4f4f4 0 40px, #fff 40px 80px)' } as const;
+
+/**
+ * A form longer than the viewport with a fake validation (every field is required). `valid-above-
+ * invalid` starts with the first field filled in: the focus must stop on the first *invalid* one.
+ * The error keys are returned in reverse order on purpose: only the DOM order decides.
+ */
+function FocusDemo({ scenario, onSave }: { scenario: Scenario; onSave: (v: Long) => void }) {
+  const form = useObjectPageForm<Long>({
+    baseline: { a: scenario === 'valid-above-invalid' ? 'filled' : '', b: '', c: '', d: '' },
+    validate: (v) => {
+      const errors: Partial<Record<keyof Long, string>> = {};
+      for (const k of ['d', 'c', 'b', 'a'] as const) if (v[k] === '') errors[k] = `${k.toUpperCase()} is required`;
+      return errors;
+    },
+  });
+  const containerRef = useRef<HTMLFormElement>(null);
+  useFocusFirstInvalidField({ containerRef, fieldErrors: form.fieldErrors });
+  const field = (k: keyof Long) => (
+    <label style={{ display: 'grid', gap: 4 }}>
+      Field {k.toUpperCase()}
+      <input
+        name={k}
+        value={form.values[k]}
+        aria-invalid={k in form.fieldErrors}
+        onChange={(e) => form.setValue(k, e.target.value)}
+      />
+      <span style={{ color: '#b00020', minHeight: '1lh' }}>{form.fieldErrors[k] ?? ''}</span>
+    </label>
+  );
+  return (
+    <form
+      ref={containerRef}
+      noValidate
+      style={{ fontFamily: 'sans-serif', display: 'grid', gap: 16, justifyItems: 'start' }}
+      onSubmit={(e) => {
+        e.preventDefault();
+        void form.save(async (v) => onSave(v));
+      }}
+    >
+      {field('a')}
+      <div style={SPACER} />
+      {field('b')}
+      <div style={SPACER} />
+      {field('c')}
+      <div style={SPACER} />
+      {field('d')}
+      <button type="submit">Save</button>
+      <p data-testid="field-error-count">field errors: {Object.keys(form.fieldErrors).length}</p>
+    </form>
+  );
+}
+
 const meta = {
   title: 'Internal/UseObjectPageFormFixture',
   component: FormDemo,
@@ -66,3 +124,59 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
+
+const focusMeta = {
+  component: FocusDemo,
+  argTypes: {
+    scenario: { control: 'radio', options: ['all-empty', 'valid-above-invalid'] satisfies Scenario[] },
+    onSave: { action: 'save' },
+  },
+  args: { scenario: 'all-empty', onSave: fn() },
+} satisfies Meta<typeof FocusDemo>;
+type FocusStory = StoryObj<typeof focusMeta>;
+
+const inViewport = (el: HTMLElement) => {
+  const r = el.getBoundingClientRect();
+  return r.top >= 0 && r.bottom <= window.innerHeight;
+};
+
+/** Save with nothing filled in: focus and scroll go to the first field in visual order (A), though the errors are keyed D, C, B, A. */
+export const FocusFirstInvalidAllEmpty: FocusStory = {
+  ...focusMeta,
+  tags: ['visual', 'visual-viewport-only'],
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(canvas.getByLabelText('Field A')).toHaveFocus());
+    await expect(inViewport(canvas.getByLabelText('Field A'))).toBe(true);
+    await expect(args.onSave).not.toHaveBeenCalled();
+    await expect(canvas.getByTestId('field-error-count')).toHaveTextContent('field errors: 4');
+  },
+};
+
+/** A is valid: the focus skips it, lands on B (not C or D) and scrolls B into view. */
+export const FocusFirstInvalidSkipsValid: FocusStory = {
+  ...focusMeta,
+  args: { ...focusMeta.args, scenario: 'valid-above-invalid' },
+  tags: ['visual', 'visual-viewport-only'],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(canvas.getByLabelText('Field B')).toHaveFocus());
+    await waitFor(() => expect(inViewport(canvas.getByLabelText('Field B'))).toBe(true));
+    await expect(canvas.getByLabelText('Field A')).not.toHaveFocus();
+  },
+};
+
+/** Typing after a failure clears every field error at once (no per-field clearing in this version). */
+export const FocusFirstInvalidTypingClears: FocusStory = {
+  ...focusMeta,
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(canvas.getByLabelText('Field A')).toHaveFocus());
+    await userEvent.keyboard('x');
+    await expect(canvas.getByTestId('field-error-count')).toHaveTextContent('field errors: 0');
+    await expect(args.onSave).not.toHaveBeenCalled();
+  },
+};
