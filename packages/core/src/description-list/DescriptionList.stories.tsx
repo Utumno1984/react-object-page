@@ -1,7 +1,16 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import { Button } from '../button/Button';
+import {
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '../sheet/Sheet';
 import { Text } from '../typography/Text';
 import { TruncatedText } from '../truncated-text/TruncatedText';
 import { DescriptionList, DescriptionListItem, type DescriptionListLayout } from './DescriptionList';
@@ -220,6 +229,58 @@ export const Rtl: Story = {
     <div dir="rtl">
       <Demo {...args} />
     </div>
+  ),
+};
+
+const VALUE_STEPS: { name: string; value: ReactNode }[] = [
+  { name: 'string', value: 'Acme S.r.l.' },
+  { name: 'node', value: <a href="#acme">acme.example</a> },
+  { name: 'empty', value: null },
+  { name: 'multi-line', value: <div>Via Roma 1<br />20100 Milano</div> },
+];
+
+function ChangingValueDemo() {
+  const [step, setStep] = useState(0);
+  return (
+    <div data-testid="container" style={{ width: 600, border: BORDER, padding: 8 }}>
+      <Button size="sm" onClick={() => setStep((s) => (s + 1) % VALUE_STEPS.length)}>
+        Cambia valore
+      </Button>
+      <p data-testid="step">{VALUE_STEPS[step]!.name}</p>
+      <DescriptionList data-testid="list">
+        <DescriptionListItem label="Variabile">{VALUE_STEPS[step]!.value}</DescriptionListItem>
+        <DescriptionListItem label="Fisso">Sempre uguale</DescriptionListItem>
+      </DescriptionList>
+    </div>
+  );
+}
+
+/** A value that changes after mount (string, node, empty, multi-line) keeps the value column. */
+export const ChangingValue: Story = {
+  parameters: { controls: { disable: true } },
+  render: () => <ChangingValueDemo />,
+};
+
+/** In a narrow Sheet the list follows the Sheet's width, not the window's. */
+export const InNarrowSheet: Story = {
+  parameters: { controls: { disable: true } },
+  render: () => (
+    <Sheet defaultOpen>
+      <SheetTrigger asChild>
+        <Button variant="primary">Apri</Button>
+      </SheetTrigger>
+      <SheetContent size="sm">
+        <SheetHeader>
+          <SheetTitle>Dettaglio fornitore</SheetTitle>
+          <SheetDescription>Anteprima in sola lettura</SheetDescription>
+        </SheetHeader>
+        <SheetBody>
+          <DescriptionList data-testid="sheet-list">
+            <Items kind="mixed" />
+          </DescriptionList>
+        </SheetBody>
+      </SheetContent>
+    </Sheet>
   ),
 };
 

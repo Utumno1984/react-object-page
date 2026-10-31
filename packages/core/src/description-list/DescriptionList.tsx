@@ -1,7 +1,7 @@
 import { createContext, forwardRef, useContext, useMemo, type HTMLAttributes, type ReactNode } from 'react';
 import { hasContent } from '../internal/react-nodes';
 import { cn } from '../utils/cn';
-import { DETAILS, ITEM, LAYOUT_CLASS, LIST_BASE, ROOT, TERM } from './description-list-styles';
+import { DETAILS, ITEM_CLASS, LIST, TERM } from './description-list-styles';
 
 export type DescriptionListLayout = 'auto' | 'inline' | 'stacked';
 
@@ -18,6 +18,7 @@ const isDev = (): boolean => {
 };
 
 interface DescriptionListContextValue {
+  layout: DescriptionListLayout;
   emptyLabel: string;
   emptyPlaceholder: ReactNode;
 }
@@ -27,11 +28,23 @@ const DescriptionListContext = /* @__PURE__ */ createContext<DescriptionListCont
 export interface DescriptionListProps extends HTMLAttributes<HTMLDListElement> {
   /**
    * `inline`: value to the side of the label, in one shared column. `stacked`: value under the
-   * label. `auto` (default): decided by a CSS container query on the width of the list's own
-   * container, not of the window: inline from `--container-rop-description-list` (24rem) up,
-   * stacked below it (a container exactly at the threshold is inline; the query is a plain
-   * `min-width`, so there is no flicker around it). No JavaScript measures anything and there is
-   * no transition: the switch is instantaneous.
+   * label. `auto` (default): decided by a CSS container query on the content width of the `<dl>`
+   * itself (so a `className`/`style` that changes its width or padding is taken into account),
+   * not of the window: inline from `--container-rop-description-list` (24rem) up, stacked below
+   * it (a container exactly at the threshold is inline; the query is a plain `min-width`, so
+   * there is no flicker around it). No JavaScript measures anything and there is no transition:
+   * the switch is instantaneous.
+   *
+   * The threshold is a Tailwind theme token, but a container query condition cannot use `var()`:
+   * Tailwind writes its value into the compiled CSS. Change it by redefining
+   * `--container-rop-description-list` in the `@theme` of your own Tailwind build (the `theme.css`
+   * mode); overriding the variable at runtime, or on top of the precompiled `styles.css`, has no
+   * effect. Use `layout="inline"` / `"stacked"` to decide yourself.
+   *
+   * This is the only control over the columns: do not pass `grid-cols-*` classes to the list or to
+   * an item (a variant-qualified rule of the component, e.g. the `auto` inline one, would still win
+   * above the threshold). Inline mode needs CSS subgrid (Chrome 117, Firefox 71, Safari 16); on an
+   * older browser the value stays under its label.
    */
   layout?: DescriptionListLayout;
   /** Visually hidden text read in place of an empty value. Default (English): "Not specified". */
@@ -41,14 +54,15 @@ export interface DescriptionListProps extends HTMLAttributes<HTMLDListElement> {
 }
 
 /**
- * Read-only key/value pairs: a semantic `<dl>` of `DescriptionListItem`s. `className` and `ref`
- * go to the `<dl>`; the element wrapping it (the size container) is an implementation detail.
+ * Read-only key/value pairs: a semantic `<dl>` of `DescriptionListItem`s. `className`, `style` and
+ * `ref` go to the `<dl>`, which is also the size container `auto` measures.
  *
- * Sizing: the list fills the width of its parent and `auto` reacts to THAT width. A container
- * query element has no intrinsic width, so give a shrink-to-fit parent (auto-width table cell,
- * `inline-block`, `width: fit-content`) a real width; without one the list falls back to a
- * minimum of 8rem and is stacked. Below 8rem of available width it overflows rather than shrinks.
- * Empty values (`null`, `undefined`, `false`, `''`, an empty fragment or array) show a
+ * Sizing: the list fills the width of its parent. A container-query element has no intrinsic
+ * width, so give a shrink-to-fit parent (auto-width table cell, `inline-block`,
+ * `width: fit-content`) a real width; without one the list falls back to a minimum of 8rem and is
+ * stacked. Below 8rem of available width it overflows rather than shrinks. Like every box of the
+ * library it is `content-box` (no box-sizing reset): put padding on a parent, not on the list
+ * (`width: 100%` plus padding would stick out of the parent). Empty values (`null`, `undefined`, `false`, `''`, an empty fragment or array) show a
  * placeholder; `0` and `NaN` are values.
  */
 export const DescriptionList = /* @__PURE__ */ forwardRef<HTMLDListElement, DescriptionListProps>(
@@ -62,12 +76,10 @@ export const DescriptionList = /* @__PURE__ */ forwardRef<HTMLDListElement, Desc
     },
     ref,
   ) {
-    const context = useMemo(() => ({ emptyLabel, emptyPlaceholder }), [emptyLabel, emptyPlaceholder]);
+    const context = useMemo(() => ({ layout, emptyLabel, emptyPlaceholder }), [layout, emptyLabel, emptyPlaceholder]);
     return (
       <DescriptionListContext.Provider value={context}>
-        <div className={ROOT}>
-          <dl {...rest} ref={ref} className={cn(LIST_BASE, LAYOUT_CLASS[layout], className)} />
-        </div>
+        <dl {...rest} ref={ref} className={cn(LIST, className)} />
       </DescriptionListContext.Provider>
     );
   },
@@ -91,7 +103,7 @@ export const DescriptionListItem = /* @__PURE__ */ forwardRef<HTMLDivElement, De
     }
     const filled = hasContent(children);
     return (
-      <div {...rest} ref={ref} className={cn(ITEM, className)}>
+      <div {...rest} ref={ref} className={cn(ITEM_CLASS[context?.layout ?? 'auto'], className)}>
         <dt className={TERM}>{label}</dt>
         <dd className={DETAILS}>
           {filled ? (

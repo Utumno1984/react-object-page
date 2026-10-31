@@ -40,28 +40,42 @@ describe('DescriptionList', () => {
   });
 
   describe('layout', () => {
-    const layoutOf = (container: HTMLElement) => container.querySelector('dl')?.className ?? '';
+    // The layout lives on the ITEMS (they query the `<dl>`, their container).
+    const itemClass = (layout?: 'auto' | 'inline' | 'stacked') => {
+      const { container, unmount } = render(
+        <DescriptionList layout={layout}>
+          <DescriptionListItem label="a">b</DescriptionListItem>
+        </DescriptionList>,
+      );
+      const cls = container.querySelector('dl > div')?.className ?? '';
+      unmount();
+      return cls;
+    };
 
-    it('auto (default) is stacked with an inline variant on the container query token', () => {
-      const { container } = render(<DescriptionList />);
-      const cls = layoutOf(container);
-      expect(cls).toContain('@rop-description-list:grid-cols-');
-      expect(cls).toContain('grid-cols-[minmax(0,1fr)]');
+    it('auto (default): items are stacked, with a subgrid variant on the container query token', () => {
+      for (const cls of [itemClass(), itemClass('auto')]) {
+        expect(cls).toContain('@rop-description-list:grid-cols-subgrid');
+        expect(cls).toContain('grid-cols-[minmax(0,1fr)]');
+      }
     });
 
-    it('inline and stacked force a mode with no container-query variant', () => {
-      const inline = render(<DescriptionList layout="inline" />);
-      expect(layoutOf(inline.container)).toContain('fit-content');
-      expect(layoutOf(inline.container)).not.toContain('@rop-description-list');
-      const stacked = render(<DescriptionList layout="stacked" />);
-      expect(layoutOf(stacked.container)).not.toContain('fit-content');
-      expect(layoutOf(stacked.container)).not.toContain('@rop-description-list');
+    it('inline (subgrid) and stacked (one column) force a mode with no container-query variant', () => {
+      expect(itemClass('inline')).toContain('grid-cols-subgrid');
+      expect(itemClass('inline')).not.toContain('@rop-description-list');
+      expect(itemClass('stacked')).toContain('grid-cols-[minmax(0,1fr)]');
+      expect(itemClass('stacked')).not.toContain('subgrid');
+      expect(itemClass('stacked')).not.toContain('@rop-description-list');
     });
 
-    it('the root is a size container and the threshold is a theme token, not a literal', () => {
+    it('the <dl> itself is the size container (no wrapper) with two columns; the threshold is a token, not a literal', () => {
       const { container } = render(<DescriptionList />);
-      expect(container.firstElementChild?.className).toContain('@container');
-      expect(layoutOf(container)).not.toMatch(/\d+(px|rem)/);
+      const dl = container.firstElementChild;
+      expect(dl?.tagName).toBe('DL');
+      expect(dl?.className).toContain('@container');
+      expect(dl?.className).toContain('grid-cols-[fit-content(40%)_minmax(0,1fr)]');
+      // The only threshold in the classes is the token variant: no px/rem literal in a query.
+      expect(itemClass('auto')).not.toMatch(/\d+(px|rem)/);
+      expect(itemClass('auto')).not.toMatch(/@\[|@min-\[|@max-/);
     });
 
     it('measures nothing with JavaScript: no ResizeObserver, no resize listener', () => {
@@ -191,7 +205,7 @@ describe('DescriptionList', () => {
 
     it('className wins over the defaults on the list and on the item', () => {
       render(
-        <DescriptionList className="gap-y-8 grid-cols-1" data-testid="dl">
+        <DescriptionList className="gap-y-8 max-w-xs" data-testid="dl">
           <DescriptionListItem label="a" className="items-center" data-testid="item">
             b
           </DescriptionListItem>
@@ -200,8 +214,8 @@ describe('DescriptionList', () => {
       const dl = screen.getByTestId('dl');
       expect(dl.className).toContain('gap-y-8');
       expect(dl.className).not.toContain('gap-y-3');
-      expect(dl.className.split(' ')).toContain('grid-cols-1');
-      expect(dl.className).not.toContain(' grid-cols-[minmax(0,1fr)]');
+      expect(dl.className.split(' ')).toContain('max-w-xs');
+      expect(dl.className.split(' ')).not.toContain('max-w-full');
       const item = screen.getByTestId('item');
       expect(item.className).toContain('items-center');
       expect(item.className).not.toContain('items-start');
@@ -223,7 +237,17 @@ describe('DescriptionList', () => {
   });
 
   describe('outside a list', () => {
-    afterEach(() => vi.restoreAllMocks());
+    afterEach(() => {
+      vi.restoreAllMocks();
+      vi.unstubAllEnvs();
+    });
+
+    it('does not throw in production (NODE_ENV replaced by the bundler): it renders the pair', () => {
+      vi.stubEnv('NODE_ENV', 'production');
+      render(<DescriptionListItem label="a">b</DescriptionListItem>);
+      expect(screen.getByText('a').tagName).toBe('DT');
+      expect(screen.getByText('b').tagName).toBe('DD');
+    });
 
     it('throws an explicit error in development', () => {
       vi.spyOn(console, 'error').mockImplementation(() => undefined);

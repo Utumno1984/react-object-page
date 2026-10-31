@@ -132,12 +132,82 @@ test.describe('Data/DescriptionList', () => {
       .toBe(true);
   });
 
-  test('the threshold is the theme token, not a literal', async ({ page }) => {
+  test('the compiled container query condition comes from the theme token (a literal would not match)', async ({
+    page,
+  }) => {
     await gotoStory(page, PLAYGROUND);
-    const token = await page.evaluate(() =>
-      getComputedStyle(document.documentElement).getPropertyValue('--container-rop-description-list').trim(),
-    );
-    expect(token).toBe('24rem');
+    const { token, conditions } = await page.evaluate(() => {
+      const found: string[] = [];
+      const visit = (rules: CSSRuleList) => {
+        for (const rule of Array.from(rules)) {
+          if (rule instanceof CSSContainerRule && rule.cssText.includes('subgrid')) found.push(rule.conditionText);
+          if ('cssRules' in rule) visit((rule as CSSGroupingRule).cssRules);
+        }
+      };
+      for (const sheet of Array.from(document.styleSheets)) visit(sheet.cssRules);
+      return {
+        token: getComputedStyle(document.documentElement).getPropertyValue('--container-rop-description-list').trim(),
+        conditions: found,
+      };
+    });
+    expect(token).not.toBe('');
+    expect(conditions.length).toBeGreaterThan(0);
+    // Tailwind writes the token's value into the condition: change the token and the query follows.
+    for (const condition of conditions) expect(condition).toContain(token);
+  });
+
+  test('the <dl> is the measured container: a className/style that narrows or pads it changes the layout', async ({
+    page,
+  }) => {
+    await gotoStory(page, PLAYGROUND, 'layout:auto;width:800');
+    const state = async () => {
+      const [g] = await itemsGeometry(page.getByTestId('list'));
+      return g!.dd.top >= g!.dt.bottom - EPS ? 'stacked' : 'inline';
+    };
+    const dl = page.getByTestId('list');
+    expect(await state()).toBe('inline');
+    // Same outer container (800px): only the <dl> box itself changes.
+    await dl.evaluate((el) => (el.style.maxWidth = '300px'));
+    await expect.poll(state).toBe('stacked');
+    await dl.evaluate((el) => (el.style.maxWidth = ''));
+    await expect.poll(state).toBe('inline');
+    // An explicit width on the <dl> is measured too (not the width of its parent).
+    await dl.evaluate((el) => (el.style.width = '200px'));
+    await expect.poll(state).toBe('stacked');
+    await dl.evaluate((el) => (el.style.width = ''));
+    await expect.poll(state).toBe('inline');
+    // `hidden` leaves no box behind.
+    await dl.evaluate((el) => (el.style.display = 'none'));
+    expect((await page.getByTestId('container').boundingBox())!.height).toBeLessThan(40);
+  });
+
+  test('a value changed by a real re-render (string -> node -> empty -> multi-line) keeps the value column', async ({
+    page,
+  }) => {
+    await gotoStory(page, 'data-descriptionlist--changing-value');
+    const lefts: number[] = [];
+    for (let i = 0; i < 4; i += 1) {
+      const items = await itemsGeometry(page.getByTestId('list'));
+      lefts.push(items[0]!.dd.left, items[1]!.dd.left);
+      expect(Math.abs(items[0]!.ddTop - items[0]!.dtTop)).toBeLessThanOrEqual(EPS);
+      // The second row never overlaps the first, whatever the first one holds.
+      expect(items[1]!.dt.top).toBeGreaterThanOrEqual(items[0]!.dd.bottom - EPS);
+      await page.getByRole('button', { name: 'Cambia valore' }).click();
+    }
+    expect(Math.max(...lefts) - Math.min(...lefts)).toBeLessThanOrEqual(EPS);
+  });
+
+  test('in a narrow Sheet the list follows the Sheet width, not the window width', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await gotoStory(page, 'data-descriptionlist--in-narrow-sheet');
+    const sheetList = page.getByTestId('sheet-list');
+    await expect(sheetList).toBeVisible();
+    const width = (await sheetList.boundingBox())!.width;
+    expect(width).toBeLessThan(384);
+    for (const g of await itemsGeometry(sheetList)) {
+      expect(g.dd.top).toBeGreaterThanOrEqual(g.dt.bottom - EPS);
+    }
+    await expectNoHorizontalOverflow(sheetList);
   });
 
   test('inline: one value column, and strings and nodes follow the same alignment rule', async ({ page }) => {
