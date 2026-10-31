@@ -22,7 +22,7 @@ interface DescriptionListContextValue {
   emptyPlaceholder: ReactNode;
 }
 
-const DescriptionListContext = createContext<DescriptionListContextValue | null>(null);
+const DescriptionListContext = /* @__PURE__ */ createContext<DescriptionListContextValue | null>(null);
 
 export interface DescriptionListProps extends HTMLAttributes<HTMLDListElement> {
   /**

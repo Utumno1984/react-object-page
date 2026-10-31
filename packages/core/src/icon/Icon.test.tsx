@@ -204,6 +204,8 @@ describe('internal icons', () => {
     expect(exposed.sort()).toEqual([
       'Button',
       'Combobox',
+      'DescriptionList',
+      'DescriptionListItem',
       'Dialog',
       'DialogBody',
       'DialogClose',

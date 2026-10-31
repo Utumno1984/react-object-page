@@ -164,13 +164,22 @@ export const AutoSideBySide: Story = {
     </div>
   ),
   play: async ({ canvasElement }) => {
+    // Each list follows ITS container: inline from 24rem (384px) up, stacked below. The boxes
+    // shrink on a narrow viewport (max-width: 100%), so the expectation is read from their width.
     const canvas = within(canvasElement);
-    const wide = canvas.getByTestId('list-600').querySelector('div')!;
-    const narrow = canvas.getByTestId('list-280').querySelector('div')!;
-    await expect(rect(wide.querySelector('dd')!).left).toBeGreaterThanOrEqual(rect(wide.querySelector('dt')!).right);
-    await expect(rect(narrow.querySelector('dd')!).top).toBeGreaterThanOrEqual(
-      rect(narrow.querySelector('dt')!).bottom - 1,
-    );
+    const modes: string[] = [];
+    for (const id of ['list-600', 'list-280']) {
+      const list = canvas.getByTestId(id);
+      const item = list.querySelector('div')!;
+      const dt = item.querySelector('dt')!;
+      const dd = item.querySelector('dd')!;
+      const inline = list.getBoundingClientRect().width >= 384;
+      modes.push(inline ? 'inline' : 'stacked');
+      if (inline) await expect(rect(dd).left).toBeGreaterThanOrEqual(rect(dt).right);
+      else await expect(rect(dd).top).toBeGreaterThanOrEqual(rect(dt).bottom - 1);
+    }
+    // At a desktop width the two containers really differ; that is the point of the story.
+    if (window.innerWidth >= 1000) await expect(modes).toEqual(['inline', 'stacked']);
   },
 };
 

@@ -26,6 +26,7 @@ export const LAYOUT_CLASS = {
  */
 export const ITEM = 'col-span-full grid grid-cols-subgrid items-start gap-y-0.5';
 
-const TEXT = 'm-0 min-w-0 p-0 font-rop-sans text-rop-body text-start [overflow-wrap:anywhere]';
-export const TERM = `${TEXT} text-rop-text-muted`;
-export const DETAILS = `${TEXT} text-rop-text`;
+// Full literals, no interpolation: a template literal at module level counts as a side effect for
+// the bundler and would keep these strings in the bundle of every other import.
+export const TERM = 'm-0 min-w-0 p-0 font-rop-sans text-rop-body text-start text-rop-text-muted [overflow-wrap:anywhere]';
+export const DETAILS = 'm-0 min-w-0 p-0 font-rop-sans text-rop-body text-start text-rop-text [overflow-wrap:anywhere]';

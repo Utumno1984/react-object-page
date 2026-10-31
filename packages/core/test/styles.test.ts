@@ -57,7 +57,7 @@ describe('design tokens (src/styles/tokens.css, built into dist/theme.css and di
   it('every custom property lives in ONE namespace and none redefines a default Tailwind token', () => {
     const namespaces = new Set<string>();
     for (const name of customProperties(themeCss).keys()) {
-      const match = /^--(color|text|font|radius|z-index|icon)-([a-z]+)-/.exec(name);
+      const match = /^--(color|text|font|radius|z-index|icon|container)-([a-z]+)-/.exec(name);
       expect(match, `${name} is outside a <group>-<namespace>- prefix`).not.toBeNull();
       namespaces.add(match?.[2] as string);
     }
@@ -87,7 +87,7 @@ describe('styles.css (compiled)', () => {
       // row-height variable (#49), also in the rop namespace; `--rop-object-page-footer-height` is the Object
       // Page footer's own declared row height (#57). Any other non-rop property still fails.
       (name) =>
-        !/^--(color|text|font|radius|z-index|icon)-rop-/.test(name) &&
+        !/^--(color|text|font|radius|z-index|icon|container)-rop-/.test(name) &&
         !name.startsWith('--tw-') &&
         !name.startsWith('--rop-vv-') &&
         !name.startsWith('--rop-list-report-') &&
@@ -119,6 +119,13 @@ describe('styles.css (compiled)', () => {
     ).toBeGreaterThan(0);
     expect(findGlobalLeaks('@layer base { html { --tw-shadow: 0; } }')).toContain('global selector: html');
     expect(findGlobalLeaks('@property --other { syntax: "*"; inherits: false; }').length).toBeGreaterThan(0);
+  });
+
+  it('the leak checker does not split a class name at an escaped comma, but still splits real selectors', () => {
+    expect(
+      findGlobalLeaks('@layer rop.utilities { .grid-cols-\\[minmax\\(0\\,1fr\\)\\] { display: grid; } }'),
+    ).toEqual([]);
+    expect(findGlobalLeaks('@layer base { .a, body { margin: 0; } }')).toContain('global selector: body');
   });
 
   it('the leak checker does fail on a reset, a global selector or an un-layered rule', () => {

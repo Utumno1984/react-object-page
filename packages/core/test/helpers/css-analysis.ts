@@ -91,7 +91,9 @@ export function findGlobalLeaks(css: string): string[] {
   }
 
   for (const { selector, body } of selectorsIn(topLevel(css))) {
-    const parts = selector.split(',').map((s) => s.trim());
+    // An escaped comma (`\,`, from an arbitrary-value class such as `grid-cols-[minmax(0,1fr)]`)
+    // belongs to the class name, it does not separate two selectors.
+    const parts = selector.split(/(?<!\\),/).map((s) => s.trim());
     // Tailwind v4 emits `*, ::before, ::after, ::backdrop { --tw-...: ...; }` (inside
     // `@layer properties`) as soon as shadow-/ring-/translate-/leading- utilities are used. Those
     // are inert internal custom properties, not a reset: allowed ONLY when the block declares
