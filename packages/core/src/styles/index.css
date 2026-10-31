@@ -26,6 +26,7 @@
 @source not '../list-report/use-list-report.ts';
 @source not '../list-report/types.ts';
 @source not '../list-report/search.ts';
+@source not '../list-report/use-change-flash.ts';
 @source not '../internal/normalize-text.ts';
 /* The table component holds the logic (a `filter` word, a `table` prop); its classes are in list-report-table-styles.ts. */
 @source not '../list-report/ListReportTable.tsx';

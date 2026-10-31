@@ -290,6 +290,33 @@ export const ErrorState: Story = {
   },
 };
 
+/**
+ * Il conteggio e' una piccola pillola che si colora per un attimo quando il numero cambia (non al
+ * montaggio). Controls: `dataset` cambia `totalCount`. La play function sceglie "Da approvare" e verifica
+ * che la pillola segni il cambio (`data-changed`) e poi torni a riposo, poi torna a "Tutte" e controlla lo
+ * stesso ciclo. Con `prefers-reduced-motion` il tono non cambia (vedi e2e): il numero compare e basta.
+ */
+export const CountPill: Story = {
+  parameters: NO_CONTROLS,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const pill = canvasElement.querySelector('[data-rop-count]');
+    if (!(pill instanceof HTMLElement)) throw new Error('count pill not found');
+    await expect(pill).not.toHaveAttribute('data-changed');
+    const pending = makeDemoInvoices(200).filter((r) => r.status === 'pending').length;
+
+    await userEvent.click(canvas.getByRole('radio', { name: 'Da approvare' }));
+    await expect(pill).toHaveTextContent(`(${pending} di 200)`);
+    await expect(pill).toHaveAttribute('data-changed');
+    await waitFor(() => expect(pill).not.toHaveAttribute('data-changed'));
+
+    await userEvent.click(canvas.getByRole('radio', { name: 'Tutte' }));
+    await expect(pill).toHaveTextContent('(200)');
+    await expect(pill).toHaveAttribute('data-changed');
+    await waitFor(() => expect(pill).not.toHaveAttribute('data-changed'));
+  },
+};
+
 /** Fixture of the e2e suite: the showcase as it opens, without the play function (the e2e interacts on its own). */
 export const NoPlay: Story = {
   parameters: NO_CONTROLS,

@@ -77,4 +77,15 @@
   --z-index-rop-modal: 30;
   --z-index-rop-popover: 40;
   --z-index-rop-tooltip: 50;
+
+  /* Motion: a short feedback (e.g. a value that changed). Zeroed under prefers-reduced-motion, below. */
+  --motion-rop-feedback-duration: 120ms;
+  --motion-rop-feedback-easing: ease-out;
+}
+
+/* With the preference on, no effect animates: the final state appears at once. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-rop-feedback-duration: 0s;
+  }
 }

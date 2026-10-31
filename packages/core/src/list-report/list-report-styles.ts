@@ -12,7 +12,13 @@ export const headerClass = 'flex shrink-0 flex-col gap-2 sm:flex-row sm:items-ce
 export const titleClass = 'min-w-0 [overflow-wrap:anywhere]';
 
 // Invisible (not removed) while there is no count to show: the header keeps the same box.
-export const countClass = 'font-normal text-rop-text-muted';
+// A small pill (token background, border and radius). The background transition reads the motion token
+// (0s under prefers-reduced-motion) and is also switched off by `motion-reduce`.
+export const countClass =
+  'inline-block rounded-rop-sm border border-rop-border bg-rop-surface-subtle px-1.5 font-normal text-rop-text-muted transition-[background-color] duration-[var(--motion-rop-feedback-duration)] ease-[var(--motion-rop-feedback-easing)] motion-reduce:transition-none';
+// While the value just changed: a stronger tone, which the transition above eases in and out. With
+// reduced motion the pill keeps its resting tone (the new value simply appears).
+export const countFlashClass = 'bg-rop-blue-100 motion-reduce:bg-rop-surface-subtle';
 export const countHiddenClass = 'invisible';
 
 export const actionsClass = 'flex min-w-0 flex-wrap items-center gap-2';
